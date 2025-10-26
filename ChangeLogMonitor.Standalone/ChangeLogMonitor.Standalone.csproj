@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ChangeLogMonitor.UI\ChangeLogMonitor.UI.csproj" />
+    <ProjectReference Include="..\ChangeLogMonitor.Api\ChangeLogMonitor.Api.csproj" />
+    <ProjectReference Include="..\ChangeLogMonitor.DataAggregator\ChangeLogMonitor.DataAggregator.csproj" />
+  </ItemGroup>
+
+</Project>

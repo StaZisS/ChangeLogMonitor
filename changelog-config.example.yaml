@@ -1,0 +1,153 @@
+# Пример конфигурации аудита для ChangeLogMonitor
+# Этот файл определяет ТОЛЬКО настройки логирования: какие сущности, поля маскировать и т.д.
+# Подключения к БД, Kafka и другие инфраструктурные настройки в appsettings.json
+
+# Общие настройки аудита
+settings:
+  # Включить/выключить аудит глобально
+  enabled: true
+
+  # Хранить данные изменений (в днях)
+  retentionDays: 90
+
+  # Уровень детализации логирования
+  detailLevel: full # minimal, standard, full
+
+# Настройки логирования по сущностям
+entities:
+  # Пример: Пользователи
+  - name: "Users"
+    tableName: "users"
+    enabled: true
+    # Какие операции логировать
+    operations:
+      - Insert
+      - Update
+      - Delete
+    # Поля для логирования
+    fields:
+      - name: "Id"
+        track: true
+        mask: false
+      - name: "Username"
+        track: true
+        mask: false
+      - name: "Email"
+        track: true
+        mask: false
+      - name: "PasswordHash"
+        track: true
+        mask: true # Маскировать поле (будет показано как ***)
+        maskPattern: "***"
+      - name: "FirstName"
+        track: true
+        mask: false
+      - name: "LastName"
+        track: true
+        mask: false
+      - name: "CreatedAt"
+        track: true
+        mask: false
+      - name: "UpdatedAt"
+        track: true
+        mask: false
+
+  # Пример: Заказы
+  - name: "Orders"
+    tableName: "orders"
+    enabled: true
+    operations:
+      - Insert
+      - Update
+      - Delete
+    fields:
+      - name: "Id"
+        track: true
+        mask: false
+      - name: "UserId"
+        track: true
+        mask: false
+      - name: "OrderNumber"
+        track: true
+        mask: false
+      - name: "TotalAmount"
+        track: true
+        mask: false
+      - name: "Status"
+        track: true
+        mask: false
+      - name: "CreatedAt"
+        track: true
+        mask: false
+      - name: "UpdatedAt"
+        track: true
+        mask: false
+
+  # Пример: Платежи
+  - name: "Payments"
+    tableName: "payments"
+    enabled: true
+    operations:
+      - Insert
+      - Update
+    fields:
+      - name: "Id"
+        track: true
+        mask: false
+      - name: "OrderId"
+        track: true
+        mask: false
+      - name: "Amount"
+        track: true
+        mask: false
+      - name: "CardNumber"
+        track: true
+        mask: true # Маскировать номер карты
+        maskPattern: "****-****-****-####" # Показывать только последние 4 цифры
+      - name: "PaymentStatus"
+        track: true
+        mask: false
+      - name: "TransactionId"
+        track: true
+        mask: false
+      - name: "CreatedAt"
+        track: true
+        mask: false
+
+# Метаданные, которые нужно собирать
+metadata:
+  # Информация о пользователе, который сделал изменение
+  user:
+    enabled: true
+    fields:
+      - userId
+      - username
+      - ipAddress
+
+  # Контекст операции
+  context:
+    enabled: true
+    fields:
+      - applicationName
+      - operationName
+      - correlationId
+      - requestId
+
+  # Временные метки
+  timestamp:
+    enabled: true
+    timezone: "UTC"
+
+# Правила фильтрации (опционально)
+filters:
+  # Не логировать изменения от системных пользователей
+  - type: "ExcludeByUser"
+    userIds:
+      - "system"
+      - "admin-bot"
+
+  # Не логировать автоматические обновления полей
+  - type: "ExcludeFields"
+    fields:
+      - "LastHeartbeat"
+      - "LastSeen"
