@@ -1,0 +1,57 @@
+﻿syntax = "proto3";
+
+package auditmeta.raw;
+
+
+/** Кто совершил изменение */
+message UserInfo {
+  string user_id = 1;  // внутренний ID (строка/GUID)
+  string user_name = 2;  // отображаемое имя/логин (копия на момент операции)
+}
+
+/** Контекст запроса/источника (всё опционально) */
+message RequestContext {
+  string request_id = 1; // trace/request id
+  optional string service_name = 2; // инициирующий сервис/приложение
+  optional string client_ip = 3;
+  optional string user_agent = 4;
+}
+
+/** Массовая операция (ExecuteUpdate/Delete/SQL): то, чего нет в before/after */
+message BulkInfo {
+  bool   is_bulk = 1; // признак, что действие затронуло множество строк
+  uint32 affected_count = 2; // количество затронутых строк
+  string target = 3; // целевая сущность/таблица
+}
+
+/** Произвольные подсказки/флажки (для редких специальных кейсов) */
+message Hint {
+  string key = 1;
+  string value = 2;
+}
+
+/** Пара "код перечисления → человекочитаемый лейбл" */
+message CodeLabel {
+  string code = 1; // исходное raw-значение (обычно число как строка)
+  string label = 2; // подпись на момент изменения (денормализованная)
+}
+
+/** Снепшот лейблов для конкретного типа enum */
+message EnumDictSnapshot {
+  string enum_type = 1;          // напр., "OrderStatus", "UserRole"
+  repeated CodeLabel pairs = 2;  // только коды, реально встретившиеся в транзакции
+}
+
+/** Одна запись метаданных на транзакцию */
+message AuditMetaEnvelope {
+  string transaction_id = 1; // общий ID транзакции (ключ для join)
+  int64  created_at_utc_ms = 2; // момент фиксации мета-события (UTC, ms)
+
+  UserInfo       actor = 3; // кто сделал
+  optional RequestContext request = 5; // опционально: контекст запроса/сервиса
+
+  optional BulkInfo       bulk = 6; // опционально: заполняется только при массовых оп.
+  repeated Hint  hints = 7; // опционально: "мягкие" подсказки
+
+  repeated EnumDictSnapshot enum_snapshots = 8;
+}

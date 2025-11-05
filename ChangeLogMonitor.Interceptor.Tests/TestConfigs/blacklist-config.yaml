@@ -1,0 +1,18 @@
+# Тестовая конфигурация для blacklist режима
+auditPolicy:
+  version: "1.0"
+  mode: blacklist
+
+  onCreate: allFields
+  onUpdate: delta
+  onDelete: eventOnly
+
+  entities:
+    # SessionCache явно отключен
+    SessionCache:
+      enabled: false
+      onCreate: allFields
+      onUpdate: delta
+      onDelete: eventOnly
+
+    # User и Order не указаны, поэтому будут логироваться в blacklist режиме
