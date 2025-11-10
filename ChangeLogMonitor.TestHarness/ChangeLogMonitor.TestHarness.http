@@ -1,0 +1,23 @@
+@host = http://localhost:5109
+@token = your-jwt-token
+
+### Request JWT token for the seeded demo user
+POST {{host}}/auth/token
+Content-Type: application/json
+
+{
+  "username": "demo-user",
+  "password": "demo-pass"
+}
+
+### Create an order with the acquired token
+POST {{host}}/orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "description": "Integration test order",
+  "amount": 149.99
+}
+
+###
