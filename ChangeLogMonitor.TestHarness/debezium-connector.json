@@ -17,6 +17,7 @@
   "decimal.handling.mode": "double",
   "time.precision.mode": "adaptive_time_microseconds",
   "heartbeat.interval.ms": "30000",
+  "provide.transaction.metadata": "true",
   "key.converter": "org.apache.kafka.connect.json.JsonConverter",
   "value.converter": "org.apache.kafka.connect.json.JsonConverter",
   "key.converter.schemas.enable": "false",

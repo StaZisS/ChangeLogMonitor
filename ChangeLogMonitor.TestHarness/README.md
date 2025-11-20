@@ -37,7 +37,7 @@ dotnet run --project ChangeLogMonitor.TestHarness
      -H "Content-Type: application/json" \
      --data @debezium-connector.json
    ```
-   Файл `debezium-connector.json` содержит только секцию `config` (имя задается в URL) и использует публикацию `changelog_publication` (`FOR ALL TABLES`). SMT `RegexRouter` сводит все таблицы в один топик `changelog.all` вместо отдельных (`changelog.public.users`, `orders`, `audit_log`). Можно переиспользовать init-контейнер командой `docker compose up debezium-init`.
+   Файл `debezium-connector.json` содержит только секцию `config` (имя задается в URL) и использует публикацию `changelog_publication` (`FOR ALL TABLES`). SMT `RegexRouter` сводит все таблицы в один топик `changelog.all` вместо отдельных (`changelog.public.users`, `orders`, `audit_log`). Включено `provide.transaction.metadata=true`, чтобы Debezium отправлял блок `transaction` – агрегатор использует его для `tx_id`. Можно переиспользовать init-контейнер командой `docker compose up debezium-init`.
 
 4. Чтобы проверить ChangeLog Interceptor и аудит:
    - Передайте Postgres-строки для приложения и аудита (обычно одинаковые):

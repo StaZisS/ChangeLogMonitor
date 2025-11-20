@@ -102,6 +102,24 @@ internal static class TxCdcParser
             }
         }
 
+        if (payload.TryGetProperty("source", out var source) &&
+            source.TryGetProperty("txId", out var txIdNumeric) &&
+            txIdNumeric.ValueKind != JsonValueKind.Null &&
+            txIdNumeric.ValueKind != JsonValueKind.Undefined)
+        {
+            // Debezium Postgres txId (numeric) fallback when transaction metadata is disabled
+            if (txIdNumeric.TryGetInt64(out var txIdLong))
+            {
+                return txIdLong.ToString();
+            }
+
+            var txId = txIdNumeric.GetRawText();
+            if (!string.IsNullOrWhiteSpace(txId))
+            {
+                return txId.Trim('"');
+            }
+        }
+
         if (payload.TryGetProperty("after", out var after) &&
             after.ValueKind != JsonValueKind.Null &&
             after.TryGetProperty("tx_id", out var afterTxId))
