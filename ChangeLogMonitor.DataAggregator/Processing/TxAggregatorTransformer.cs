@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Text.Json;
 using ChangeLogMonitor.DataAggregator.Models;
 using Microsoft.Extensions.Logging;
@@ -56,10 +54,10 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
             throw new InvalidOperationException("Transformer not initialized");
         }
 
-        var eventUid = $"{_context.Topic}:{_context.Partition.Value}:{_context.Offset}";
-        var topic = _context.Topic ?? string.Empty;
         var partition = _context.Partition;
         var offset = _context.Offset;
+        var topic = _context.Topic ?? string.Empty;
+        var eventUid = $"{topic}:{partition}:{offset}";
 
         if (!TxCdcParser.TryParse(record.Value, record.Key, eventUid, out var bucketEvent))
         {

@@ -81,8 +81,7 @@ public sealed class TxAggregatorTopologyFactory
         var aggregated = repartitioned.Transform(
             transformerSupplier,
             "tx-aggregator",
-            StoreNames.TxStateStore,
-            StoreNames.TxMetaStore);
+            StoreNames.TxStateStore);
 
         aggregated
             .Filter((_, value, _) => !string.IsNullOrWhiteSpace(value), "aggregate-filter")
@@ -125,7 +124,8 @@ public sealed class TxAggregatorTopologyFactory
             _settings.Kafka.MetadataTopic,
             keySerde,
             valueSerde,
-            materialized);
+            materialized,
+            $"gt-{StoreNames.TxMetaStore}");
     }
 
     private void RegisterStateStore(StreamBuilder builder, StringSerDes keySerde, StringSerDes valueSerde)
@@ -176,7 +176,6 @@ public sealed class TxAggregatorTopologyFactory
 
         config.DefaultKeySerDes = keySerde;
         config.DefaultValueSerDes = valueSerde;
-        config.EnableIdempotence = true;
         config.ReplicationFactor = 1;
         config.RocksDbConfigHandler = (_, rocksDbOptions) =>
         {
