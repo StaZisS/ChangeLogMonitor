@@ -47,6 +47,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
         if (record.Value == null || string.IsNullOrWhiteSpace(record.Key))
         {
             _metrics.MarkMissingTxId();
+            _metrics.MarkCdcEventProcessed();
             return null;
         }
 
@@ -56,12 +57,19 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
         }
 
         var eventUid = $"{_context.Topic}:{_context.Partition.Value}:{_context.Offset}";
+        var topic = _context.Topic ?? string.Empty;
+        var partition = _context.Partition;
+        var offset = _context.Offset;
+
         if (!TxCdcParser.TryParse(record.Value, record.Key, eventUid, out var bucketEvent))
         {
             _metrics.MarkParseFailure();
+            _metrics.MarkCdcEventProcessed();
             _logger.LogWarning("Unable to parse CDC payload for tx {TxId}", record.Key);
             return null;
         }
+
+        _metrics.MarkCdcEventProcessed();
 
         var bucket = LoadBucket(record.Key, bucketEvent.TimestampMs);
         var metadata = FetchMetadata(record.Key);
@@ -76,6 +84,21 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
                 PersistBucket(record.Key, bucket);
             }
             return null;
+        }
+
+        if (addResult == TxBucketAddResult.Added)
+        {
+            _metrics.AddBufferedEvent();
+            _logger.LogInformation(
+                "Buffered CDC event tx={TxId} table={Table} op={Op} topic={Topic} partition={Partition} offset={Offset} received={Received}/expected={Expected}",
+                record.Key,
+                bucketEvent.Table,
+                bucketEvent.Operation,
+                topic,
+                partition,
+                offset,
+                bucket.ReceivedTotal,
+                bucket.ExpectedTotal);
         }
 
         if (addResult == TxBucketAddResult.LimitReached)
@@ -227,6 +250,9 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
         var incomplete = resolution != BucketResolution.Completed || bucket.ExceededMaxEvents;
         var payload = TxAggregateBuilder.BuildAggregate(bucket, incomplete);
         _stateStore.Delete(txId);
+
+        _metrics.AggregateEmitted();
+        _metrics.RemoveBufferedEvents(bucket.ReceivedTotal);
 
         switch (resolution)
         {

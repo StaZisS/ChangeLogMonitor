@@ -14,6 +14,9 @@ public sealed class TxAggregatorMetrics
     private long _duplicateEvents;
     private long _missingTxId;
     private long _parseFailures;
+    private long _cdcEventsProcessed;
+    private long _eventsBuffered;
+    private long _aggregatesEmitted;
 
     public void BucketCreated()
     {
@@ -47,6 +50,22 @@ public sealed class TxAggregatorMetrics
 
     public void MarkParseFailure() => Interlocked.Increment(ref _parseFailures);
 
+    public void MarkCdcEventProcessed() => Interlocked.Increment(ref _cdcEventsProcessed);
+
+    public void AddBufferedEvent() => Interlocked.Increment(ref _eventsBuffered);
+
+    public void RemoveBufferedEvents(int count)
+    {
+        if (count <= 0) return;
+        Interlocked.Add(ref _eventsBuffered, -count);
+        if (Interlocked.Read(ref _eventsBuffered) < 0)
+        {
+            Interlocked.Exchange(ref _eventsBuffered, 0);
+        }
+    }
+
+    public void AggregateEmitted() => Interlocked.Increment(ref _aggregatesEmitted);
+
     public TxAggregatorMetricsSnapshot GetSnapshot() => new(
         Interlocked.Read(ref _bucketsCreated),
         Math.Max(0, Interlocked.Read(ref _activeBuckets)),
@@ -56,7 +75,10 @@ public sealed class TxAggregatorMetrics
         Interlocked.Read(ref _bucketsLimitExceeded),
         Interlocked.Read(ref _duplicateEvents),
         Interlocked.Read(ref _missingTxId),
-        Interlocked.Read(ref _parseFailures));
+        Interlocked.Read(ref _parseFailures),
+        Interlocked.Read(ref _cdcEventsProcessed),
+        Math.Max(0, Interlocked.Read(ref _eventsBuffered)),
+        Interlocked.Read(ref _aggregatesEmitted));
 
     private void DecrementActiveBuckets()
     {
@@ -77,4 +99,7 @@ public sealed record TxAggregatorMetricsSnapshot(
     long BucketsLimitExceeded,
     long DuplicateEvents,
     long MissingTxIdEvents,
-    long ParseFailures);
+    long ParseFailures,
+    long CdcEventsProcessed,
+    long BufferedEvents,
+    long AggregatesEmitted);

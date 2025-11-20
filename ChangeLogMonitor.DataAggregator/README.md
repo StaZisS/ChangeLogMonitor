@@ -169,7 +169,10 @@ The image is self-contained (`linux-x64`, single-file publish) and exposes port 
     "bucketsLimitExceeded": 0,
     "duplicateEvents": 3,
     "missingTxIdEvents": 0,
-    "parseFailures": 0
+    "parseFailures": 0,
+    "cdcEventsProcessed": 123,
+    "bufferedEvents": 4,
+    "aggregatesEmitted": 11
   }
 }
 ```
