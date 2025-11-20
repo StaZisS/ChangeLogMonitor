@@ -20,7 +20,7 @@ Configuration lives under the `App` section (see [`appsettings.json`](./appsetti
     "Kafka": {
       "BootstrapServers": "localhost:9092",
       "ApplicationId": "changemonitor-data-aggregator",
-      "InputCdcTopics": ["db.inventory.orders", "db.inventory.order_items"],
+      "InputCdcTopics": ["changelog.all"],
       "MetadataTopic": "app.transaction_meta",
       "OutputTopic": "aggregates.by_tx",
       "RepartitionTopic": "agg.changes.by_tx",
@@ -52,10 +52,9 @@ Configuration lives under the `App` section (see [`appsettings.json`](./appsetti
 ## Running locally
 
 ```bash
-# Ensure Kafka is reachable and required topics exist
+# Ensure Kafka is reachable and topics exist
 export App__Kafka__BootstrapServers=localhost:9092
-export App__Kafka__InputCdcTopics__0=db.inventory.orders
-export App__Kafka__InputCdcTopics__1=db.inventory.order_items
+export App__Kafka__InputCdcTopics__0=changelog.all
 
 # Run the service
 cd ChangeLogMonitor.DataAggregator
@@ -73,8 +72,7 @@ docker build -t changelog-aggregator .
 docker run --rm \
   -p 8080:8080 \
   -e App__Kafka__BootstrapServers=broker:9092 \
-  -e App__Kafka__InputCdcTopics__0=db.inventory.orders \
-  -e App__Kafka__InputCdcTopics__1=db.inventory.order_items \
+  -e App__Kafka__InputCdcTopics__0=changelog.all \
   changelog-aggregator
 ```
 

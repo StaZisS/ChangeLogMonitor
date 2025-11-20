@@ -4,6 +4,7 @@ using ChangeLogMonitor.Interceptor.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace ChangeLogMonitor.Interceptor.Interceptors;
 
@@ -16,6 +17,8 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     private readonly IAuditConfigurationService _configService;
     private readonly AuditMetadataSerializer _metadataSerializer;
     private readonly ILogger<ChangeLogInterceptor>? _logger;
+    private static readonly SemaphoreSlim SchemaLock = new(1, 1);
+    private static bool _schemaReady;
 
     public ChangeLogInterceptor(
         AuditDbContext auditDbContext,
@@ -86,6 +89,8 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     /// </summary>
     private void CaptureChanges(DbContext context)
     {
+        EnsureSchema();
+
         var entries = GetTrackedEntries(context);
         if (entries.Count == 0)
         {
@@ -117,6 +122,8 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     /// </summary>
     private async Task CaptureChangesAsync(DbContext context, CancellationToken cancellationToken)
     {
+        await EnsureSchemaAsync(cancellationToken);
+
         var entries = GetTrackedEntries(context);
         if (entries.Count == 0)
         {
@@ -189,5 +196,28 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         // Используем Guid для уникальности
         // Можно также добавить timestamp для удобства сортировки
         return $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}";
+    }
+
+    private void EnsureSchema()
+    {
+        if (_schemaReady) return;
+        EnsureSchemaAsync(CancellationToken.None).GetAwaiter().GetResult();
+    }
+
+    private async Task EnsureSchemaAsync(CancellationToken cancellationToken)
+    {
+        if (_schemaReady) return;
+
+        await SchemaLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_schemaReady) return;
+            await _auditDbContext.Database.MigrateAsync(cancellationToken);
+            _schemaReady = true;
+        }
+        finally
+        {
+            SchemaLock.Release();
+        }
     }
 }

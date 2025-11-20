@@ -20,17 +20,22 @@ public static class ServiceCollectionExtensions
     /// <param name="auditDbConnectionString">Строка подключения к БД аудита</param>
     /// <param name="configFilePath">Путь к файлу конфигурации (по умолчанию changelog-config.yaml)</param>
     /// <param name="metadataProviderFactory">Фабрика для создания провайдера метаданных (опционально)</param>
+    /// <param name="applyMigrations">Автоматически применить EF миграции audit_log при старте</param>
     /// <returns>Service collection для цепочки вызовов</returns>
     public static IServiceCollection AddChangeLogInterceptor(
         this IServiceCollection services,
         string auditDbConnectionString,
         string? configFilePath = null,
-        Func<IServiceProvider, IAuditMetadataProvider>? metadataProviderFactory = null)
+        Func<IServiceProvider, IAuditMetadataProvider>? metadataProviderFactory = null,
+        bool applyMigrations = true)
     {
         // Регистрируем AuditDbContext
         services.AddDbContext<AuditDbContext>(options =>
         {
-            options.UseNpgsql(auditDbConnectionString);
+            options.UseNpgsql(auditDbConnectionString, b =>
+            {
+                b.MigrationsAssembly(typeof(AuditDbContext).Assembly.FullName);
+            });
         });
 
         // Регистрируем конфигурацию
@@ -53,6 +58,11 @@ public static class ServiceCollectionExtensions
 
         // Регистрируем интерцептор
         services.AddScoped<ChangeLogInterceptor>();
+
+        if (applyMigrations)
+        {
+            services.AddHostedService<AuditDbMigrationHostedService>();
+        }
 
         return services;
     }

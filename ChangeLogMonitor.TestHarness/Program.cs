@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using ChangeLogMonitor.Interceptor.Extensions;
 using ChangeLogMonitor.TestHarness.Auth;
 using ChangeLogMonitor.TestHarness.Contracts;
 using ChangeLogMonitor.TestHarness.Data;
@@ -13,7 +14,25 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("TestHarnessDb") ?? "Data Source=test-harness.db";
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+var auditConnectionString = builder.Configuration.GetConnectionString("AuditDb") ?? connectionString;
+var usePostgres = connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase);
+
+if (usePostgres)
+{
+    var configPath = Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
+
+    builder.Services.AddChangeLogInterceptor(auditConnectionString, configPath);
+
+    builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+    {
+        options.UseNpgsql(connectionString);
+        options.AddChangeLogInterceptor(sp);
+    });
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+}
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.Configure<JwtOptions>(jwtSection);
