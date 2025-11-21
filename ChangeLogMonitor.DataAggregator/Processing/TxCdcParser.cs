@@ -34,7 +34,8 @@ internal static class TxCdcParser
         try
         {
             using var document = JsonDocument.Parse(rawJson);
-            var payload = document.RootElement.GetProperty("payload");
+            var root = document.RootElement;
+            var payload = ResolvePayload(root);
 
             var operation = payload.TryGetProperty("op", out var opElement)
                 ? opElement.GetString() ?? string.Empty
@@ -89,7 +90,7 @@ internal static class TxCdcParser
     {
         if (!root.TryGetProperty("payload", out var payload))
         {
-            return null;
+            payload = root;
         }
 
         if (payload.TryGetProperty("transaction", out var transaction) &&
@@ -131,6 +132,19 @@ internal static class TxCdcParser
             }
         }
 
+        if (payload.TryGetProperty("after", out var afterAlt) &&
+            afterAlt.ValueKind != JsonValueKind.Null &&
+            afterAlt.TryGetProperty("transaction_id", out var afterTxnId) &&
+            afterTxnId.ValueKind != JsonValueKind.Null &&
+            afterTxnId.ValueKind != JsonValueKind.Undefined)
+        {
+            var txId = afterTxnId.GetString() ?? afterTxnId.GetRawText().Trim('"');
+            if (!string.IsNullOrWhiteSpace(txId))
+            {
+                return txId;
+            }
+        }
+
         if (payload.TryGetProperty("before", out var before) &&
             before.ValueKind != JsonValueKind.Null &&
             before.TryGetProperty("tx_id", out var beforeTxId))
@@ -142,6 +156,26 @@ internal static class TxCdcParser
             }
         }
 
+        if (payload.TryGetProperty("before", out var beforeAlt) &&
+            beforeAlt.ValueKind != JsonValueKind.Null &&
+            beforeAlt.TryGetProperty("transaction_id", out var beforeTxnId) &&
+            beforeTxnId.ValueKind != JsonValueKind.Null &&
+            beforeTxnId.ValueKind != JsonValueKind.Undefined)
+        {
+            var txId = beforeTxnId.GetString() ?? beforeTxnId.GetRawText().Trim('"');
+            if (!string.IsNullOrWhiteSpace(txId))
+            {
+                return txId;
+            }
+        }
+
         return null;
     }
+
+    private static JsonElement ResolvePayload(JsonElement root) =>
+        root.TryGetProperty("payload", out var payload) &&
+        payload.ValueKind != JsonValueKind.Null &&
+        payload.ValueKind != JsonValueKind.Undefined
+            ? payload
+            : root;
 }

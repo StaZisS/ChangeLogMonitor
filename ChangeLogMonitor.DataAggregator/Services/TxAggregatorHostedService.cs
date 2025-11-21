@@ -49,6 +49,8 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
         {
             _isRunning = true;
             await stream.StartAsync(stoppingToken);
+            // Keep the background service alive until cancellation; StartAsync returns immediately
+            await Task.Delay(Timeout.Infinite, stoppingToken);
         }
         catch (OperationCanceledException)
         {

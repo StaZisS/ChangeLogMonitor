@@ -174,6 +174,12 @@ public sealed class TxAggregatorTopologyFactory
             Logger = _loggerFactory
         };
 
+        config.InnerExceptionHandler = exception =>
+        {
+            _logger.LogError(exception, "Fatal stream exception");
+            return ExceptionHandlerResponse.FAIL;
+        };
+
         config.DefaultKeySerDes = keySerde;
         config.DefaultValueSerDes = valueSerde;
         config.ReplicationFactor = 1;
