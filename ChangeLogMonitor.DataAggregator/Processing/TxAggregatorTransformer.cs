@@ -71,7 +71,27 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
         var bucket = LoadBucket(record.Key, bucketEvent.TimestampMs);
         var metadata = FetchMetadata(record.Key);
-        var metadataApplied = metadata != null && bucket.ApplyMetadata(metadata);
+        var metadataPresent = metadata != null;
+        var metadataApplied = metadataPresent && bucket.ApplyMetadata(metadata!);
+
+        // CDC из audit_log трактуем как метаданные, а не как обычное событие
+        if (string.Equals(bucketEvent.Table, "audit_log", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var metaDoc = JsonDocument.Parse(bucketEvent.PayloadJson);
+                var metaElement = metaDoc.RootElement.Clone();
+                bucket.ApplyMetadata(new TxMetadata { Meta = metaElement });
+                PersistBucket(record.Key, bucket);
+                return null;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse audit_log payload for tx {TxId}", record.Key);
+                PersistBucket(record.Key, bucket);
+                return null;
+            }
+        }
 
         var addResult = bucket.AddEvent(bucketEvent, _options.MaxEventsPerBucket);
         if (addResult == TxBucketAddResult.Duplicate)
@@ -116,7 +136,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
             return null;
         }
 
-        if (bucket.IsComplete())
+        if (bucket.IsComplete() && bucket.HasMetadata)
         {
             var payload = EmitBucket(record.Key, bucket, BucketResolution.Completed);
             return Record<string, string>.Create(record.Key, payload);
@@ -175,6 +195,12 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
             if (completed || expired || limitTriggered)
             {
+                if (!bucket.HasMetadata)
+                {
+                    _logger.LogDebug("Skipping emission for tx {TxId} until metadata arrives", entry.Key);
+                    continue;
+                }
+
                 var resolution = completed
                     ? BucketResolution.Completed
                     : expired ? BucketResolution.TtlExpired : BucketResolution.LimitExceeded;

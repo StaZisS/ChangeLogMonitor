@@ -26,6 +26,7 @@ internal static class TxBucketSerializer
             Ordering = bucket.Ordering,
             MetaJson = bucket.MetaJson,
             ExceededMaxEvents = bucket.ExceededMaxEvents,
+            HasMetadata = bucket.HasMetadata,
             EventIds = bucket.EventIds.ToList(),
             Events = bucket.Events.Select(e => new BucketEventDocument
             {
@@ -63,6 +64,7 @@ internal static class TxBucketSerializer
             Ordering = document.Ordering,
             MetaJson = document.MetaJson,
             ExceededMaxEvents = document.ExceededMaxEvents,
+            HasMetadata = document.HasMetadata,
             ReceivedTotal = document.ReceivedTotal
         };
 
@@ -119,6 +121,7 @@ internal static class TxBucketSerializer
         public string? Ordering { get; set; }
         public string? MetaJson { get; set; }
         public bool ExceededMaxEvents { get; set; }
+        public bool HasMetadata { get; set; }
     }
 
     private sealed class BucketEventDocument

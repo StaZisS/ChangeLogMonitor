@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ChangeLogMonitor.DataAggregator.Processing;
+using ChangeLogMonitor.DataAggregator.Models;
 using Xunit;
 
 namespace ChangeLogMonitor.DataAggregator.Tests;
@@ -37,5 +38,30 @@ public class TxBucketTests
         Assert.Equal(TxBucketAddResult.Added, bucket.AddEvent(new TxBucketEvent("order_items", "c", 12, 3, "{}", "t:0:3"), 10));
 
         Assert.True(bucket.IsComplete());
+    }
+
+    [Fact]
+    public void ApplyMetadata_SetsFlag()
+    {
+        var bucket = TxBucket.Create("tx-1", 1);
+        bucket.ApplyMetadata(new TxMetadata
+        {
+            ExpectedTotal = 1
+        });
+
+        Assert.True(bucket.HasMetadata);
+        Assert.Equal(1, bucket.ExpectedTotal);
+    }
+
+    [Fact]
+    public void Serializer_PreservesHasMetadata()
+    {
+        var bucket = TxBucket.Create("tx-1", 1);
+        bucket.HasMetadata = true;
+
+        var serialized = TxBucketSerializer.Serialize(bucket);
+        var restored = TxBucketSerializer.Deserialize(serialized);
+
+        Assert.True(restored.HasMetadata);
     }
 }

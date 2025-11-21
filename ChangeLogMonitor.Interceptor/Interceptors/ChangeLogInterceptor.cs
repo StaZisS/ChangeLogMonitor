@@ -3,8 +3,10 @@ using ChangeLogMonitor.Interceptor.Models;
 using ChangeLogMonitor.Interceptor.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace ChangeLogMonitor.Interceptor.Interceptors;
 
@@ -19,6 +21,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     private readonly ILogger<ChangeLogInterceptor>? _logger;
     private static readonly SemaphoreSlim SchemaLock = new(1, 1);
     private static bool _schemaReady;
+    private readonly ConcurrentDictionary<DbContext, IDbContextTransaction> _ownedTransactions = new();
 
     public ChangeLogInterceptor(
         AuditDbContext auditDbContext,
@@ -75,6 +78,35 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         return await base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
+    public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
+    {
+        CommitIfStarted(eventData.Context);
+        return base.SavedChanges(eventData, result);
+    }
+
+    public override ValueTask<int> SavedChangesAsync(
+        SaveChangesCompletedEventData eventData,
+        int result,
+        CancellationToken cancellationToken = default)
+    {
+        CommitIfStarted(eventData.Context);
+        return base.SavedChangesAsync(eventData, result, cancellationToken);
+    }
+
+    public override void SaveChangesFailed(DbContextErrorEventData eventData)
+    {
+        RollbackIfStarted(eventData.Context);
+        base.SaveChangesFailed(eventData);
+    }
+
+    public override Task SaveChangesFailedAsync(
+        DbContextErrorEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        RollbackIfStarted(eventData.Context);
+        return base.SaveChangesFailedAsync(eventData, cancellationToken);
+    }
+
     /// <summary>
     /// Проверяет, нужно ли аудировать данный контекст
     /// </summary>
@@ -100,16 +132,8 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
 
         var transactionId = GenerateTransactionId();
         var payload = _metadataSerializer.Serialize(transactionId);
-
-        var auditLog = new AuditLog
-        {
-            TransactionId = transactionId,
-            Payload = payload,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _auditDbContext.AuditLogs.Add(auditLog);
-        _auditDbContext.SaveChanges();
+        var createdAt = DateTime.UtcNow;
+        WriteAuditLog(context, transactionId, payload, createdAt);
 
         _logger?.LogInformation(
             "Audit metadata captured. TransactionId: {TransactionId}, Entities changed: {EntityCount}",
@@ -133,22 +157,15 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
 
         var transactionId = GenerateTransactionId();
         var payload = _metadataSerializer.Serialize(transactionId);
-
-        var auditLog = new AuditLog
-        {
-            TransactionId = transactionId,
-            Payload = payload,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await _auditDbContext.AuditLogs.AddAsync(auditLog, cancellationToken);
-        await _auditDbContext.SaveChangesAsync(cancellationToken);
+        var createdAt = DateTime.UtcNow;
+        await WriteAuditLogAsync(context, transactionId, payload, createdAt, cancellationToken);
 
         _logger?.LogInformation(
             "Audit metadata captured. TransactionId: {TransactionId}, Entities changed: {EntityCount}",
             transactionId,
             entries.Count);
     }
+
 
     /// <summary>
     /// Получает отслеживаемые записи, которые нужно аудировать
@@ -212,6 +229,21 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         try
         {
             if (_schemaReady) return;
+
+            if (await AuditTableExistsAsync(cancellationToken))
+            {
+                _schemaReady = true;
+                return;
+            }
+
+            // Если миграций нет, считаем схему готовой
+            var pending = await _auditDbContext.Database.GetPendingMigrationsAsync(cancellationToken);
+            if (!pending.Any())
+            {
+                _schemaReady = true;
+                return;
+            }
+
             await _auditDbContext.Database.MigrateAsync(cancellationToken);
             _schemaReady = true;
         }
@@ -219,5 +251,100 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         {
             SchemaLock.Release();
         }
+    }
+
+    private async Task<bool> AuditTableExistsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = _auditDbContext.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT to_regclass('public.audit_log')::text";
+        var result = await command.ExecuteScalarAsync(cancellationToken) as string;
+        return !string.IsNullOrEmpty(result);
+    }
+
+    private AuditDbContext CreateAuditDbContextWithTransaction(DbContext appContext)
+    {
+        EnsureTransaction(appContext);
+
+        var auditOptions = new DbContextOptionsBuilder<AuditDbContext>()
+            .UseNpgsql(appContext.Database.GetDbConnection())
+            .Options;
+
+        var auditContext = new AuditDbContext(auditOptions);
+        auditContext.Database.UseTransaction(appContext.Database.CurrentTransaction!.GetDbTransaction());
+        return auditContext;
+    }
+
+    private void CommitIfStarted(DbContext? context)
+    {
+        if (context == null) return;
+        if (_ownedTransactions.TryRemove(context, out var tx))
+        {
+            tx.Commit();
+            tx.Dispose();
+        }
+    }
+
+    private void RollbackIfStarted(DbContext? context)
+    {
+        if (context == null) return;
+        if (_ownedTransactions.TryRemove(context, out var tx))
+        {
+            tx.Rollback();
+            tx.Dispose();
+        }
+    }
+
+    private void EnsureTransaction(DbContext context)
+    {
+        if (context.Database.CurrentTransaction != null)
+        {
+            return;
+        }
+
+        var tx = context.Database.BeginTransaction();
+        _ownedTransactions[context] = tx;
+    }
+
+    private void WriteAuditLog(DbContext appContext, string transactionId, byte[] payload, DateTime createdAt)
+    {
+        EnsureTransaction(appContext);
+
+        var auditLog = new AuditLog
+        {
+            TransactionId = transactionId,
+            Payload = payload,
+            CreatedAt = createdAt
+        };
+
+        using var auditContext = CreateAuditDbContextWithTransaction(appContext);
+        auditContext.AuditLogs.Add(auditLog);
+        auditContext.SaveChanges();
+    }
+
+    private async Task WriteAuditLogAsync(
+        DbContext appContext,
+        string transactionId,
+        byte[] payload,
+        DateTime createdAt,
+        CancellationToken cancellationToken)
+    {
+        EnsureTransaction(appContext);
+
+        var auditLog = new AuditLog
+        {
+            TransactionId = transactionId,
+            Payload = payload,
+            CreatedAt = createdAt
+        };
+
+        await using var auditContext = CreateAuditDbContextWithTransaction(appContext);
+        await auditContext.AuditLogs.AddAsync(auditLog, cancellationToken);
+        await auditContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -88,84 +88,48 @@ internal static class TxCdcParser
 
     private static string? ExtractTxId(JsonElement root)
     {
-        if (!root.TryGetProperty("payload", out var payload))
-        {
-            payload = root;
-        }
+        var payload = ResolvePayload(root);
 
-        if (payload.TryGetProperty("transaction", out var transaction) &&
-            transaction.TryGetProperty("id", out var txIdElement))
+        if (payload.ValueKind == JsonValueKind.Object)
         {
-            var txId = txIdElement.GetString();
-            if (!string.IsNullOrWhiteSpace(txId))
+            // 1) Приоритет — Debezium transaction.id (идентификатор DB-транзакции)
+            if (payload.TryGetProperty("transaction", out var transaction) &&
+                transaction.TryGetProperty("id", out var txIdElement))
             {
-                return txId;
-            }
-        }
-
-        if (payload.TryGetProperty("source", out var source) &&
-            source.TryGetProperty("txId", out var txIdNumeric) &&
-            txIdNumeric.ValueKind != JsonValueKind.Null &&
-            txIdNumeric.ValueKind != JsonValueKind.Undefined)
-        {
-            // Debezium Postgres txId (numeric) fallback when transaction metadata is disabled
-            if (txIdNumeric.TryGetInt64(out var txIdLong))
-            {
-                return txIdLong.ToString();
+                var txId = txIdElement.GetString();
+                if (!string.IsNullOrWhiteSpace(txId))
+                {
+                    // Debezium PostgreSQL формирует id как "xid:lsn", группируем только по xid
+                    var colonIndex = txId.IndexOf(':');
+                    return colonIndex > 0 ? txId.Substring(0, colonIndex) : txId;
+                }
             }
 
-            var txId = txIdNumeric.GetRawText();
-            if (!string.IsNullOrWhiteSpace(txId))
+            // 2) Fallback — бизнесовый transaction_id в after/before (если Debezium id отсутствует)
+            if (payload.TryGetProperty("after", out var after) &&
+                after.ValueKind != JsonValueKind.Null &&
+                after.TryGetProperty("transaction_id", out var afterTxnId) &&
+                afterTxnId.ValueKind != JsonValueKind.Null &&
+                afterTxnId.ValueKind != JsonValueKind.Undefined)
             {
-                return txId.Trim('"');
+                var txId = afterTxnId.GetString() ?? afterTxnId.GetRawText().Trim('"');
+                if (!string.IsNullOrWhiteSpace(txId))
+                {
+                    return txId;
+                }
             }
-        }
 
-        if (payload.TryGetProperty("after", out var after) &&
-            after.ValueKind != JsonValueKind.Null &&
-            after.TryGetProperty("tx_id", out var afterTxId))
-        {
-            var txId = afterTxId.GetString();
-            if (!string.IsNullOrWhiteSpace(txId))
+            if (payload.TryGetProperty("before", out var before) &&
+                before.ValueKind != JsonValueKind.Null &&
+                before.TryGetProperty("transaction_id", out var beforeTxnId) &&
+                beforeTxnId.ValueKind != JsonValueKind.Null &&
+                beforeTxnId.ValueKind != JsonValueKind.Undefined)
             {
-                return txId;
-            }
-        }
-
-        if (payload.TryGetProperty("after", out var afterAlt) &&
-            afterAlt.ValueKind != JsonValueKind.Null &&
-            afterAlt.TryGetProperty("transaction_id", out var afterTxnId) &&
-            afterTxnId.ValueKind != JsonValueKind.Null &&
-            afterTxnId.ValueKind != JsonValueKind.Undefined)
-        {
-            var txId = afterTxnId.GetString() ?? afterTxnId.GetRawText().Trim('"');
-            if (!string.IsNullOrWhiteSpace(txId))
-            {
-                return txId;
-            }
-        }
-
-        if (payload.TryGetProperty("before", out var before) &&
-            before.ValueKind != JsonValueKind.Null &&
-            before.TryGetProperty("tx_id", out var beforeTxId))
-        {
-            var txId = beforeTxId.GetString();
-            if (!string.IsNullOrWhiteSpace(txId))
-            {
-                return txId;
-            }
-        }
-
-        if (payload.TryGetProperty("before", out var beforeAlt) &&
-            beforeAlt.ValueKind != JsonValueKind.Null &&
-            beforeAlt.TryGetProperty("transaction_id", out var beforeTxnId) &&
-            beforeTxnId.ValueKind != JsonValueKind.Null &&
-            beforeTxnId.ValueKind != JsonValueKind.Undefined)
-        {
-            var txId = beforeTxnId.GetString() ?? beforeTxnId.GetRawText().Trim('"');
-            if (!string.IsNullOrWhiteSpace(txId))
-            {
-                return txId;
+                var txId = beforeTxnId.GetString() ?? beforeTxnId.GetRawText().Trim('"');
+                if (!string.IsNullOrWhiteSpace(txId))
+                {
+                    return txId;
+                }
             }
         }
 

@@ -17,6 +17,7 @@ public sealed class TxBucket
     public string? Ordering { get; set; }
     public string? MetaJson { get; set; }
     public bool ExceededMaxEvents { get; internal set; }
+    public bool HasMetadata { get; internal set; }
 
     public static TxBucket Create(string txId, long timestampMs) =>
         new()
@@ -60,7 +61,8 @@ public sealed class TxBucket
 
     public bool ApplyMetadata(TxMetadata metadata)
     {
-        var mutated = false;
+        var mutated = !HasMetadata;
+        HasMetadata = true;
 
         if (metadata.ExpectedTotal.HasValue && ExpectedTotal != metadata.ExpectedTotal)
         {
