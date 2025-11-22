@@ -6,12 +6,9 @@ public sealed class AppSettings
 {
     public const string SectionName = "App";
 
-    [Required]
-    public KafkaSettings Kafka { get; init; } = new();
+    [Required] public KafkaSettings Kafka { get; init; } = new();
 
-    [Required]
-    public ProcessingSettings Processing { get; init; } = new();
+    [Required] public ProcessingSettings Processing { get; init; } = new();
 
-    [Required]
-    public HttpSettings Http { get; init; } = new();
+    [Required] public HttpSettings Http { get; init; } = new();
 }

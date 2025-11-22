@@ -16,8 +16,8 @@ ChangeLogMonitor - это модульная система аудита, кот
 - **ChangeLogMonitor.Interceptor** - EF Core интерцептор для перехвата изменений в транзакциях
 - **ChangeLogMonitor.Configuration** - Работа с YAML конфигурацией (настройка логирования, маскирования полей)
 - **ChangeLogMonitor.DataAggregator** - Агрегация данных из Kafka/Debezium и соединение с метаданными
+- **ChangeLogMonitor.Finalization** - ClickHouse sink + REST API для отдачи дифов
 - **ChangeLogMonitor.UI** - Razor Pages UI для отображения журнала изменений
-- **ChangeLogMonitor.Api** - REST API для работы с данными журнала
 
 ### Режимы развертывания
 
@@ -83,8 +83,8 @@ ChangeLogMonitor/
 ├── ChangeLogMonitor.Interceptor/       # EF Core интерцептор
 ├── ChangeLogMonitor.Configuration/     # YAML конфигурация
 ├── ChangeLogMonitor.DataAggregator/    # Kafka consumer и агрегация
+├── ChangeLogMonitor.Finalization/      # ClickHouse sink + API
 ├── ChangeLogMonitor.UI/                # Razor Pages UI
-├── ChangeLogMonitor.Api/               # REST API
 ├── ChangeLogMonitor.Standalone/        # Standalone приложение
 ├── ChangeLogMonitor.Embedded/          # Библиотека для встраивания
 ├── ChangeLogMonitor.sln                # Solution файл
@@ -99,6 +99,6 @@ ChangeLogMonitor/
 2. Настроить интерцептор EF Core
 3. Создать провайдер YAML конфигурации
 4. Реализовать Kafka consumer для Debezium
-5. Создать UI для отображения журнала
-6. Настроить API endpoints
+5. Реализовать финализацию в ClickHouse + API
+6. Создать UI для отображения журнала
 7. Подготовить примеры конфигурации

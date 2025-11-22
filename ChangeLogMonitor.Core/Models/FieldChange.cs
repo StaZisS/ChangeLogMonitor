@@ -3,7 +3,7 @@ using ChangeLogMonitor.Core.Enums;
 namespace ChangeLogMonitor.Core.Models;
 
 /// <summary>
-/// Изменение обычного поля сущности
+///     Изменение обычного поля сущности
 /// </summary>
 public class FieldChange
 {

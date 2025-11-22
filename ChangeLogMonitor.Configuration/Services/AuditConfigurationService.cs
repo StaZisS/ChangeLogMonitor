@@ -1,6 +1,7 @@
 using ChangeLogMonitor.Configuration.Mappers;
 using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Validators;
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Core.Models.Policy;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
@@ -8,18 +9,18 @@ using Microsoft.Extensions.Logging;
 namespace ChangeLogMonitor.Configuration.Services;
 
 /// <summary>
-/// Сервис для загрузки, валидации и кеширования конфигурации аудита
+///     Сервис для загрузки, валидации и кеширования конфигурации аудита
 /// </summary>
 public class AuditConfigurationService : IAuditConfigurationService
 {
-    private readonly IAuditPolicyProvider _provider;
-    private readonly AuditPolicyMapper _mapper;
-    private readonly YamlAuditPolicyValidator _validator;
+    private readonly object _lock = new();
     private readonly ILogger<AuditConfigurationService>? _logger;
+    private readonly AuditPolicyMapper _mapper;
+    private readonly IAuditPolicyProvider _provider;
+    private readonly YamlAuditPolicyValidator _validator;
 
     private AuditPolicy? _cachedPolicy;
     private DateTime? _lastLoadTime;
-    private readonly object _lock = new();
 
     public AuditConfigurationService(
         IAuditPolicyProvider provider,
@@ -32,7 +33,7 @@ public class AuditConfigurationService : IAuditConfigurationService
     }
 
     /// <summary>
-    /// Загружает политику аудита с валидацией и кешированием
+    ///     Загружает политику аудита с валидацией и кешированием
     /// </summary>
     public AuditPolicy GetPolicy(bool forceReload = false)
     {
@@ -65,7 +66,8 @@ public class AuditConfigurationService : IAuditConfigurationService
                 _cachedPolicy = _mapper.MapToDomain(yamlRoot.AuditPolicy);
                 _lastLoadTime = DateTime.UtcNow;
 
-                _logger?.LogInformation("Audit policy loaded successfully. Version: {Version}, Mode: {Mode}, Entities: {EntityCount}",
+                _logger?.LogInformation(
+                    "Audit policy loaded successfully. Version: {Version}, Mode: {Mode}, Entities: {EntityCount}",
                     _cachedPolicy.Version,
                     _cachedPolicy.Mode,
                     _cachedPolicy.Entities.Count);
@@ -75,7 +77,8 @@ public class AuditConfigurationService : IAuditConfigurationService
             catch (FileNotFoundException ex)
             {
                 _logger?.LogError(ex, "Configuration file not found");
-                throw new InvalidOperationException("Audit configuration file not found. Please create changelog-config.yaml", ex);
+                throw new InvalidOperationException(
+                    "Audit configuration file not found. Please create changelog-config.yaml", ex);
             }
             catch (ValidationException ex)
             {
@@ -91,9 +94,10 @@ public class AuditConfigurationService : IAuditConfigurationService
     }
 
     /// <summary>
-    /// Асинхронная загрузка политики
+    ///     Асинхронная загрузка политики
     /// </summary>
-    public async Task<AuditPolicy> GetPolicyAsync(bool forceReload = false, CancellationToken cancellationToken = default)
+    public async Task<AuditPolicy> GetPolicyAsync(bool forceReload = false,
+        CancellationToken cancellationToken = default)
     {
         if (_cachedPolicy != null && !forceReload)
         {
@@ -125,7 +129,8 @@ public class AuditConfigurationService : IAuditConfigurationService
                 _lastLoadTime = DateTime.UtcNow;
             }
 
-            _logger?.LogInformation("Audit policy loaded successfully. Version: {Version}, Mode: {Mode}, Entities: {EntityCount}",
+            _logger?.LogInformation(
+                "Audit policy loaded successfully. Version: {Version}, Mode: {Mode}, Entities: {EntityCount}",
                 _cachedPolicy.Version,
                 _cachedPolicy.Mode,
                 _cachedPolicy.Entities.Count);
@@ -135,7 +140,8 @@ public class AuditConfigurationService : IAuditConfigurationService
         catch (FileNotFoundException ex)
         {
             _logger?.LogError(ex, "Configuration file not found");
-            throw new InvalidOperationException("Audit configuration file not found. Please create changelog-config.yaml", ex);
+            throw new InvalidOperationException(
+                "Audit configuration file not found. Please create changelog-config.yaml", ex);
         }
         catch (ValidationException ex)
         {
@@ -150,46 +156,38 @@ public class AuditConfigurationService : IAuditConfigurationService
     }
 
     /// <summary>
-    /// Получает политику для конкретной сущности
+    ///     Получает политику для конкретной сущности
     /// </summary>
     public EntityPolicy? GetEntityPolicy(string entityName, bool forceReload = false)
     {
         var policy = GetPolicy(forceReload);
 
-        if (policy.Entities.TryGetValue(entityName, out var entityPolicy))
-        {
-            return entityPolicy;
-        }
+        if (policy.Entities.TryGetValue(entityName, out var entityPolicy)) return entityPolicy;
 
         _logger?.LogWarning("Entity policy not found for: {EntityName}", entityName);
         return null;
     }
 
     /// <summary>
-    /// Проверяет, включено ли логирование для сущности
+    ///     Проверяет, включено ли логирование для сущности
     /// </summary>
     public bool IsEntityEnabled(string entityName, bool forceReload = false)
     {
         var policy = GetPolicy(forceReload);
 
         // В режиме whitelist - проверяем наличие сущности в списке
-        if (policy.Mode == Core.Enums.AuditMode.Whitelist)
-        {
+        if (policy.Mode == AuditMode.Whitelist)
             return policy.Entities.ContainsKey(entityName) &&
-                   (policy.Entities[entityName].Enabled);
-        }
+                   policy.Entities[entityName].Enabled;
 
         // В режиме blacklist - проверяем что сущность НЕ отключена
-        if (policy.Entities.TryGetValue(entityName, out var entityPolicy))
-        {
-            return entityPolicy.Enabled;
-        }
+        if (policy.Entities.TryGetValue(entityName, out var entityPolicy)) return entityPolicy.Enabled;
 
         return true; // В blacklist mode по умолчанию все включено
     }
 
     /// <summary>
-    /// Сбрасывает кеш и перезагружает конфигурацию
+    ///     Сбрасывает кеш и перезагружает конфигурацию
     /// </summary>
     public void ReloadConfiguration()
     {
@@ -200,11 +198,11 @@ public class AuditConfigurationService : IAuditConfigurationService
             _lastLoadTime = null;
         }
 
-        GetPolicy(forceReload: true);
+        GetPolicy(true);
     }
 
     /// <summary>
-    /// Возвращает информацию о текущей загруженной конфигурации
+    ///     Возвращает информацию о текущей загруженной конфигурации
     /// </summary>
     public ConfigurationInfo GetConfigurationInfo()
     {
@@ -223,7 +221,7 @@ public class AuditConfigurationService : IAuditConfigurationService
 }
 
 /// <summary>
-/// Интерфейс сервиса конфигурации аудита
+///     Интерфейс сервиса конфигурации аудита
 /// </summary>
 public interface IAuditConfigurationService
 {
@@ -236,7 +234,7 @@ public interface IAuditConfigurationService
 }
 
 /// <summary>
-/// Информация о загруженной конфигурации
+///     Информация о загруженной конфигурации
 /// </summary>
 public class ConfigurationInfo
 {

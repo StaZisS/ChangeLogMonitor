@@ -29,12 +29,12 @@ public sealed class TokenService(IOptions<JwtOptions> options)
         var credentials = new SigningCredentials(new SymmetricSecurityKey(_signingKey), SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _options.Issuer,
-            audience: _options.Audience,
-            claims: claims,
-            notBefore: now,
-            expires: expires,
-            signingCredentials: credentials);
+            _options.Issuer,
+            _options.Audience,
+            claims,
+            now,
+            expires,
+            credentials);
 
         var encoded = new JwtSecurityTokenHandler().WriteToken(token);
         return new TokenResult(encoded, expires);

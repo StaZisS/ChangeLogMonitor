@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Core.Models.Policy;
 
 /// <summary>
-/// Политика для коллекции (навигационное свойство)
+///     Политика для коллекции (навигационное свойство)
 /// </summary>
 public class CollectionPolicy
 {
@@ -71,7 +71,7 @@ public class M2MSettings
 }
 
 /// <summary>
-/// Умолчания для коллекций
+///     Умолчания для коллекций
 /// </summary>
 public class CollectionDefaults
 {

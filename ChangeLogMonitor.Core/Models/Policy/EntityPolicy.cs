@@ -3,7 +3,7 @@ using ChangeLogMonitor.Core.Enums;
 namespace ChangeLogMonitor.Core.Models.Policy;
 
 /// <summary>
-/// Политика аудита для конкретной сущности
+///     Политика аудита для конкретной сущности
 /// </summary>
 public class EntityPolicy
 {

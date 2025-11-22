@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Core.Models;
 
 /// <summary>
-/// Изменение FK/ссылки на другую сущность
+///     Изменение FK/ссылки на другую сущность
 /// </summary>
 public class ReferenceChange
 {

@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Core.Models;
 
 /// <summary>
-/// Элемент коллекции в дельте (добавлен/удален)
+///     Элемент коллекции в дельте (добавлен/удален)
 /// </summary>
 public class CollectionItem
 {

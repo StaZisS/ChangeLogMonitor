@@ -12,9 +12,14 @@ public class TxAggregateBuilderTests
     public void BuildAggregate_MinimalExample_CompletesInTotalOrder()
     {
         var bucket = TxBucket.Create("tx-123", 1717698123000);
-        Assert.Equal(TxBucketAddResult.Added, bucket.AddEvent(new TxBucketEvent("orders", "c", 1717698123456, 2, "{\"id\":1001}", "topic:0:1"), 10));
-        Assert.Equal(TxBucketAddResult.Added, bucket.AddEvent(new TxBucketEvent("order_items", "c", 1717698123499, 3, "{\"sku\":\"ABC\"}", "topic:0:2"), 10));
-        Assert.Equal(TxBucketAddResult.Added, bucket.AddEvent(new TxBucketEvent("order_items", "c", 1717698123470, 1, "{\"sku\":\"XYZ\"}", "topic:0:3"), 10));
+        Assert.Equal(TxBucketAddResult.Added,
+            bucket.AddEvent(new TxBucketEvent("orders", "c", 1717698123456, 2, "{\"id\":1001}", "topic:0:1"), 10));
+        Assert.Equal(TxBucketAddResult.Added,
+            bucket.AddEvent(new TxBucketEvent("order_items", "c", 1717698123499, 3, "{\"sku\":\"ABC\"}", "topic:0:2"),
+                10));
+        Assert.Equal(TxBucketAddResult.Added,
+            bucket.AddEvent(new TxBucketEvent("order_items", "c", 1717698123470, 1, "{\"sku\":\"XYZ\"}", "topic:0:3"),
+                10));
 
         using var metaDoc = JsonDocument.Parse("{\"user\":\"alice\",\"reason\":\"import\"}");
         bucket.ApplyMetadata(new TxMetadata
@@ -30,7 +35,7 @@ public class TxAggregateBuilderTests
             Meta = metaDoc.RootElement.Clone()
         });
 
-        var json = TxAggregateBuilder.BuildAggregate(bucket, incomplete: false);
+        var json = TxAggregateBuilder.BuildAggregate(bucket, false);
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
 

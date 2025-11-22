@@ -1,30 +1,20 @@
 using Microsoft.EntityFrameworkCore;
-using System.Threading;
 using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace ChangeLogMonitor.Interceptor.Tests.Infrastructure;
 
 /// <summary>
-/// Fixture для PostgreSQL контейнера.
-/// Создаёт один контейнер для всех тестов в коллекции
-/// и создает схему БД один раз перед всеми тестами.
+///     Fixture для PostgreSQL контейнера.
+///     Создаёт один контейнер для всех тестов в коллекции
+///     и создает схему БД один раз перед всеми тестами.
 /// </summary>
 public class PostgreSqlFixture : IAsyncLifetime
 {
-    private readonly SemaphoreSlim _schemaReadySemaphore = new SemaphoreSlim(0, 1);
+    private readonly SemaphoreSlim _schemaReadySemaphore = new(0, 1);
 
     public PostgreSqlContainer PostgresContainer { get; private set; } = null!;
     public string ConnectionString { get; private set; } = null!;
-
-    /// <summary>
-    /// Ожидает завершения создания схемы БД
-    /// </summary>
-    public async Task WaitForSchemaAsync()
-    {
-        await _schemaReadySemaphore.WaitAsync();
-        _schemaReadySemaphore.Release(); // Сразу освобождаем для других потоков
-    }
 
     public async Task InitializeAsync()
     {
@@ -52,7 +42,16 @@ public class PostgreSqlFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Создает схему БД для тестов
+    ///     Ожидает завершения создания схемы БД
+    /// </summary>
+    public async Task WaitForSchemaAsync()
+    {
+        await _schemaReadySemaphore.WaitAsync();
+        _schemaReadySemaphore.Release(); // Сразу освобождаем для других потоков
+    }
+
+    /// <summary>
+    ///     Создает схему БД для тестов
     /// </summary>
     private async Task CreateDatabaseSchemaAsync()
     {

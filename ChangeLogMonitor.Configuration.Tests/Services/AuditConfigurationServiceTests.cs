@@ -1,5 +1,6 @@
 using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Enums;
 using FluentAssertions;
 using FluentValidation;
 using Xunit;
@@ -20,10 +21,7 @@ public class AuditConfigurationServiceTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_testDirectory))
-        {
-            Directory.Delete(_testDirectory, recursive: true);
-        }
+        if (Directory.Exists(_testDirectory)) Directory.Delete(_testDirectory, true);
     }
 
     [Fact]
@@ -56,7 +54,7 @@ auditPolicy:
         // Assert
         policy.Should().NotBeNull();
         policy.Version.Should().Be("1.0");
-        policy.Mode.Should().Be(Core.Enums.AuditMode.Whitelist);
+        policy.Mode.Should().Be(AuditMode.Whitelist);
         policy.Entities.Should().ContainKey("User");
     }
 
@@ -107,7 +105,7 @@ auditPolicy:
         File.WriteAllText(_testConfigPath, yamlContent2);
 
         // Act
-        var policy2 = service.GetPolicy(forceReload: true);
+        var policy2 = service.GetPolicy(true);
 
         // Assert
         policy1.Version.Should().Be("1.0");

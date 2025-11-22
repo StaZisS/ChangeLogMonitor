@@ -4,13 +4,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace ChangeLogMonitor.Interceptor.Models;
 
 /// <summary>
-/// Модель записи аудита, соответствующая таблице audit_log
+///     Модель записи аудита, соответствующая таблице audit_log
 /// </summary>
 [Table("audit_log")]
 public class AuditLog
 {
     /// <summary>
-    /// Уникальный идентификатор записи
+    ///     Уникальный идентификатор записи
     /// </summary>
     [Key]
     [Column("id")]
@@ -18,20 +18,20 @@ public class AuditLog
     public long Id { get; set; }
 
     /// <summary>
-    /// Момент фиксации изменения (UTC)
+    ///     Момент фиксации изменения (UTC)
     /// </summary>
     [Required]
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// Время обработки записи (NULL когда запись не обработана)
+    ///     Время обработки записи (NULL когда запись не обработана)
     /// </summary>
     [Column("processed_at")]
     public DateTime? ProcessedAt { get; set; }
 
     /// <summary>
-    /// Идентификатор транзакции (общий для всех изменений в рамках одной транзакции)
+    ///     Идентификатор транзакции (общий для всех изменений в рамках одной транзакции)
     /// </summary>
     [Required]
     [Column("transaction_id")]
@@ -39,7 +39,7 @@ public class AuditLog
     public string TransactionId { get; set; } = null!;
 
     /// <summary>
-    /// Сериализованный AuditMetaEnvelope (protobuf)
+    ///     Сериализованный AuditMetaEnvelope (protobuf)
     /// </summary>
     [Required]
     [Column("payload")]

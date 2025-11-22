@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Text.Json;
 
 namespace ChangeLogMonitor.DataAggregator.Processing;
@@ -44,10 +43,7 @@ internal static class TxBucketSerializer
 
     public static TxBucket Deserialize(string rawJson)
     {
-        if (string.IsNullOrWhiteSpace(rawJson))
-        {
-            throw new JsonException("Bucket payload is empty");
-        }
+        if (string.IsNullOrWhiteSpace(rawJson)) throw new JsonException("Bucket payload is empty");
 
         var document = JsonSerializer.Deserialize<BucketDocument>(rawJson, SerializerOptions)
                        ?? throw new JsonException("Bucket payload is invalid");
@@ -70,30 +66,18 @@ internal static class TxBucketSerializer
 
         bucket.ReceivedByTable.Clear();
         if (document.ReceivedByTable != null)
-        {
             foreach (var pair in document.ReceivedByTable)
-            {
                 bucket.ReceivedByTable[pair.Key] = pair.Value;
-            }
-        }
 
         bucket.EventIds.Clear();
         if (document.EventIds != null)
-        {
             foreach (var id in document.EventIds)
-            {
                 if (!string.IsNullOrWhiteSpace(id))
-                {
                     bucket.EventIds.Add(id);
-                }
-            }
-        }
 
         bucket.Events.Clear();
         if (document.Events != null)
-        {
             foreach (var e in document.Events)
-            {
                 bucket.Events.Add(new TxBucketEvent(
                     e.Table ?? string.Empty,
                     e.Operation ?? string.Empty,
@@ -101,8 +85,6 @@ internal static class TxBucketSerializer
                     e.TotalOrder,
                     string.IsNullOrWhiteSpace(e.PayloadJson) ? "{}" : e.PayloadJson,
                     e.EventUid ?? string.Empty));
-            }
-        }
 
         return bucket;
     }

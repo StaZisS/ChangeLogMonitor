@@ -5,8 +5,9 @@ Standalone приложение для развертывания ChangeLogMonit
 ## Назначение
 
 Точка входа для запуска ChangeLogMonitor как отдельного приложения:
+
 - Включает UI
-- Включает API
+- Включает финализатор (ClickHouse sink + API)
 - Включает DataAggregator для работы с Kafka/Debezium
 - Не включает интерцептор (работает только с данными из Debezium)
 

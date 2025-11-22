@@ -1,18 +1,22 @@
 # ChangeLogMonitor.DataAggregator
 
-A production-ready .NET 9 background service that aggregates Debezium CDC events into a single Kafka message per transaction. It consumes CDC rows from multiple topics, enriches them via metadata records, buffers intermediate state in RocksDB, and emits a sorted aggregate when the transaction is complete or the TTL expires.
+A production-ready .NET 9 background service that aggregates Debezium CDC events into a single Kafka message per
+transaction. It consumes CDC rows from multiple topics, enriches them via metadata records, buffers intermediate state
+in RocksDB, and emits a sorted aggregate when the transaction is complete or the TTL expires.
 
 ## Features
 
 - **Exactly-once** Streamiz topology with RocksDB state store and persistent repartition topic.
 - **Global metadata** lookup per transaction (expected totals, user-defined meta, ordering hints).
-- **Transformer-based aggregation** with deduplication, TTL sweeps, and optional early emission when `MaxEventsPerBucket` is reached.
+- **Transformer-based aggregation** with deduplication, TTL sweeps, and optional early emission when
+  `MaxEventsPerBucket` is reached.
 - **Structured logging + counters** surfaced through `/healthz`, including bucket lifecycle metrics.
 - **Self-contained Docker image** and configurable `appsettings.json` / environment overrides.
 
 ## Configuration
 
-Configuration lives under the `App` section (see [`appsettings.json`](./appsettings.json)). Environment variables can override any value using `App__Section__Property` syntax.
+Configuration lives under the `App` section (see [`appsettings.json`](./appsettings.json)). Environment variables can
+override any value using `App__Section__Property` syntax.
 
 ```json
 {
@@ -80,13 +84,17 @@ The image is self-contained (`linux-x64`, single-file publish) and exposes port 
 
 ## Message flow
 
-1. CDC records are re-keyed by `tx_id`, validated, and sent through the repartition topic `agg.changes.by_tx` so that all records for a transaction hit the same task.
+1. CDC records are re-keyed by `tx_id`, validated, and sent through the repartition topic `agg.changes.by_tx` so that
+   all records for a transaction hit the same task.
 2. A `GlobalKTable` materializes metadata (`expected_total`, `expected_by_table`, `ordering`, `meta`).
-3. `TxAggregatorTransformer` buffers CDC rows per transaction bucket in a RocksDB store, deduplicates by topic/partition/offset, and checks completeness on every event and via punctuation (every 800 ms):
-   - `received_total == expected_total`, or
-   - All per-table counts match `expected_by_table`.
-4. On completion, the transformer emits a sorted aggregate to `aggregates.by_tx`. If TTL (2 s default) expires first, it emits `incomplete=true` and deletes the bucket.
-5. Metrics such as buckets created/completed, TTL expirations, max-event closures, duplicates, and missing `tx_id` counts are exposed via `/healthz`.
+3. `TxAggregatorTransformer` buffers CDC rows per transaction bucket in a RocksDB store, deduplicates by
+   topic/partition/offset, and checks completeness on every event and via punctuation (every 800 ms):
+    - `received_total == expected_total`, or
+    - All per-table counts match `expected_by_table`.
+4. On completion, the transformer emits a sorted aggregate to `aggregates.by_tx`. If TTL (2 s default) expires first, it
+   emits `incomplete=true` and deletes the bucket.
+5. Metrics such as buckets created/completed, TTL expirations, max-event closures, duplicates, and missing `tx_id`
+   counts are exposed via `/healthz`.
 
 ### Sample CDC payload
 

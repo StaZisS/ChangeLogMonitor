@@ -24,7 +24,7 @@ services:
       KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/9092"]
+      test: [ "CMD", "bash", "-c", "echo > /dev/tcp/localhost/9092" ]
       start_period: 15s
       interval: 5s
       timeout: 10s
@@ -120,7 +120,28 @@ services:
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://debezium:8083
       LOGGING_LEVEL_ROOT: INFO
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.7
+    container_name: changelog-clickhouse
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
 volumes:
   postgres-data:
   kafka-data:
   debezium-data:
+  clickhouse-data:
+  clickhouse-logs:

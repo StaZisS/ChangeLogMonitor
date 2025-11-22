@@ -1,25 +1,23 @@
-using System;
-using System.Linq;
 using ChangeLogMonitor.DataAggregator.Configuration;
 using ChangeLogMonitor.DataAggregator.Processing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Streamiz.Kafka.Net;
+using Streamiz.Kafka.Net.Crosscutting;
 using Streamiz.Kafka.Net.Processors.Public;
 using Streamiz.Kafka.Net.SerDes;
 using Streamiz.Kafka.Net.State;
 using Streamiz.Kafka.Net.Stream;
 using Streamiz.Kafka.Net.Table;
-using Streamiz.Kafka.Net.Crosscutting;
 
 namespace ChangeLogMonitor.DataAggregator.Services;
 
 public sealed class TxAggregatorTopologyFactory
 {
-    private readonly AppSettings _settings;
     private readonly ILogger<TxAggregatorTopologyFactory> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly TxAggregatorMetrics _metrics;
+    private readonly AppSettings _settings;
 
     public TxAggregatorTopologyFactory(
         IOptions<AppSettings> options,
@@ -138,7 +136,8 @@ public sealed class TxAggregatorTopologyFactory
         builder.AddStateStore(storeBuilder);
     }
 
-    private void HandleInvalidTransactions(IKStream<string, string> invalidStream, StringSerDes keySerde, StringSerDes valueSerde)
+    private void HandleInvalidTransactions(IKStream<string, string> invalidStream, StringSerDes keySerde,
+        StringSerDes valueSerde)
     {
         var logLevel = _settings.Processing.RejectWithoutTxId ? LogLevel.Warning : LogLevel.Debug;
 
@@ -153,9 +152,7 @@ public sealed class TxAggregatorTopologyFactory
         }, "missing-tx-log");
 
         if (_settings.Processing.RejectWithoutTxId && !string.IsNullOrWhiteSpace(_settings.Kafka.DlqTopic))
-        {
             invalidStream.To(_settings.Kafka.DlqTopic, keySerde, valueSerde, "missing-tx-dlq");
-        }
     }
 
     private StreamConfig<StringSerDes, StringSerDes> BuildStreamConfig(StringSerDes keySerde, StringSerDes valueSerde)
@@ -192,6 +189,8 @@ public sealed class TxAggregatorTopologyFactory
         return config;
     }
 
-    private static string NormalizeTxId(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    private static string NormalizeTxId(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    }
 }

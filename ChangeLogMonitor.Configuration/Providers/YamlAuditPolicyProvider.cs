@@ -1,11 +1,12 @@
 using ChangeLogMonitor.Configuration.Models;
+using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace ChangeLogMonitor.Configuration.Providers;
 
 /// <summary>
-/// Провайдер для чтения и десериализации YAML файла политики аудита
+///     Провайдер для чтения и десериализации YAML файла политики аудита
 /// </summary>
 public class YamlAuditPolicyProvider : IAuditPolicyProvider
 {
@@ -23,14 +24,12 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
     }
 
     /// <summary>
-    /// Загружает YAML файл и возвращает десериализованную модель
+    ///     Загружает YAML файл и возвращает десериализованную модель
     /// </summary>
     public YamlAuditPolicyRoot Load()
     {
         if (!File.Exists(_configFilePath))
-        {
             throw new FileNotFoundException($"Configuration file not found: {_configFilePath}");
-        }
 
         var yamlContent = File.ReadAllText(_configFilePath);
 
@@ -39,30 +38,26 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             var root = _deserializer.Deserialize<YamlAuditPolicyRoot>(yamlContent);
 
             if (root?.AuditPolicy == null)
-            {
                 throw new InvalidOperationException("Invalid YAML structure: 'auditPolicy' root element not found");
-            }
 
             // Нормализуем короткий синтаксис полей в длинный
             NormalizeFieldPolicies(root.AuditPolicy);
 
             return root;
         }
-        catch (YamlDotNet.Core.YamlException ex)
+        catch (YamlException ex)
         {
             throw new InvalidOperationException($"Failed to parse YAML file: {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// Асинхронная загрузка
+    ///     Асинхронная загрузка
     /// </summary>
     public async Task<YamlAuditPolicyRoot> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(_configFilePath))
-        {
             throw new FileNotFoundException($"Configuration file not found: {_configFilePath}");
-        }
 
         var yamlContent = await File.ReadAllTextAsync(_configFilePath, cancellationToken);
 
@@ -71,24 +66,22 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             var root = _deserializer.Deserialize<YamlAuditPolicyRoot>(yamlContent);
 
             if (root?.AuditPolicy == null)
-            {
                 throw new InvalidOperationException("Invalid YAML structure: 'auditPolicy' root element not found");
-            }
 
             // Нормализуем короткий синтаксис полей в длинный
             NormalizeFieldPolicies(root.AuditPolicy);
 
             return root;
         }
-        catch (YamlDotNet.Core.YamlException ex)
+        catch (YamlException ex)
         {
             throw new InvalidOperationException($"Failed to parse YAML file: {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// Нормализует короткий синтаксис полей в длинный
-    /// Например: Password: exclude -> Password: { action: exclude }
+    ///     Нормализует короткий синтаксис полей в длинный
+    ///     Например: Password: exclude -> Password: { action: exclude }
     /// </summary>
     private void NormalizeFieldPolicies(YamlAuditPolicy policy)
     {
@@ -101,7 +94,6 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             var normalizedFields = new Dictionary<string, object>();
 
             foreach (var (fieldName, fieldValue) in entity.Fields)
-            {
                 if (fieldValue is string action)
                 {
                     // Короткий синтаксис: просто строка действия
@@ -121,14 +113,13 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
                     // Уже YamlFieldPolicy или неизвестный тип
                     normalizedFields[fieldName] = fieldValue;
                 }
-            }
 
             entity.Fields = normalizedFields;
         }
     }
 
     /// <summary>
-    /// Конвертирует Dictionary в YamlFieldPolicy
+    ///     Конвертирует Dictionary в YamlFieldPolicy
     /// </summary>
     private YamlFieldPolicy ConvertToFieldPolicy(Dictionary<object, object> dict)
     {
@@ -144,28 +135,17 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
                     policy.Action = value?.ToString();
                     break;
                 case "view":
-                    if (value is Dictionary<object, object> viewDict)
-                    {
-                        policy.View = ConvertToViewSettings(viewDict);
-                    }
+                    if (value is Dictionary<object, object> viewDict) policy.View = ConvertToViewSettings(viewDict);
                     break;
                 case "mask":
-                    if (value is Dictionary<object, object> maskDict)
-                    {
-                        policy.Mask = ConvertToMaskSettings(maskDict);
-                    }
+                    if (value is Dictionary<object, object> maskDict) policy.Mask = ConvertToMaskSettings(maskDict);
                     break;
                 case "hash":
-                    if (value is Dictionary<object, object> hashDict)
-                    {
-                        policy.Hash = ConvertToHashSettings(hashDict);
-                    }
+                    if (value is Dictionary<object, object> hashDict) policy.Hash = ConvertToHashSettings(hashDict);
                     break;
                 case "encrypt":
                     if (value is Dictionary<object, object> encryptDict)
-                    {
                         policy.Encrypt = ConvertToEncryptSettings(encryptDict);
-                    }
                     break;
             }
         }
@@ -179,8 +159,10 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
         if (dict.TryGetValue("format", out var format)) settings.Format = format?.ToString();
         if (dict.TryGetValue("pattern", out var pattern)) settings.Pattern = pattern?.ToString();
         if (dict.TryGetValue("culture", out var culture)) settings.Culture = culture?.ToString();
-        if (dict.TryGetValue("enumLabel", out var enumLabel) && bool.TryParse(enumLabel?.ToString(), out var el)) settings.EnumLabel = el;
-        if (dict.TryGetValue("refName", out var refName) && bool.TryParse(refName?.ToString(), out var rn)) settings.RefName = rn;
+        if (dict.TryGetValue("enumLabel", out var enumLabel) && bool.TryParse(enumLabel?.ToString(), out var el))
+            settings.EnumLabel = el;
+        if (dict.TryGetValue("refName", out var refName) && bool.TryParse(refName?.ToString(), out var rn))
+            settings.RefName = rn;
         return settings;
     }
 
@@ -189,10 +171,14 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
         var settings = new YamlMaskSettings();
         if (dict.TryGetValue("preset", out var preset)) settings.Preset = preset?.ToString();
         if (dict.TryGetValue("char", out var ch)) settings.Char = ch?.ToString();
-        if (dict.TryGetValue("keepLeft", out var kl) && int.TryParse(kl?.ToString(), out var keepLeft)) settings.KeepLeft = keepLeft;
-        if (dict.TryGetValue("keepRight", out var kr) && int.TryParse(kr?.ToString(), out var keepRight)) settings.KeepRight = keepRight;
-        if (dict.TryGetValue("preserveDomain", out var pd) && bool.TryParse(pd?.ToString(), out var preserveDomain)) settings.PreserveDomain = preserveDomain;
-        if (dict.TryGetValue("preserveFormat", out var pf) && bool.TryParse(pf?.ToString(), out var preserveFormat)) settings.PreserveFormat = preserveFormat;
+        if (dict.TryGetValue("keepLeft", out var kl) && int.TryParse(kl?.ToString(), out var keepLeft))
+            settings.KeepLeft = keepLeft;
+        if (dict.TryGetValue("keepRight", out var kr) && int.TryParse(kr?.ToString(), out var keepRight))
+            settings.KeepRight = keepRight;
+        if (dict.TryGetValue("preserveDomain", out var pd) && bool.TryParse(pd?.ToString(), out var preserveDomain))
+            settings.PreserveDomain = preserveDomain;
+        if (dict.TryGetValue("preserveFormat", out var pf) && bool.TryParse(pf?.ToString(), out var preserveFormat))
+            settings.PreserveFormat = preserveFormat;
         if (dict.TryGetValue("regex", out var regex)) settings.Regex = regex?.ToString();
         if (dict.TryGetValue("replace", out var replace)) settings.Replace = replace?.ToString();
         return settings;
@@ -205,9 +191,12 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
         if (dict.TryGetValue("algo", out var algo)) settings.Algo = algo?.ToString();
         if (dict.TryGetValue("pepperRef", out var pepperRef)) settings.PepperRef = pepperRef?.ToString();
         if (dict.TryGetValue("encoding", out var encoding)) settings.Encoding = encoding?.ToString();
-        if (dict.TryGetValue("storeRaw", out var sr) && bool.TryParse(sr?.ToString(), out var storeRaw)) settings.StoreRaw = storeRaw;
-        if (dict.TryGetValue("storeHash", out var sh) && bool.TryParse(sh?.ToString(), out var storeHash)) settings.StoreHash = storeHash;
-        if (dict.TryGetValue("equalityToken", out var et) && bool.TryParse(et?.ToString(), out var equalityToken)) settings.EqualityToken = equalityToken;
+        if (dict.TryGetValue("storeRaw", out var sr) && bool.TryParse(sr?.ToString(), out var storeRaw))
+            settings.StoreRaw = storeRaw;
+        if (dict.TryGetValue("storeHash", out var sh) && bool.TryParse(sh?.ToString(), out var storeHash))
+            settings.StoreHash = storeHash;
+        if (dict.TryGetValue("equalityToken", out var et) && bool.TryParse(et?.ToString(), out var equalityToken))
+            settings.EqualityToken = equalityToken;
         return settings;
     }
 
@@ -218,13 +207,14 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
         if (dict.TryGetValue("algo", out var algo)) settings.Algo = algo?.ToString();
         if (dict.TryGetValue("keyRef", out var keyRef)) settings.KeyRef = keyRef?.ToString();
         if (dict.TryGetValue("encoding", out var encoding)) settings.Encoding = encoding?.ToString();
-        if (dict.TryGetValue("storeRaw", out var sr) && bool.TryParse(sr?.ToString(), out var storeRaw)) settings.StoreRaw = storeRaw;
+        if (dict.TryGetValue("storeRaw", out var sr) && bool.TryParse(sr?.ToString(), out var storeRaw))
+            settings.StoreRaw = storeRaw;
         return settings;
     }
 }
 
 /// <summary>
-/// Интерфейс провайдера политики аудита
+///     Интерфейс провайдера политики аудита
 /// </summary>
 public interface IAuditPolicyProvider
 {

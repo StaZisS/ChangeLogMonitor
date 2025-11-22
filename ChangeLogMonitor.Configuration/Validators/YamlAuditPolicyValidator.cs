@@ -4,7 +4,7 @@ using FluentValidation;
 namespace ChangeLogMonitor.Configuration.Validators;
 
 /// <summary>
-/// Валидатор для главной политики аудита
+///     Валидатор для главной политики аудита
 /// </summary>
 public class YamlAuditPolicyValidator : AbstractValidator<YamlAuditPolicy>
 {
@@ -76,7 +76,7 @@ public class YamlAuditPolicyValidator : AbstractValidator<YamlAuditPolicy>
 }
 
 /// <summary>
-/// Валидатор для политики сущности
+///     Валидатор для политики сущности
 /// </summary>
 public class YamlEntityPolicyValidator : AbstractValidator<YamlEntityPolicy>
 {
@@ -128,7 +128,7 @@ public class YamlEntityPolicyValidator : AbstractValidator<YamlEntityPolicy>
 }
 
 /// <summary>
-/// Валидатор для политики полей
+///     Валидатор для политики полей
 /// </summary>
 public class YamlFieldPolicyValidator : AbstractValidator<YamlFieldPolicy>
 {
@@ -138,7 +138,8 @@ public class YamlFieldPolicyValidator : AbstractValidator<YamlFieldPolicy>
     public YamlFieldPolicyValidator()
     {
         RuleFor(x => x.Action)
-            .Must(action => string.IsNullOrWhiteSpace(action) || ValidActions.Contains(action.Trim().ToLowerInvariant()))
+            .Must(action =>
+                string.IsNullOrWhiteSpace(action) || ValidActions.Contains(action.Trim().ToLowerInvariant()))
             .WithMessage($"Action must be one of: {string.Join(", ", ValidActions)}");
 
         When(x => x.View != null && !string.IsNullOrWhiteSpace(x.View.Format), () =>
@@ -172,27 +173,29 @@ public class YamlFieldPolicyValidator : AbstractValidator<YamlFieldPolicy>
 }
 
 /// <summary>
-/// Валидатор для политики ссылок
+///     Валидатор для политики ссылок
 /// </summary>
 public class YamlReferencePolicyValidator : AbstractValidator<YamlReferencePolicy>
 {
     public YamlReferencePolicyValidator()
     {
         RuleFor(x => x.ViewTemplate)
-            .Must(template => template == null || (template.Contains("{name}") || template.Contains("{key}")))
+            .Must(template => template == null || template.Contains("{name}") || template.Contains("{key}"))
             .WithMessage("ViewTemplate must contain {name} or {key} placeholder");
 
         When(x => x.NameResolve != null, () =>
         {
             RuleFor(x => x.NameResolve!.Stage)
-                .Must(stage => string.IsNullOrWhiteSpace(stage) || new[] { "raw", "normalization" }.Contains(stage.Trim().ToLowerInvariant()))
+                .Must(stage =>
+                    string.IsNullOrWhiteSpace(stage) ||
+                    new[] { "raw", "normalization" }.Contains(stage.Trim().ToLowerInvariant()))
                 .WithMessage("NameResolve.Stage must be 'raw' or 'normalization'");
         });
     }
 }
 
 /// <summary>
-/// Валидатор для политики коллекций
+///     Валидатор для политики коллекций
 /// </summary>
 public class YamlCollectionPolicyValidator : AbstractValidator<YamlCollectionPolicy>
 {
@@ -226,7 +229,7 @@ public class YamlReferenceDefaultsValidator : AbstractValidator<YamlReferenceDef
     public YamlReferenceDefaultsValidator()
     {
         RuleFor(x => x.ViewTemplate)
-            .Must(template => template == null || (template.Contains("{name}") || template.Contains("{key}")))
+            .Must(template => template == null || template.Contains("{name}") || template.Contains("{key}"))
             .WithMessage("ViewTemplate must contain {name} or {key} placeholder");
     }
 }

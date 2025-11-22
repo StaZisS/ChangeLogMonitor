@@ -6,17 +6,15 @@ namespace ChangeLogMonitor.TestHarness.Data;
 
 public static class DatabaseInitializer
 {
-    public static async Task InitializeAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
+    public static async Task InitializeAsync(this IServiceProvider services,
+        CancellationToken cancellationToken = default)
     {
         using var scope = services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         await context.Database.EnsureCreatedAsync(cancellationToken);
 
-        if (await context.Users.AnyAsync(cancellationToken))
-        {
-            return;
-        }
+        if (await context.Users.AnyAsync(cancellationToken)) return;
 
         context.Users.Add(new User
         {

@@ -1,15 +1,13 @@
 using Auditmeta.Raw;
-using ChangeLogMonitor.Interceptor.Tests.Helpers;
 using ChangeLogMonitor.Interceptor.Tests.Infrastructure;
 using ChangeLogMonitor.Interceptor.Tests.TestEntities;
 using FluentAssertions;
-using Google.Protobuf;
 using Xunit;
 
 namespace ChangeLogMonitor.Interceptor.Tests;
 
 /// <summary>
-/// Интеграционные тесты для проверки содержимого protobuf payload
+///     Интеграционные тесты для проверки содержимого protobuf payload
 /// </summary>
 [Collection("IntegrationTests")]
 public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
@@ -209,10 +207,7 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
 
         // В protobuf optional поля могут быть null или отсутствовать
         // Проверяем что Request либо null, либо все поля пустые
-        if (envelope.Request != null)
-        {
-            envelope.Request.RequestId.Should().BeNullOrEmpty();
-        }
+        if (envelope.Request != null) envelope.Request.RequestId.Should().BeNullOrEmpty();
     }
 
     [Fact]

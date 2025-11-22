@@ -1,17 +1,17 @@
 namespace ChangeLogMonitor.Core.Enums;
 
 /// <summary>
-/// Поведение при удалении сущности
+///     Поведение при удалении сущности
 /// </summary>
 public enum DeleteBehavior
 {
     /// <summary>
-    /// Только событие удаления
+    ///     Только событие удаления
     /// </summary>
     EventOnly,
 
     /// <summary>
-    /// Событие + все поля удаленной сущности
+    ///     Событие + все поля удаленной сущности
     /// </summary>
     AllFields
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using ChangeLogMonitor.DataAggregator.Processing;
 using ChangeLogMonitor.DataAggregator.Models;
+using ChangeLogMonitor.DataAggregator.Processing;
 using Xunit;
 
 namespace ChangeLogMonitor.DataAggregator.Tests;
@@ -33,9 +33,12 @@ public class TxBucketTests
             ["order_items"] = 2
         };
 
-        Assert.Equal(TxBucketAddResult.Added, bucket.AddEvent(new TxBucketEvent("orders", "c", 10, 1, "{}", "t:0:1"), 10));
-        Assert.Equal(TxBucketAddResult.Added, bucket.AddEvent(new TxBucketEvent("order_items", "c", 11, 2, "{}", "t:0:2"), 10));
-        Assert.Equal(TxBucketAddResult.Added, bucket.AddEvent(new TxBucketEvent("order_items", "c", 12, 3, "{}", "t:0:3"), 10));
+        Assert.Equal(TxBucketAddResult.Added,
+            bucket.AddEvent(new TxBucketEvent("orders", "c", 10, 1, "{}", "t:0:1"), 10));
+        Assert.Equal(TxBucketAddResult.Added,
+            bucket.AddEvent(new TxBucketEvent("order_items", "c", 11, 2, "{}", "t:0:2"), 10));
+        Assert.Equal(TxBucketAddResult.Added,
+            bucket.AddEvent(new TxBucketEvent("order_items", "c", 12, 3, "{}", "t:0:3"), 10));
 
         Assert.True(bucket.IsComplete());
     }

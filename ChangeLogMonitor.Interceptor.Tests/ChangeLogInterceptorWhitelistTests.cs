@@ -6,7 +6,7 @@ using Xunit;
 namespace ChangeLogMonitor.Interceptor.Tests;
 
 /// <summary>
-/// Интеграционные тесты для ChangeLogInterceptor в режиме whitelist
+///     Интеграционные тесты для ChangeLogInterceptor в режиме whitelist
 /// </summary>
 [Collection("IntegrationTests")]
 public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase

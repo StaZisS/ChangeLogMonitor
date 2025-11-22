@@ -18,10 +18,7 @@ public class YamlAuditPolicyProviderTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_testDirectory))
-        {
-            Directory.Delete(_testDirectory, recursive: true);
-        }
+        if (Directory.Exists(_testDirectory)) Directory.Delete(_testDirectory, true);
     }
 
     [Fact]

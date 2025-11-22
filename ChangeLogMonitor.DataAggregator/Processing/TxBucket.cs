@@ -19,13 +19,15 @@ public sealed class TxBucket
     public bool ExceededMaxEvents { get; internal set; }
     public bool HasMetadata { get; internal set; }
 
-    public static TxBucket Create(string txId, long timestampMs) =>
-        new()
+    public static TxBucket Create(string txId, long timestampMs)
+    {
+        return new TxBucket
         {
             TxId = txId,
             CreatedAtUnixMs = timestampMs,
             UpdatedAtUnixMs = timestampMs
         };
+    }
 
     public void Touch(long timestampMs)
     {
@@ -34,10 +36,7 @@ public sealed class TxBucket
 
     public TxBucketAddResult AddEvent(TxBucketEvent record, int maxEvents)
     {
-        if (EventIds.Contains(record.EventUid))
-        {
-            return TxBucketAddResult.Duplicate;
-        }
+        if (EventIds.Contains(record.EventUid)) return TxBucketAddResult.Duplicate;
 
         if (Events.Count >= maxEvents)
         {
@@ -100,10 +99,7 @@ public sealed class TxBucket
             }
         }
 
-        if (mutated)
-        {
-            UpdatedAtUnixMs = Math.Max(UpdatedAtUnixMs, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        }
+        if (mutated) UpdatedAtUnixMs = Math.Max(UpdatedAtUnixMs, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         return mutated;
     }
@@ -119,10 +115,7 @@ public sealed class TxBucket
 
     public JsonElement? MetaAsJson()
     {
-        if (string.IsNullOrWhiteSpace(MetaJson))
-        {
-            return null;
-        }
+        if (string.IsNullOrWhiteSpace(MetaJson)) return null;
 
         using var document = JsonDocument.Parse(MetaJson);
         return document.RootElement.Clone();
@@ -132,18 +125,11 @@ public sealed class TxBucket
         IReadOnlyDictionary<string, int> left,
         IReadOnlyDictionary<string, int> right)
     {
-        if (left.Count != right.Count)
-        {
-            return false;
-        }
+        if (left.Count != right.Count) return false;
 
         foreach (var pair in left)
-        {
             if (!right.TryGetValue(pair.Key, out var value) || value != pair.Value)
-            {
                 return false;
-            }
-        }
 
         return true;
     }

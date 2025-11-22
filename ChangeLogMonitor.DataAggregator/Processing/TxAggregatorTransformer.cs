@@ -13,14 +13,15 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly TxAggregatorOptions _options;
     private readonly ILogger<TxAggregatorTransformer> _logger;
     private readonly TxAggregatorMetrics _metrics;
 
+    private readonly TxAggregatorOptions _options;
+
     private ProcessorContext<string, string>? _context;
-    private IKeyValueStore<string, string>? _stateStore;
-    private IReadOnlyKeyValueStore<string, string>? _readOnlyStateStore;
     private IReadOnlyKeyValueStore<string, string>? _metadataStore;
+    private IReadOnlyKeyValueStore<string, string>? _readOnlyStateStore;
+    private IKeyValueStore<string, string>? _stateStore;
 
     public TxAggregatorTransformer()
     {
@@ -35,9 +36,10 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
         _context = context;
         _stateStore = (IKeyValueStore<string, string>)context.GetStateStore(StoreNames.TxStateStore);
         _readOnlyStateStore = context.GetStateStore(StoreNames.TxStateStore) as IReadOnlyKeyValueStore<string, string>
-                              ?? _stateStore as IReadOnlyKeyValueStore<string, string>;
+                              ?? _stateStore;
         _metadataStore = context.GetStateStore(StoreNames.TxMetaStore) as IReadOnlyKeyValueStore<string, string>;
-        context.Schedule(TimeSpan.FromMilliseconds(_options.FlushIntervalMs), PunctuationType.PROCESSING_TIME, OnPunctuate);
+        context.Schedule(TimeSpan.FromMilliseconds(_options.FlushIntervalMs), PunctuationType.PROCESSING_TIME,
+            OnPunctuate);
     }
 
     public Record<string, string>? Process(Record<string, string> record)
@@ -49,10 +51,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
             return null;
         }
 
-        if (_context == null || _stateStore == null)
-        {
-            throw new InvalidOperationException("Transformer not initialized");
-        }
+        if (_context == null || _stateStore == null) throw new InvalidOperationException("Transformer not initialized");
 
         var partition = _context.Partition;
         var offset = _context.Offset;
@@ -76,7 +75,6 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
         // CDC из audit_log трактуем как метаданные, а не как обычное событие
         if (string.Equals(bucketEvent.Table, "audit_log", StringComparison.OrdinalIgnoreCase))
-        {
             try
             {
                 using var metaDoc = JsonDocument.Parse(bucketEvent.PayloadJson);
@@ -91,16 +89,12 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
                 PersistBucket(record.Key, bucket);
                 return null;
             }
-        }
 
         var addResult = bucket.AddEvent(bucketEvent, _options.MaxEventsPerBucket);
         if (addResult == TxBucketAddResult.Duplicate)
         {
             _metrics.MarkDuplicateEvent();
-            if (metadataApplied)
-            {
-                PersistBucket(record.Key, bucket);
-            }
+            if (metadataApplied) PersistBucket(record.Key, bucket);
             return null;
         }
 
@@ -156,10 +150,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
     private void OnPunctuate(long timestamp)
     {
-        if (_context == null || _stateStore == null || _readOnlyStateStore == null)
-        {
-            return;
-        }
+        if (_context == null || _stateStore == null || _readOnlyStateStore == null) return;
 
         var now = timestamp > 0 ? timestamp : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var updates = new List<KeyValuePair<string, string>>();
@@ -169,10 +160,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
         while (enumerator.MoveNext())
         {
             var entry = enumerator.Current;
-            if (string.IsNullOrWhiteSpace(entry.Value))
-            {
-                continue;
-            }
+            if (string.IsNullOrWhiteSpace(entry.Value)) continue;
 
             TxBucket bucket;
             try
@@ -203,21 +191,18 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
                 var resolution = completed
                     ? BucketResolution.Completed
-                    : expired ? BucketResolution.TtlExpired : BucketResolution.LimitExceeded;
+                    : expired
+                        ? BucketResolution.TtlExpired
+                        : BucketResolution.LimitExceeded;
                 emissions.Add((entry.Key, bucket, resolution));
                 continue;
             }
 
             if (metadataChanged)
-            {
                 updates.Add(new KeyValuePair<string, string>(entry.Key, TxBucketSerializer.Serialize(bucket)));
-            }
         }
 
-        foreach (var update in updates)
-        {
-            _stateStore.Put(update.Key, update.Value);
-        }
+        foreach (var update in updates) _stateStore.Put(update.Key, update.Value);
 
         foreach (var emission in emissions)
         {
@@ -228,10 +213,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
     private TxBucket LoadBucket(string txId, long createdAt)
     {
-        if (_readOnlyStateStore == null)
-        {
-            throw new InvalidOperationException("State store not initialized");
-        }
+        if (_readOnlyStateStore == null) throw new InvalidOperationException("State store not initialized");
 
         var existing = _readOnlyStateStore.Get(txId);
         if (string.IsNullOrWhiteSpace(existing))
@@ -255,10 +237,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
     private void PersistBucket(string txId, TxBucket bucket)
     {
-        if (_stateStore == null)
-        {
-            throw new InvalidOperationException("State store not initialized");
-        }
+        if (_stateStore == null) throw new InvalidOperationException("State store not initialized");
 
         var serialized = TxBucketSerializer.Serialize(bucket);
         _stateStore.Put(txId, serialized);
@@ -266,10 +245,7 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
     private string EmitBucket(string txId, TxBucket bucket, BucketResolution resolution)
     {
-        if (_stateStore == null)
-        {
-            throw new InvalidOperationException("State store not initialized");
-        }
+        if (_stateStore == null) throw new InvalidOperationException("State store not initialized");
 
         var incomplete = resolution != BucketResolution.Completed || bucket.ExceededMaxEvents;
         var payload = TxAggregateBuilder.BuildAggregate(bucket, incomplete);
@@ -306,16 +282,10 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
 
     private TxMetadata? FetchMetadata(string txId)
     {
-        if (_metadataStore == null)
-        {
-            return null;
-        }
+        if (_metadataStore == null) return null;
 
         var raw = _metadataStore.Get(txId);
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return null;
-        }
+        if (string.IsNullOrWhiteSpace(raw)) return null;
 
         try
         {
@@ -355,9 +325,7 @@ internal static class TxAggregatorTransformerDependencies
     public static (TxAggregatorOptions Options, ILoggerFactory LoggerFactory, TxAggregatorMetrics Metrics) Resolve()
     {
         if (_options == null || _loggerFactory == null || _metrics == null)
-        {
             throw new InvalidOperationException("TxAggregatorTransformer dependencies are not configured.");
-        }
 
         return (_options, _loggerFactory, _metrics);
     }

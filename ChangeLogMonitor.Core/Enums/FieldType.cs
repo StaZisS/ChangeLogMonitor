@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Core.Enums;
 
 /// <summary>
-/// Тип поля для форматирования view
+///     Тип поля для форматирования view
 /// </summary>
 public enum FieldType
 {

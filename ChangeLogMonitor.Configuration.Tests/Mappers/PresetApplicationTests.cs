@@ -6,7 +6,7 @@ using Xunit;
 namespace ChangeLogMonitor.Configuration.Tests.Mappers;
 
 /// <summary>
-/// Тесты для проверки корректности применения пресетов
+///     Тесты для проверки корректности применения пресетов
 /// </summary>
 public class PresetApplicationTests
 {
@@ -28,7 +28,7 @@ public class PresetApplicationTests
             {
                 Mask = new Dictionary<string, YamlMaskPreset>
                 {
-                    ["email"] = new YamlMaskPreset
+                    ["email"] = new()
                     {
                         Char = "•",
                         KeepLeft = 3,
@@ -40,7 +40,7 @@ public class PresetApplicationTests
             },
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Fields = new Dictionary<string, object>
                     {
@@ -82,7 +82,7 @@ public class PresetApplicationTests
             {
                 Mask = new Dictionary<string, YamlMaskPreset>
                 {
-                    ["email"] = new YamlMaskPreset
+                    ["email"] = new()
                     {
                         Char = "•",
                         KeepLeft = 3,
@@ -93,7 +93,7 @@ public class PresetApplicationTests
             },
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Fields = new Dictionary<string, object>
                     {
@@ -136,7 +136,7 @@ public class PresetApplicationTests
             {
                 Hash = new Dictionary<string, YamlHashPreset>
                 {
-                    ["sha256_salted"] = new YamlHashPreset
+                    ["sha256_salted"] = new()
                     {
                         Algo = "SHA-256",
                         Salt = new YamlSaltSettings { Strategy = "per-record" },
@@ -148,7 +148,7 @@ public class PresetApplicationTests
             },
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Fields = new Dictionary<string, object>
                     {
@@ -188,7 +188,7 @@ public class PresetApplicationTests
             Version = "1.0",
             ReferencePresets = new Dictionary<string, YamlReferencePreset>
             {
-                ["fk_verbose"] = new YamlReferencePreset
+                ["fk_verbose"] = new()
                 {
                     ShowKey = true,
                     ShowName = true,
@@ -197,11 +197,11 @@ public class PresetApplicationTests
             },
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     References = new Dictionary<string, YamlReferencePolicy>
                     {
-                        ["DepartmentId"] = new YamlReferencePolicy
+                        ["DepartmentId"] = new()
                         {
                             Preset = "fk_verbose",
                             NameSelector = "Department.Name"
@@ -231,7 +231,7 @@ public class PresetApplicationTests
             Version = "1.0",
             CollectionPresets = new Dictionary<string, YamlCollectionPreset>
             {
-                ["delta_verbose"] = new YamlCollectionPreset
+                ["delta_verbose"] = new()
                 {
                     LogDeltas = true,
                     ShowKeys = true,
@@ -241,11 +241,11 @@ public class PresetApplicationTests
             },
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Collections = new Dictionary<string, YamlCollectionPolicy>
                     {
-                        ["Roles"] = new YamlCollectionPolicy
+                        ["Roles"] = new()
                         {
                             Preset = "delta_verbose",
                             ItemNameSelector = "Role.Name"
@@ -276,7 +276,7 @@ public class PresetApplicationTests
             Version = "1.0",
             CollectionPresets = new Dictionary<string, YamlCollectionPreset>
             {
-                ["delta_verbose"] = new YamlCollectionPreset
+                ["delta_verbose"] = new()
                 {
                     LogDeltas = true,
                     ShowKeys = true,
@@ -285,11 +285,11 @@ public class PresetApplicationTests
             },
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Collections = new Dictionary<string, YamlCollectionPolicy>
                     {
-                        ["Roles"] = new YamlCollectionPolicy
+                        ["Roles"] = new()
                         {
                             Preset = "delta_verbose",
                             ShowKeys = false, // Перекрываем пресет
@@ -319,7 +319,7 @@ public class PresetApplicationTests
             Version = "1.0",
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Fields = new Dictionary<string, object>
                     {

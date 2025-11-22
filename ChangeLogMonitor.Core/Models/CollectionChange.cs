@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Core.Models;
 
 /// <summary>
-/// Изменение коллекции (навигационное свойство 1-* или *-*)
+///     Изменение коллекции (навигационное свойство 1-* или *-*)
 /// </summary>
 public class CollectionChange
 {

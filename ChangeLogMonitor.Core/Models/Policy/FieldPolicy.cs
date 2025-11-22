@@ -3,7 +3,7 @@ using ChangeLogMonitor.Core.Enums;
 namespace ChangeLogMonitor.Core.Models.Policy;
 
 /// <summary>
-/// Политика для конкретного поля
+///     Политика для конкретного поля
 /// </summary>
 public class FieldPolicy
 {
@@ -23,7 +23,7 @@ public class FieldPolicy
 }
 
 /// <summary>
-/// Настройки отображения (view) для поля
+///     Настройки отображения (view) для поля
 /// </summary>
 public class ViewSettings
 {
@@ -39,7 +39,7 @@ public class ViewSettings
 }
 
 /// <summary>
-/// Настройки маскирования
+///     Настройки маскирования
 /// </summary>
 public class MaskSettings
 {
@@ -61,7 +61,7 @@ public class MaskSettings
 }
 
 /// <summary>
-/// Настройки хеширования
+///     Настройки хеширования
 /// </summary>
 public class HashSettings
 {
@@ -90,7 +90,7 @@ public class SaltSettings
 }
 
 /// <summary>
-/// Настройки шифрования
+///     Настройки шифрования
 /// </summary>
 public class EncryptSettings
 {

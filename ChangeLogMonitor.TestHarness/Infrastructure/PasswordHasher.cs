@@ -14,6 +14,8 @@ internal static class PasswordHasher
         return Convert.ToHexString(hashed);
     }
 
-    public static bool Verify(string value, string hash) =>
-        Hash(value) == hash;
+    public static bool Verify(string value, string hash)
+    {
+        return Hash(value) == hash;
+    }
 }

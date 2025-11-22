@@ -36,7 +36,8 @@ else
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.Configure<JwtOptions>(jwtSection);
-var jwtOptions = jwtSection.Get<JwtOptions>() ?? throw new InvalidOperationException("JWT configuration section is missing.");
+var jwtOptions = jwtSection.Get<JwtOptions>() ??
+                 throw new InvalidOperationException("JWT configuration section is missing.");
 var signingKey = Encoding.UTF8.GetBytes(jwtOptions.SigningKey);
 builder.Services.AddSingleton<TokenService>();
 
@@ -98,10 +99,7 @@ var app = builder.Build();
 
 await app.Services.InitializeAsync();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-}
+if (app.Environment.IsDevelopment()) app.UseDeveloperExceptionPage();
 
 app.UseSwagger();
 app.UseSwaggerUI();
@@ -120,18 +118,13 @@ app.MapPost("/auth/token", async Task<IResult> (
         var password = request.Password?.Trim();
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-        {
             return Results.BadRequest(new { message = "Username and password are required." });
-        }
 
         var user = await dbContext.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
 
-        if (user is null || !PasswordHasher.Verify(password, user.PasswordHash))
-        {
-            return Results.Unauthorized();
-        }
+        if (user is null || !PasswordHasher.Verify(password, user.PasswordHash)) return Results.Unauthorized();
 
         var token = tokenService.Generate(user);
         var response = new TokenResponse(
@@ -151,26 +144,15 @@ app.MapPost("/orders", async Task<IResult> (
         CancellationToken cancellationToken) =>
     {
         if (string.IsNullOrWhiteSpace(request.Description))
-        {
             return Results.BadRequest(new { message = "Description is required." });
-        }
 
-        if (request.Amount <= 0)
-        {
-            return Results.BadRequest(new { message = "Amount must be greater than zero." });
-        }
+        if (request.Amount <= 0) return Results.BadRequest(new { message = "Amount must be greater than zero." });
 
         var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(userIdValue, out var userId))
-        {
-            return Results.Unauthorized();
-        }
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
 
         var userExists = await dbContext.Users.AnyAsync(u => u.Id == userId, cancellationToken);
-        if (!userExists)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userExists) return Results.Unauthorized();
 
         var order = new Order
         {
@@ -188,6 +170,41 @@ app.MapPost("/orders", async Task<IResult> (
         return Results.Created($"/orders/{order.Id}", response);
     })
     .WithName("CreateOrder")
+    .WithTags("Orders")
+    .RequireAuthorization();
+
+app.MapPut("/orders/{orderId:guid}", async Task<IResult> (
+        Guid orderId,
+        UpdateOrderRequest request,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.Description))
+            return Results.BadRequest(new { message = "Description is required." });
+
+        if (request.Amount <= 0) return Results.BadRequest(new { message = "Amount must be greater than zero." });
+
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
+
+        var userExists = await dbContext.Users.AnyAsync(u => u.Id == userId, cancellationToken);
+        if (!userExists) return Results.Unauthorized();
+
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order is null) return Results.NotFound();
+
+        if (order.UserId != userId) return Results.Forbid();
+
+        order.Description = request.Description.Trim();
+        order.Amount = request.Amount;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.CreatedAt, order.UserId);
+        return Results.Ok(response);
+    })
+    .WithName("UpdateOrder")
     .WithTags("Orders")
     .RequireAuthorization();
 

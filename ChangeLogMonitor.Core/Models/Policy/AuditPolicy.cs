@@ -3,7 +3,7 @@ using ChangeLogMonitor.Core.Enums;
 namespace ChangeLogMonitor.Core.Models.Policy;
 
 /// <summary>
-/// Главная политика аудита для всего приложения
+///     Главная политика аудита для всего приложения
 /// </summary>
 public class AuditPolicy
 {

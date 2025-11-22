@@ -1,19 +1,18 @@
 using ChangeLogMonitor.DataAggregator.Configuration;
 using ChangeLogMonitor.DataAggregator.Processing;
 using ChangeLogMonitor.DataAggregator.Services;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddJsonFile("appsettings.json", true, true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)
     .AddEnvironmentVariables();
 
 builder.Services
@@ -32,7 +31,9 @@ builder.Services.AddSingleton<TxAggregatorHostedService>();
 builder.Services.AddSingleton<ITxAggregatorHealth>(sp => sp.GetRequiredService<TxAggregatorHostedService>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TxAggregatorHostedService>());
 
-var httpPort = builder.Configuration.GetValue<int?>($"{AppSettings.SectionName}:{nameof(AppSettings.Http)}:{nameof(HttpSettings.Port)}") ?? 8080;
+var httpPort =
+    builder.Configuration.GetValue<int?>(
+        $"{AppSettings.SectionName}:{nameof(AppSettings.Http)}:{nameof(HttpSettings.Port)}") ?? 8080;
 builder.WebHost.UseUrls($"http://0.0.0.0:{httpPort}");
 
 var app = builder.Build();

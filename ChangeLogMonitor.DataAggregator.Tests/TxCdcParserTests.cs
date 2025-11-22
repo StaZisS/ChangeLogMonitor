@@ -8,7 +8,8 @@ public class TxCdcParserTests
     [Fact]
     public void ExtractTxId_PrefersDebeziumTransactionId()
     {
-        const string json = "{\"payload\":{\"transaction\":{\"id\":\"debez\"},\"after\":{\"transaction_id\":\"biz-id\"}}}";
+        const string json =
+            "{\"payload\":{\"transaction\":{\"id\":\"debez\"},\"after\":{\"transaction_id\":\"biz-id\"}}}";
 
         var txId = TxCdcParser.ExtractTxId(json);
 
@@ -75,16 +76,16 @@ public class TxCdcParserTests
     public void TryParse_ReadsSourceAndPayload()
     {
         const string json = """
-        {
-          "payload": {
-            "op": "c",
-            "ts_ms": 1717698123456,
-            "after": { "id": 1001, "customer_id": 456, "tx_id": "tx-1" },
-            "source": { "table": "orders" },
-            "transaction": { "id": "tx-1", "total_order": 3 }
-          }
-        }
-        """;
+                            {
+                              "payload": {
+                                "op": "c",
+                                "ts_ms": 1717698123456,
+                                "after": { "id": 1001, "customer_id": 456, "tx_id": "tx-1" },
+                                "source": { "table": "orders" },
+                                "transaction": { "id": "tx-1", "total_order": 3 }
+                              }
+                            }
+                            """;
 
         var parsed = TxCdcParser.TryParse(json, "tx-1", "topic:0:10", out var bucketEvent);
 

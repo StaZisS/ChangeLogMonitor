@@ -3,7 +3,7 @@ using ChangeLogMonitor.Core.Enums;
 namespace ChangeLogMonitor.Core.Models;
 
 /// <summary>
-/// Основная сущность лога аудита
+///     Основная сущность лога аудита
 /// </summary>
 public class AuditLogEntry
 {

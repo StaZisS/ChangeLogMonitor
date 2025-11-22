@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Core.Models.Policy;
 
 /// <summary>
-/// Пресет для маскирования
+///     Пресет для маскирования
 /// </summary>
 public class MaskPreset
 {
@@ -17,7 +17,7 @@ public class MaskPreset
 }
 
 /// <summary>
-/// Пресет для хеширования
+///     Пресет для хеширования
 /// </summary>
 public class HashPreset
 {
@@ -37,7 +37,7 @@ public class HashPreset
 }
 
 /// <summary>
-/// Пресет для шифрования
+///     Пресет для шифрования
 /// </summary>
 public class EncryptPreset
 {
@@ -55,7 +55,7 @@ public class EncryptPreset
 }
 
 /// <summary>
-/// Пресет для ссылок
+///     Пресет для ссылок
 /// </summary>
 public class ReferencePreset
 {
@@ -69,7 +69,7 @@ public class ReferencePreset
 }
 
 /// <summary>
-/// Пресет для коллекций
+///     Пресет для коллекций
 /// </summary>
 public class CollectionPreset
 {

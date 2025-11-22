@@ -74,7 +74,7 @@ public class YamlEntityPolicyValidatorTests
         {
             References = new Dictionary<string, YamlReferencePolicy>
             {
-                ["DepartmentId"] = new YamlReferencePolicy
+                ["DepartmentId"] = new()
                 {
                     ViewTemplate = "{name} (ID={key})"
                 }
@@ -96,7 +96,7 @@ public class YamlEntityPolicyValidatorTests
         {
             References = new Dictionary<string, YamlReferencePolicy>
             {
-                ["DepartmentId"] = new YamlReferencePolicy
+                ["DepartmentId"] = new()
                 {
                     ViewTemplate = "No placeholders"
                 }
@@ -119,7 +119,7 @@ public class YamlEntityPolicyValidatorTests
         {
             Collections = new Dictionary<string, YamlCollectionPolicy>
             {
-                ["Roles"] = new YamlCollectionPolicy
+                ["Roles"] = new()
                 {
                     Limits = new YamlCollectionLimits
                     {
@@ -145,7 +145,7 @@ public class YamlEntityPolicyValidatorTests
         {
             Collections = new Dictionary<string, YamlCollectionPolicy>
             {
-                ["Roles"] = new YamlCollectionPolicy
+                ["Roles"] = new()
                 {
                     Limits = new YamlCollectionLimits
                     {

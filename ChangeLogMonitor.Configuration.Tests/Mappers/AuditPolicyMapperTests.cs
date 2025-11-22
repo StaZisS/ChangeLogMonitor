@@ -41,7 +41,7 @@ public class AuditPolicyMapperTests
         domain.OnCreate.Should().Be(CreateBehavior.AllFields);
         domain.OnUpdate.Should().Be(UpdateBehavior.Delta);
         domain.OnDelete.Should().Be(DeleteBehavior.EventOnly);
-        domain.GlobalFieldExclusions.Should().BeEquivalentTo(new[] { "RowVersion", "Timestamp" });
+        domain.GlobalFieldExclusions.Should().BeEquivalentTo("RowVersion", "Timestamp");
         domain.DefaultCulture.Should().Be("ru-RU");
         domain.DefaultTimeZone.Should().Be("Asia/Almaty");
     }
@@ -97,7 +97,7 @@ public class AuditPolicyMapperTests
             Version = "1.0",
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Enabled = true,
                     Fields = new Dictionary<string, object>
@@ -143,7 +143,7 @@ public class AuditPolicyMapperTests
             Version = "1.0",
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["Order"] = new YamlEntityPolicy
+                ["Order"] = new()
                 {
                     Fields = new Dictionary<string, object>
                     {
@@ -182,11 +182,11 @@ public class AuditPolicyMapperTests
             Version = "1.0",
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     References = new Dictionary<string, YamlReferencePolicy>
                     {
-                        ["DepartmentId"] = new YamlReferencePolicy
+                        ["DepartmentId"] = new()
                         {
                             ShowKey = true,
                             ShowName = true,
@@ -230,11 +230,11 @@ public class AuditPolicyMapperTests
             Version = "1.0",
             Entities = new Dictionary<string, YamlEntityPolicy>
             {
-                ["User"] = new YamlEntityPolicy
+                ["User"] = new()
                 {
                     Collections = new Dictionary<string, YamlCollectionPolicy>
                     {
-                        ["Roles"] = new YamlCollectionPolicy
+                        ["Roles"] = new()
                         {
                             LogDeltas = true,
                             ShowKeys = true,
@@ -290,7 +290,7 @@ public class AuditPolicyMapperTests
             {
                 Mask = new Dictionary<string, YamlMaskPreset>
                 {
-                    ["email"] = new YamlMaskPreset
+                    ["email"] = new()
                     {
                         Char = "*",
                         KeepLeft = 2,
@@ -326,7 +326,7 @@ public class AuditPolicyMapperTests
             {
                 Hash = new Dictionary<string, YamlHashPreset>
                 {
-                    ["sha256_salted"] = new YamlHashPreset
+                    ["sha256_salted"] = new()
                     {
                         Algo = "SHA-256",
                         Salt = new YamlSaltSettings

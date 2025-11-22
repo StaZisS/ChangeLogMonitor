@@ -9,12 +9,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ChangeLogMonitor.Interceptor.Extensions;
 
 /// <summary>
-/// Extension методы для регистрации ChangeLog Interceptor в DI контейнере
+///     Extension методы для регистрации ChangeLog Interceptor в DI контейнере
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Добавляет ChangeLog Interceptor со всеми зависимостями
+    ///     Добавляет ChangeLog Interceptor со всеми зависимостями
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="auditDbConnectionString">Строка подключения к БД аудита</param>
@@ -32,10 +32,8 @@ public static class ServiceCollectionExtensions
         // Регистрируем AuditDbContext
         services.AddDbContext<AuditDbContext>(options =>
         {
-            options.UseNpgsql(auditDbConnectionString, b =>
-            {
-                b.MigrationsAssembly(typeof(AuditDbContext).Assembly.FullName);
-            });
+            options.UseNpgsql(auditDbConnectionString,
+                b => { b.MigrationsAssembly(typeof(AuditDbContext).Assembly.FullName); });
         });
 
         // Регистрируем конфигурацию
@@ -45,13 +43,9 @@ public static class ServiceCollectionExtensions
 
         // Регистрируем провайдер метаданных
         if (metadataProviderFactory != null)
-        {
             services.AddScoped(metadataProviderFactory);
-        }
         else
-        {
             services.AddScoped<IAuditMetadataProvider, DefaultAuditMetadataProvider>();
-        }
 
         // Регистрируем сериализатор
         services.AddScoped<AuditMetadataSerializer>();
@@ -59,16 +53,13 @@ public static class ServiceCollectionExtensions
         // Регистрируем интерцептор
         services.AddScoped<ChangeLogInterceptor>();
 
-        if (applyMigrations)
-        {
-            services.AddHostedService<AuditDbMigrationHostedService>();
-        }
+        if (applyMigrations) services.AddHostedService<AuditDbMigrationHostedService>();
 
         return services;
     }
 
     /// <summary>
-    /// Добавляет ChangeLog Interceptor к DbContextOptionsBuilder
+    ///     Добавляет ChangeLog Interceptor к DbContextOptionsBuilder
     /// </summary>
     public static DbContextOptionsBuilder AddChangeLogInterceptor(
         this DbContextOptionsBuilder optionsBuilder,

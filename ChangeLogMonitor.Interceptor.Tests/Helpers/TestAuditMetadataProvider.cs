@@ -3,7 +3,7 @@ using ChangeLogMonitor.Interceptor.Services;
 namespace ChangeLogMonitor.Interceptor.Tests.Helpers;
 
 /// <summary>
-/// Тестовый провайдер метаданных с фиксированными значениями
+///     Тестовый провайдер метаданных с фиксированными значениями
 /// </summary>
 public class TestAuditMetadataProvider : IAuditMetadataProvider
 {
@@ -15,16 +15,43 @@ public class TestAuditMetadataProvider : IAuditMetadataProvider
     public string? UserAgent { get; set; } = "TestAgent/1.0";
     public Dictionary<string, string>? Hints { get; set; }
 
-    public string GetUserId() => UserId;
-    public string GetUserName() => UserName;
-    public string? GetRequestId() => RequestId;
-    public string? GetServiceName() => ServiceName;
-    public string? GetClientIp() => ClientIp;
-    public string? GetUserAgent() => UserAgent;
-    public Dictionary<string, string>? GetHints() => Hints;
+    public string GetUserId()
+    {
+        return UserId;
+    }
+
+    public string GetUserName()
+    {
+        return UserName;
+    }
+
+    public string? GetRequestId()
+    {
+        return RequestId;
+    }
+
+    public string? GetServiceName()
+    {
+        return ServiceName;
+    }
+
+    public string? GetClientIp()
+    {
+        return ClientIp;
+    }
+
+    public string? GetUserAgent()
+    {
+        return UserAgent;
+    }
+
+    public Dictionary<string, string>? GetHints()
+    {
+        return Hints;
+    }
 
     /// <summary>
-    /// Сбрасывает все значения к значениям по умолчанию
+    ///     Сбрасывает все значения к значениям по умолчанию
     /// </summary>
     public void Reset()
     {

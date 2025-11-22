@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Interceptor.Tests.TestEntities;
 
 /// <summary>
-/// Тестовая сущность Order для проверки работы интерцептора
+///     Тестовая сущность Order для проверки работы интерцептора
 /// </summary>
 public class Order
 {

@@ -1,14 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\ChangeLogMonitor.Core\ChangeLogMonitor.Core.csproj" />
-    <ProjectReference Include="..\ChangeLogMonitor.Api\ChangeLogMonitor.Api.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\ChangeLogMonitor.Core\ChangeLogMonitor.Core.csproj"/>
+    </ItemGroup>
 
 </Project>

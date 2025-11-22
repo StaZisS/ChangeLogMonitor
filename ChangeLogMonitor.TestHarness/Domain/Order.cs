@@ -11,11 +11,9 @@ public class Order
 
     public User? User { get; set; }
 
-    [MaxLength(512)]
-    public required string Description { get; set; }
+    [MaxLength(512)] public required string Description { get; set; }
 
-    [Column(TypeName = "decimal(18,2)")]
-    public decimal Amount { get; set; }
+    [Column(TypeName = "decimal(18,2)")] public decimal Amount { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 }

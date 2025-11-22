@@ -5,12 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ChangeLogMonitor.Configuration.Extensions;
 
 /// <summary>
-/// Extensions для регистрации сервисов конфигурации аудита в DI контейнере
+///     Extensions для регистрации сервисов конфигурации аудита в DI контейнере
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Регистрирует сервисы конфигурации аудита
+    ///     Регистрирует сервисы конфигурации аудита
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configFilePath">Путь к файлу changelog-config.yaml (по умолчанию в корне проекта)</param>
@@ -32,7 +32,7 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Регистрирует сервисы конфигурации аудита с указанием пути через конфигурацию
+    ///     Регистрирует сервисы конфигурации аудита с указанием пути через конфигурацию
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configureOptions">Действие для настройки опций</param>
@@ -49,12 +49,12 @@ public static class ServiceCollectionExtensions
 }
 
 /// <summary>
-/// Опции для конфигурации аудита
+///     Опции для конфигурации аудита
 /// </summary>
 public class AuditConfigurationOptions
 {
     /// <summary>
-    /// Путь к файлу конфигурации
+    ///     Путь к файлу конфигурации
     /// </summary>
     public string ConfigFilePath { get; set; } = "changelog-config.yaml";
 }

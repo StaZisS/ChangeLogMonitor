@@ -10,15 +10,14 @@ namespace ChangeLogMonitor.DataAggregator.Services;
 
 public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregatorHealth
 {
-    private readonly TxAggregatorTopologyFactory _topologyFactory;
+    private readonly string _applicationId;
     private readonly ILogger<TxAggregatorHostedService> _logger;
     private readonly TxAggregatorMetrics _metrics;
-    private readonly string _applicationId;
+    private readonly TxAggregatorTopologyFactory _topologyFactory;
+    private volatile bool _isReady;
+    private volatile bool _isRunning;
 
     private KafkaStream? _stream;
-    private volatile bool _isRunning;
-    private volatile bool _isReady;
-    private string _state = StreamState.CREATED.ToString();
 
     public TxAggregatorHostedService(
         TxAggregatorTopologyFactory topologyFactory,
@@ -34,7 +33,12 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
 
     public bool IsRunning => _isRunning;
     public bool IsReady => _isReady;
-    public string State => _state;
+    public string State { get; private set; } = StreamState.CREATED.ToString();
+
+    public TxAggregatorMetricsSnapshot GetSnapshot()
+    {
+        return _metrics.GetSnapshot();
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -68,7 +72,7 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
             _stream = null;
             _isRunning = false;
             _isReady = false;
-            _state = StreamState.NOT_RUNNING.ToString();
+            State = StreamState.NOT_RUNNING.ToString();
         }
     }
 
@@ -79,11 +83,9 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
         return base.StopAsync(cancellationToken);
     }
 
-    public TxAggregatorMetricsSnapshot GetSnapshot() => _metrics.GetSnapshot();
-
     private void OnStateChanged(StreamState previous, StreamState current)
     {
-        _state = current.ToString();
+        State = current.ToString();
         _isReady = ReferenceEquals(current, StreamState.RUNNING);
         _logger.LogInformation("Kafka stream state changed {OldState} -> {NewState}", previous, current);
     }

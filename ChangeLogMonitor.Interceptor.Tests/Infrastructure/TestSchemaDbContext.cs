@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 namespace ChangeLogMonitor.Interceptor.Tests.Infrastructure;
 
 /// <summary>
-/// Вспомогательный DbContext, который объединяет схему audit_log и тестовые сущности.
-/// Нужен только для первичной инициализации схемы БД в интеграционных тестах.
+///     Вспомогательный DbContext, который объединяет схему audit_log и тестовые сущности.
+///     Нужен только для первичной инициализации схемы БД в интеграционных тестах.
 /// </summary>
 internal class TestSchemaDbContext : DbContext
 {

@@ -13,20 +13,20 @@ using Xunit;
 namespace ChangeLogMonitor.Interceptor.Tests.Infrastructure;
 
 /// <summary>
-/// Базовый класс для интеграционных тестов с PostgreSQL через Testcontainers
+///     Базовый класс для интеграционных тестов с PostgreSQL через Testcontainers
 /// </summary>
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
-
-    protected string ConnectionString => _fixture.ConnectionString;
-    protected TestAuditMetadataProvider MetadataProvider { get; private set; } = null!;
 
     protected IntegrationTestBase(PostgreSqlFixture fixture)
     {
         _fixture = fixture;
         MetadataProvider = new TestAuditMetadataProvider();
     }
+
+    protected string ConnectionString => _fixture.ConnectionString;
+    protected TestAuditMetadataProvider MetadataProvider { get; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -47,7 +47,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Создает AuditDbContext
+    ///     Создает AuditDbContext
     /// </summary>
     protected AuditDbContext CreateAuditDbContext()
     {
@@ -59,7 +59,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Создает TestAppDbContext с интерцептором
+    ///     Создает TestAppDbContext с интерцептором
     /// </summary>
     protected TestAppDbContext CreateAppDbContext(string configFilePath)
     {
@@ -86,7 +86,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Очищает все данные из таблиц
+    ///     Очищает все данные из таблиц
     /// </summary>
     protected async Task CleanDatabaseAsync()
     {
@@ -109,7 +109,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Очищает только таблицу audit_log, сохраняя остальные данные
+    ///     Очищает только таблицу audit_log, сохраняя остальные данные
     /// </summary>
     protected async Task CleanAuditLogAsync()
     {
@@ -122,7 +122,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Получает количество записей в audit_log
+    ///     Получает количество записей в audit_log
     /// </summary>
     protected async Task<int> GetAuditLogCountAsync()
     {
@@ -131,7 +131,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Получает все записи из audit_log
+    ///     Получает все записи из audit_log
     /// </summary>
     protected async Task<List<AuditLog>> GetAllAuditLogsAsync()
     {

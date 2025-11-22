@@ -8,10 +8,11 @@ namespace ChangeLogMonitor.Interceptor.Services;
 
 internal sealed class AuditDbMigrationHostedService : IHostedService
 {
-    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AuditDbMigrationHostedService>? _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public AuditDbMigrationHostedService(IServiceScopeFactory scopeFactory, ILogger<AuditDbMigrationHostedService>? logger = null)
+    public AuditDbMigrationHostedService(IServiceScopeFactory scopeFactory,
+        ILogger<AuditDbMigrationHostedService>? logger = null)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
@@ -33,5 +34,8 @@ internal sealed class AuditDbMigrationHostedService : IHostedService
         }
     }
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
 }

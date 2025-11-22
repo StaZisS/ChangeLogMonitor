@@ -4,12 +4,12 @@ using Microsoft.EntityFrameworkCore;
 namespace ChangeLogMonitor.Interceptor.Extensions;
 
 /// <summary>
-/// Extension методы для DbContextOptionsBuilder
+///     Extension методы для DbContextOptionsBuilder
 /// </summary>
 public static class DbContextOptionsBuilderExtensions
 {
     /// <summary>
-    /// Добавляет ChangeLogInterceptor к цепочке интерцепторов DbContext
+    ///     Добавляет ChangeLogInterceptor к цепочке интерцепторов DbContext
     /// </summary>
     /// <param name="optionsBuilder">DbContext options builder</param>
     /// <param name="interceptor">Экземпляр ChangeLogInterceptor</param>

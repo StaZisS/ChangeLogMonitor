@@ -1,7 +1,7 @@
 namespace ChangeLogMonitor.Core.Models.Policy;
 
 /// <summary>
-/// Политика для ссылочного поля (FK)
+///     Политика для ссылочного поля (FK)
 /// </summary>
 public class ReferencePolicy
 {
@@ -45,7 +45,7 @@ public class KeySensitivitySettings
 }
 
 /// <summary>
-/// Умолчания для ссылок
+///     Умолчания для ссылок
 /// </summary>
 public class ReferenceDefaults
 {

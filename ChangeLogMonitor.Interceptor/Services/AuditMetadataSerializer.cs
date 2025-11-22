@@ -4,7 +4,7 @@ using Google.Protobuf;
 namespace ChangeLogMonitor.Interceptor.Services;
 
 /// <summary>
-/// Сервис для сериализации метаданных аудита в protobuf
+///     Сервис для сериализации метаданных аудита в protobuf
 /// </summary>
 public class AuditMetadataSerializer
 {
@@ -16,7 +16,7 @@ public class AuditMetadataSerializer
     }
 
     /// <summary>
-    /// Создает и сериализует AuditMetaEnvelope
+    ///     Создает и сериализует AuditMetaEnvelope
     /// </summary>
     /// <param name="transactionId">ID транзакции</param>
     /// <returns>Сериализованный protobuf как массив байт</returns>
@@ -59,22 +59,18 @@ public class AuditMetadataSerializer
         // Добавляем подсказки (если есть)
         var hints = _metadataProvider.GetHints();
         if (hints != null && hints.Count > 0)
-        {
             foreach (var hint in hints)
-            {
                 envelope.Hints.Add(new Hint
                 {
                     Key = hint.Key,
                     Value = hint.Value
                 });
-            }
-        }
 
         return envelope.ToByteArray();
     }
 
     /// <summary>
-    /// Десериализует AuditMetaEnvelope из байт
+    ///     Десериализует AuditMetaEnvelope из байт
     /// </summary>
     public AuditMetaEnvelope Deserialize(byte[] data)
     {

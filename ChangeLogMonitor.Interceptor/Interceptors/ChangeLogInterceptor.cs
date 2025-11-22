@@ -1,26 +1,27 @@
+using System.Collections.Concurrent;
+using System.Data;
 using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Interceptor.Models;
 using ChangeLogMonitor.Interceptor.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
-using System.Threading;
-using System.Collections.Concurrent;
 
 namespace ChangeLogMonitor.Interceptor.Interceptors;
 
 /// <summary>
-/// Интерцептор для перехвата изменений в базе данных и записи метаданных в audit_log
+///     Интерцептор для перехвата изменений в базе данных и записи метаданных в audit_log
 /// </summary>
 public class ChangeLogInterceptor : SaveChangesInterceptor
 {
-    private readonly AuditDbContext _auditDbContext;
-    private readonly IAuditConfigurationService _configService;
-    private readonly AuditMetadataSerializer _metadataSerializer;
-    private readonly ILogger<ChangeLogInterceptor>? _logger;
     private static readonly SemaphoreSlim SchemaLock = new(1, 1);
     private static bool _schemaReady;
+    private readonly AuditDbContext _auditDbContext;
+    private readonly IAuditConfigurationService _configService;
+    private readonly ILogger<ChangeLogInterceptor>? _logger;
+    private readonly AuditMetadataSerializer _metadataSerializer;
     private readonly ConcurrentDictionary<DbContext, IDbContextTransaction> _ownedTransactions = new();
 
     public ChangeLogInterceptor(
@@ -40,7 +41,6 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         InterceptionResult<int> result)
     {
         if (eventData.Context != null && ShouldAudit(eventData.Context))
-        {
             try
             {
                 CaptureChanges(eventData.Context);
@@ -51,7 +51,6 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                 // В зависимости от требований можно либо пробросить исключение, либо проигнорировать
                 // throw;
             }
-        }
 
         return base.SavingChanges(eventData, result);
     }
@@ -62,7 +61,6 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         CancellationToken cancellationToken = default)
     {
         if (eventData.Context != null && ShouldAudit(eventData.Context))
-        {
             try
             {
                 await CaptureChangesAsync(eventData.Context, cancellationToken);
@@ -73,7 +71,6 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                 // В зависимости от требований можно либо пробросить исключение, либо проигнорировать
                 // throw;
             }
-        }
 
         return await base.SavingChangesAsync(eventData, result, cancellationToken);
     }
@@ -108,7 +105,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     }
 
     /// <summary>
-    /// Проверяет, нужно ли аудировать данный контекст
+    ///     Проверяет, нужно ли аудировать данный контекст
     /// </summary>
     private bool ShouldAudit(DbContext context)
     {
@@ -117,7 +114,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     }
 
     /// <summary>
-    /// Захватывает изменения и записывает метаданные в audit_log (синхронная версия)
+    ///     Захватывает изменения и записывает метаданные в audit_log (синхронная версия)
     /// </summary>
     private void CaptureChanges(DbContext context)
     {
@@ -142,7 +139,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     }
 
     /// <summary>
-    /// Захватывает изменения и записывает метаданные в audit_log (асинхронная версия)
+    ///     Захватывает изменения и записывает метаданные в audit_log (асинхронная версия)
     /// </summary>
     private async Task CaptureChangesAsync(DbContext context, CancellationToken cancellationToken)
     {
@@ -168,18 +165,18 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
 
 
     /// <summary>
-    /// Получает отслеживаемые записи, которые нужно аудировать
+    ///     Получает отслеживаемые записи, которые нужно аудировать
     /// </summary>
-    private List<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry> GetTrackedEntries(DbContext context)
+    private List<EntityEntry> GetTrackedEntries(DbContext context)
     {
         var entries = context.ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added ||
-                       e.State == EntityState.Modified ||
-                       e.State == EntityState.Deleted)
+                        e.State == EntityState.Modified ||
+                        e.State == EntityState.Deleted)
             .ToList();
 
         // Фильтруем по конфигурации
-        var auditableEntries = new List<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry>();
+        var auditableEntries = new List<EntityEntry>();
 
         foreach (var entry in entries)
         {
@@ -206,7 +203,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     }
 
     /// <summary>
-    /// Генерирует уникальный ID транзакции
+    ///     Генерирует уникальный ID транзакции
     /// </summary>
     private string GenerateTransactionId()
     {
@@ -256,10 +253,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     private async Task<bool> AuditTableExistsAsync(CancellationToken cancellationToken)
     {
         await using var connection = _auditDbContext.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
+        if (connection.State != ConnectionState.Open) await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT to_regclass('public.audit_log')::text";
@@ -302,10 +296,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
 
     private void EnsureTransaction(DbContext context)
     {
-        if (context.Database.CurrentTransaction != null)
-        {
-            return;
-        }
+        if (context.Database.CurrentTransaction != null) return;
 
         var tx = context.Database.BeginTransaction();
         _ownedTransactions[context] = tx;
