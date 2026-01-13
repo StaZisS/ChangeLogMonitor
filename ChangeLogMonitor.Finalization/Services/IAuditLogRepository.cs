@@ -18,4 +18,9 @@ public interface IAuditLogRepository
         string transactionId,
         int limit,
         CancellationToken cancellationToken);
+
+    Task<(IReadOnlyList<AuditLogRecord> Records, long TotalCount)> GetAllAsync(
+        int offset,
+        int limit,
+        CancellationToken cancellationToken);
 }

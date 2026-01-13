@@ -2,13 +2,19 @@ using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Audit.V1;
 using Auditmeta.Raw;
+using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.DataAggregator.Models;
 using ChangeLogMonitor.Finalization.Models;
+using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 
 namespace ChangeLogMonitor.Finalization.Services;
 
-internal sealed class AggregateFlattener(ILogger<AggregateFlattener> logger) : IAggregateFlattener
+public sealed class AggregateFlattener(
+    ILogger<AggregateFlattener> logger,
+    IAuditConfigurationService? configurationService = null) : IAggregateFlattener
 {
     private static readonly JsonSerializerOptions AggregateSerializerOptions = new()
     {
@@ -31,9 +37,14 @@ internal sealed class AggregateFlattener(ILogger<AggregateFlattener> logger) : I
         "pk"
     ];
 
+    private readonly IAuditConfigurationService? _configurationService = configurationService;
+
     public IReadOnlyCollection<AuditLogRecord> Flatten(string? rawPayload, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(rawPayload)) return Array.Empty<AuditLogRecord>();
+        if (string.IsNullOrWhiteSpace(rawPayload))
+        {
+            return Array.Empty<AuditLogRecord>();
+        }
 
         TxAggregate? aggregate;
         try
@@ -47,21 +58,37 @@ internal sealed class AggregateFlattener(ILogger<AggregateFlattener> logger) : I
         }
 
         if (aggregate?.Events == null || aggregate.Events.Count == 0 || string.IsNullOrWhiteSpace(aggregate.TxId))
+        {
             return Array.Empty<AuditLogRecord>();
+        }
 
         var normalizedMeta = NormalizeMeta(aggregate.Meta);
         var userId = ResolveUserId(normalizedMeta);
+        var normalizationVersion = ResolveNormalizationVersion();
         var records = new List<AuditLogRecord>(aggregate.Events.Count);
 
-        foreach (var aggregateEvent in aggregate.Events)
+        for (var i = 0; i < aggregate.Events.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var aggregateEvent = aggregate.Events[i];
 
             var changeTime = ResolveTimestamp(aggregateEvent.TimestampMs);
             var entityId = ResolveEntityId(aggregateEvent.Payload);
-            var payload = BuildPayload(aggregateEvent.Payload, normalizedMeta, aggregate.Incomplete);
             var operation = MapOperation(aggregateEvent.Operation);
             var tableName = aggregateEvent.Table?.Trim() ?? string.Empty;
+
+            // TODO: применить политики маскирования/нормализации (ChangeLogMonitor.Configuration)
+            var auditRecord = BuildAuditRecord(
+                aggregate,
+                aggregateEvent,
+                i,
+                changeTime,
+                entityId,
+                userId,
+                operation,
+                normalizationVersion);
+
+            var payload = Convert.ToBase64String(auditRecord.ToByteArray());
 
             records.Add(new AuditLogRecord(
                 0,
@@ -75,6 +102,34 @@ internal sealed class AggregateFlattener(ILogger<AggregateFlattener> logger) : I
         }
 
         return records;
+    }
+
+    private AuditRecord BuildAuditRecord(
+        TxAggregate aggregate,
+        TxAggregateEvent aggregateEvent,
+        int ordinal,
+        DateTime changeTime,
+        string entityId,
+        string userId,
+        byte operation,
+        uint normalizationVersion)
+    {
+        var record = new AuditRecord
+        {
+            Id = $"{aggregate.TxId}-{ordinal}",
+            EntityType = aggregateEvent.Table ?? string.Empty,
+            EntityId = entityId,
+            EntityTitle = string.Empty,
+            Operation = (OperationType)operation,
+            TimestampUtc = Timestamp.FromDateTime(DateTime.SpecifyKind(changeTime, DateTimeKind.Utc)),
+            UserId = userId,
+            UserTitle = string.Empty,
+            UserType = string.IsNullOrWhiteSpace(userId) ? "system" : "user",
+            RawPayloadJson = aggregateEvent.Payload.GetRawText(),
+            NormalizationVersion = normalizationVersion
+        };
+
+        return record;
     }
 
     private static DateTime ResolveTimestamp(long timestampMs)
@@ -110,29 +165,6 @@ internal sealed class AggregateFlattener(ILogger<AggregateFlattener> logger) : I
             }
 
         return string.Empty;
-    }
-
-    private static string BuildPayload(JsonElement payload, JsonElement? meta, bool incomplete)
-    {
-        JsonElement dataElement;
-        if (payload.ValueKind == JsonValueKind.Undefined || payload.ValueKind == JsonValueKind.Null)
-        {
-            using var emptyDoc = JsonDocument.Parse("{}");
-            dataElement = emptyDoc.RootElement.Clone();
-        }
-        else
-        {
-            dataElement = payload;
-        }
-
-        var storedPayload = new StoredPayload
-        {
-            Data = dataElement,
-            Meta = meta,
-            Incomplete = incomplete
-        };
-
-        return JsonSerializer.Serialize(storedPayload, PayloadSerializerOptions);
     }
 
     private static JsonElement? NormalizeMeta(JsonElement? meta)
@@ -243,6 +275,23 @@ internal sealed class AggregateFlattener(ILogger<AggregateFlattener> logger) : I
             JsonValueKind.False => "false",
             _ => element.GetRawText()
         };
+    }
+
+    private uint ResolveNormalizationVersion()
+    {
+        try
+        {
+            var version = _configurationService?.GetPolicy()?.Version;
+            if (!string.IsNullOrWhiteSpace(version) && uint.TryParse(version, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
+            {
+                return parsed;
+            }
+            return 1;
+        }
+        catch
+        {
+            return 1;
+        }
     }
 
     private static string Truncate(string value, int maxLength = 256)

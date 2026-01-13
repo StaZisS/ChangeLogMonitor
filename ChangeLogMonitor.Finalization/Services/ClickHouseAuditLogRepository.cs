@@ -132,6 +132,29 @@ SETTINGS index_granularity = 8192;";
         return await ReadAsync(command, cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<AuditLogRecord> Records, long TotalCount)> GetAllAsync(
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+
+        await using var countCommand = connection.CreateCommand();
+        countCommand.CommandText = $"SELECT count() FROM {_quotedTableName}";
+        var totalCount = Convert.ToInt64(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+            "ORDER BY log_id DESC LIMIT @limit OFFSET @offset";
+
+        command.Parameters.Add(CreateParameter(command, "limit", limit));
+        command.Parameters.Add(CreateParameter(command, "offset", offset));
+
+        var records = await ReadAsync(command, cancellationToken);
+        return (records, totalCount);
+    }
+
     private static async Task<IReadOnlyList<AuditLogRecord>> ReadAsync(
         ClickHouseCommand command,
         CancellationToken cancellationToken)

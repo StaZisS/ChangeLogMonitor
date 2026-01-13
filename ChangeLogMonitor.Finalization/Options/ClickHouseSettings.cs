@@ -6,7 +6,7 @@ public sealed class ClickHouseSettings
 {
     [Required]
     public string ConnectionString { get; init; } =
-        "Host=localhost;Port=9000;Database=default;User=default;Password=";
+        "Host=localhost;Port=9000;Database=default;User=default;Password=123456";
 
     [Required] public string TableName { get; init; } = "audit_log";
 

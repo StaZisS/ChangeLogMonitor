@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.DataAggreg
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.Finalization", "ChangeLogMonitor.Finalization\ChangeLogMonitor.Finalization.csproj", "{B9D4DC13-68BE-4A4C-A320-6006F21A22B3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.Finalization.Tests", "ChangeLogMonitor.Finalization.Tests\ChangeLogMonitor.Finalization.Tests.csproj", "{166E5731-6B6E-40DF-8B6E-A51077502426}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,5 +89,9 @@ Global
 		{B9D4DC13-68BE-4A4C-A320-6006F21A22B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9D4DC13-68BE-4A4C-A320-6006F21A22B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9D4DC13-68BE-4A4C-A320-6006F21A22B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{166E5731-6B6E-40DF-8B6E-A51077502426}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{166E5731-6B6E-40DF-8B6E-A51077502426}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{166E5731-6B6E-40DF-8B6E-A51077502426}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{166E5731-6B6E-40DF-8B6E-A51077502426}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

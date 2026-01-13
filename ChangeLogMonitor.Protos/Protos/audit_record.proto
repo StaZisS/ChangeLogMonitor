@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package audit.v1;
+
+import "google/protobuf/timestamp.proto";
+
+/// Тип операции над сущностью
+enum OperationType {
+  OPERATION_TYPE_UNSPECIFIED = 0;
+  OPERATION_CREATE           = 1;
+  OPERATION_UPDATE           = 2;
+  OPERATION_DELETE           = 3;
+  OPERATION_SOFT_DELETE      = 4;
+  OPERATION_BULK_UPDATE      = 5;
+  OPERATION_BULK_DELETE      = 6;
+}
+
+/// Тип значения поля в дельте
+enum ValueKind {
+  VALUE_KIND_UNSPECIFIED = 0;
+  VALUE_KIND_SCALAR      = 1;   // строка, число, дата, bool — приведены к строке
+  VALUE_KIND_ENUM        = 2;   // enum: код + человекочитаемое имя (одна локаль)
+  VALUE_KIND_REFERENCE   = 3;   // связь: ключ + человекочитаемое имя
+  VALUE_KIND_COLLECTION  = 4;   // коллекция (отдельная структура)
+}
+
+/// Политика обработки чувствительных данных
+enum SensitiveMode {
+  SENSITIVE_MODE_UNSPECIFIED = 0;
+  SENSITIVE_MODE_NONE        = 1;
+  SENSITIVE_MODE_MASKED      = 2;
+  SENSITIVE_MODE_ENCRYPTED   = 3;
+  SENSITIVE_MODE_HASHED      = 4;
+  SENSITIVE_MODE_FACT_ONLY   = 5; // только факт изменения
+  SENSITIVE_MODE_EXCLUDED    = 6; // поле исключено и вообще не должно храниться
+}
+
+/// Унифицированное значение поля (уже нормализованное)
+message FieldValue {
+  string normalized = 1;
+  string enum_code = 2;
+  string enum_title = 3;
+  string reference_key = 4;
+  string reference_title = 5;
+}
+
+/// Изменение обычного поля (простого, enum или reference)
+message FieldChange {
+  string field_name = 1;
+  string field_title = 2;
+  ValueKind value_kind = 3;
+  SensitiveMode sensitive_mode = 4;
+  FieldValue old_value = 5;
+  FieldValue new_value = 6;
+}
+
+/// Тип изменения элемента коллекции
+enum CollectionDeltaKind {
+  COLLECTION_DELTA_KIND_UNSPECIFIED = 0;
+  COLLECTION_DELTA_KIND_ADD         = 1;
+  COLLECTION_DELTA_KIND_REMOVE      = 2;
+  COLLECTION_DELTA_KIND_UPDATE      = 3;
+}
+
+message CollectionItemChange {
+  CollectionDeltaKind kind = 1;
+  string item_key = 2;
+  string item_title = 3;
+  string raw_normalized = 4;
+}
+
+message CollectionChange {
+  string field_name = 1;
+  string field_title = 2;
+  repeated CollectionItemChange items = 3;
+}
+
+/// Главная запись, которая сохраняется в базе
+message AuditRecord {
+  string id = 1;
+  string entity_type = 2;
+  string entity_id   = 3;
+  string entity_title = 4;
+  OperationType operation = 5;
+  google.protobuf.Timestamp timestamp_utc = 6;
+  string user_id    = 7;
+  string user_title = 8;
+  string user_type  = 9;
+  repeated FieldChange field_changes = 20;
+  repeated CollectionChange collection_changes = 21;
+  string raw_payload_json = 30;
+  uint32 normalization_version = 40;
+}

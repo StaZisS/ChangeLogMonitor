@@ -11,4 +11,6 @@ public sealed class AppSettings
     [Required] public ClickHouseSettings ClickHouse { get; init; } = new();
 
     [Required] public HttpSettings Http { get; init; } = new();
+
+    public PolicySettings Policy { get; init; } = new();
 }

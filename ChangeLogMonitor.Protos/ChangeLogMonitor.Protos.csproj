@@ -16,6 +16,7 @@
 
     <ItemGroup>
         <Protobuf Include="Protos/raw_audit_metadata.proto" GrpcServices="None"/>
+        <Protobuf Include="Protos/audit_record.proto" GrpcServices="None"/>
     </ItemGroup>
 
 </Project>
