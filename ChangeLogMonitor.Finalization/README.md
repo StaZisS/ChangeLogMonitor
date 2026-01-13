@@ -5,9 +5,10 @@
 ## Возможности
 
 - Консьюмер Kafka (топик агрегатов из `ChangeLogMonitor.DataAggregator`).
-- Сохранение в ClickHouse (`MergeTree`, партиция по месяцу изменения).
+- Сохранение в ClickHouse (`MergeTree`, партиция по месяцу изменения) с `log_id` для seek-пагинации.
 - REST API для выборки дифов по сущности или транзакции.
 - Автосоздание таблицы (можно отключить в настройках).
+- Пэйлоад хранится как base64 protobuf `audit.v1.AuditRecord` (см. `ChangeLogMonitor.Protos/Protos/audit_record.proto`).
 
 ## Конфигурация
 

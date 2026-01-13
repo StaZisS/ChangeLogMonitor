@@ -1,8 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ChangeLogMonitor.Configuration.Providers;
+using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Options;
 using ChangeLogMonitor.Finalization.Services;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,8 +27,17 @@ builder.Services
     .Validate(settings => !string.IsNullOrWhiteSpace(settings.Kafka.InputTopic), "Kafka:InputTopic is required")
     .ValidateOnStart();
 
+builder.Services.AddSingleton<IAuditConfigurationService>(sp =>
+{
+    var settings = sp.GetRequiredService<IOptions<AppSettings>>().Value;
+    var path = settings.Policy?.ConfigPath ?? "changelog-config.yaml";
+    var fullPath = Path.IsPathRooted(path) ? path : Path.Combine(builder.Environment.ContentRootPath, path);
+    return new AuditConfigurationService(new YamlAuditPolicyProvider(fullPath), sp.GetService<ILogger<AuditConfigurationService>>());
+});
+
 builder.Services.AddSingleton<IAggregateFlattener, AggregateFlattener>();
 builder.Services.AddSingleton<IAuditLogRepository, ClickHouseAuditLogRepository>();
+builder.Services.AddSingleton<IDiffService, DiffService>();
 builder.Services.AddHostedService<AggregateIngestService>();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -50,15 +62,14 @@ app.MapGet("/diffs/{tableName}/{entityId}", async Task<IResult> (
         string tableName,
         string entityId,
         int? limit,
-        IAuditLogRepository repository,
+        IDiffService diffService,
         CancellationToken cancellationToken) =>
     {
         if (string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(entityId))
             return Results.BadRequest(new { message = "tableName and entityId are required." });
 
         var take = Math.Clamp(limit ?? 50, 1, 500);
-        var records = await repository.GetByEntityAsync(tableName, entityId, take, cancellationToken);
-        var response = records.Select(DiffResponse.FromRecord);
+        var response = await diffService.GetByEntityAsync(tableName, entityId, take, cancellationToken);
         return Results.Ok(response);
     })
     .WithName("GetDiffsByEntity")
@@ -67,18 +78,30 @@ app.MapGet("/diffs/{tableName}/{entityId}", async Task<IResult> (
 app.MapGet("/diffs/tx/{transactionId}", async Task<IResult> (
         string transactionId,
         int? limit,
-        IAuditLogRepository repository,
+        IDiffService diffService,
         CancellationToken cancellationToken) =>
     {
         if (string.IsNullOrWhiteSpace(transactionId))
             return Results.BadRequest(new { message = "transactionId is required." });
 
         var take = Math.Clamp(limit ?? 50, 1, 500);
-        var records = await repository.GetByTransactionAsync(transactionId, take, cancellationToken);
-        var response = records.Select(DiffResponse.FromRecord);
+        var response = await diffService.GetByTransactionAsync(transactionId, take, cancellationToken);
         return Results.Ok(response);
     })
     .WithName("GetDiffsByTransaction")
+    .WithTags("Diffs");
+
+app.MapGet("/diffs", async Task<IResult> (
+        string? pageToken,
+        int? limit,
+        IDiffService diffService,
+        CancellationToken cancellationToken) =>
+    {
+        var take = Math.Clamp(limit ?? 50, 1, 500);
+        var result = await diffService.GetAllAsync(pageToken, take, cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("GetAllDiffs")
     .WithTags("Diffs");
 
 app.Logger.LogInformation("ChangeLogMonitor.Finalization is running on http://0.0.0.0:{Port}", httpPort);

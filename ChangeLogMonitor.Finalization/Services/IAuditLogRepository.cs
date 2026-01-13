@@ -18,4 +18,15 @@ public interface IAuditLogRepository
         string transactionId,
         int limit,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AuditLogRecord>> GetAllWithCursorAsync(
+        long? cursorLogId,
+        int limit,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AuditLogRecord>> GetFilteredWithCursorAsync(
+        DiffFilterRequest filter,
+        long? cursorLogId,
+        int limit,
+        CancellationToken cancellationToken);
 }

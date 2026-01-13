@@ -72,7 +72,8 @@ public sealed class TxAggregatorTopologyFactory
         var repartitionedConfig = Repartitioned<string, string>
             .As(_settings.Kafka.RepartitionTopic)
             .WithKeySerdes(keySerde)
-            .WithValueSerdes(valueSerde);
+            .WithValueSerdes(valueSerde)
+            .WithNumberOfPartitions(_settings.Kafka.DefaultNumPartitions);
 
         var repartitioned = valid.Repartition(repartitionedConfig);
 

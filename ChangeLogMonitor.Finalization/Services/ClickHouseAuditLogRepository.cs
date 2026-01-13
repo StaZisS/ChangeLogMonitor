@@ -72,7 +72,7 @@ SETTINGS index_granularity = 8192;";
                 builder.Append(',');
 
             builder.Append(
-                $"(@id{index}, @ct{index}, @uid{index}, @tbl{index}, @op{index}, @eid{index}, @tx{index}, @payload{index})");
+                $"({{id{index}:UInt64}}, {{ct{index}:DateTime}}, {{uid{index}:String}}, {{tbl{index}:String}}, {{op{index}:UInt8}}, {{eid{index}:String}}, {{tx{index}:String}}, {{payload{index}:String}})");
 
             command.Parameters.Add(CreateParameter(command, $"id{index}", GenerateLogId(record)));
             command.Parameters.Add(CreateParameter(command, $"ct{index}",
@@ -103,8 +103,8 @@ SETTINGS index_granularity = 8192;";
 
         command.CommandText =
             $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
-            "WHERE table_name = @table AND entity_id = @entity " +
-            "ORDER BY log_id DESC LIMIT @limit";
+            "WHERE table_name = {table:String} AND entity_id = {entity:String} " +
+            "ORDER BY log_id DESC LIMIT {limit:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "table", normalizedTable));
         command.Parameters.Add(CreateParameter(command, "entity", entityId));
@@ -123,10 +123,113 @@ SETTINGS index_granularity = 8192;";
 
         command.CommandText =
             $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
-            "WHERE tx_id = @tx " +
-            "ORDER BY log_id DESC LIMIT @limit";
+            "WHERE tx_id = {tx:String} " +
+            "ORDER BY log_id DESC LIMIT {limit:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "tx", transactionId));
+        command.Parameters.Add(CreateParameter(command, "limit", limit));
+
+        return await ReadAsync(command, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AuditLogRecord>> GetAllWithCursorAsync(
+        long? cursorLogId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+
+        if (cursorLogId.HasValue)
+        {
+            command.CommandText =
+                $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+                "WHERE log_id < {cursor:UInt64} " +
+                "ORDER BY log_id DESC LIMIT {limit:Int32}";
+            command.Parameters.Add(CreateParameter(command, "cursor", (ulong)cursorLogId.Value));
+        }
+        else
+        {
+            command.CommandText =
+                $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+                "ORDER BY log_id DESC LIMIT {limit:Int32}";
+        }
+
+        command.Parameters.Add(CreateParameter(command, "limit", limit));
+
+        return await ReadAsync(command, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AuditLogRecord>> GetFilteredWithCursorAsync(
+        DiffFilterRequest filter,
+        long? cursorLogId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+
+        var whereConditions = new List<string>();
+
+        if (cursorLogId.HasValue)
+        {
+            whereConditions.Add("log_id < {cursor:UInt64}");
+            command.Parameters.Add(CreateParameter(command, "cursor", (ulong)cursorLogId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TableName))
+        {
+            whereConditions.Add("table_name = {tableName:String}");
+            command.Parameters.Add(CreateParameter(command, "tableName", filter.TableName.Trim()));
+        }
+
+        if (filter.FromTime.HasValue)
+        {
+            whereConditions.Add("change_time >= {fromTime:DateTime}");
+            command.Parameters.Add(CreateParameter(command, "fromTime",
+                DateTime.SpecifyKind(filter.FromTime.Value, DateTimeKind.Utc)));
+        }
+
+        if (filter.ToTime.HasValue)
+        {
+            whereConditions.Add("change_time <= {toTime:DateTime}");
+            command.Parameters.Add(CreateParameter(command, "toTime",
+                DateTime.SpecifyKind(filter.ToTime.Value, DateTimeKind.Utc)));
+        }
+
+        if (filter.Operation.HasValue)
+        {
+            whereConditions.Add("operation = {operation:UInt8}");
+            command.Parameters.Add(CreateParameter(command, "operation", (byte)filter.Operation.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.UserId))
+        {
+            whereConditions.Add("user_id = {userId:String}");
+            command.Parameters.Add(CreateParameter(command, "userId", filter.UserId.Trim()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.EntityId))
+        {
+            whereConditions.Add("entity_id = {entityId:String}");
+            command.Parameters.Add(CreateParameter(command, "entityId", filter.EntityId.Trim()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TransactionId))
+        {
+            whereConditions.Add("tx_id = {txId:String}");
+            command.Parameters.Add(CreateParameter(command, "txId", filter.TransactionId.Trim()));
+        }
+
+        var whereClause = whereConditions.Count > 0
+            ? "WHERE " + string.Join(" AND ", whereConditions)
+            : string.Empty;
+
+        command.CommandText =
+            $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+            $"{whereClause} " +
+            "ORDER BY log_id DESC LIMIT {limit:Int32}";
+
         command.Parameters.Add(CreateParameter(command, "limit", limit));
 
         return await ReadAsync(command, cancellationToken);

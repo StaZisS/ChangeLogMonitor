@@ -4,7 +4,7 @@ namespace ChangeLogMonitor.DataAggregator.Configuration;
 
 public sealed class AppSettings
 {
-    public const string SectionName = "App";
+    public const string SectionName = "Aggregator";
 
     [Required] public KafkaSettings Kafka { get; init; } = new();
 

@@ -9,6 +9,13 @@
     <ItemGroup>
         <ProjectReference Include="..\ChangeLogMonitor.UI\ChangeLogMonitor.UI.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.DataAggregator\ChangeLogMonitor.DataAggregator.csproj"/>
+        <ProjectReference Include="..\ChangeLogMonitor.Finalization\ChangeLogMonitor.Finalization.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="changelog-config.yaml">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

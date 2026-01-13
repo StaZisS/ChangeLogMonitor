@@ -4,11 +4,13 @@ namespace ChangeLogMonitor.Finalization.Options;
 
 public sealed class AppSettings
 {
-    public const string SectionName = "App";
+    public const string SectionName = "Finalizer";
 
     [Required] public KafkaSettings Kafka { get; init; } = new();
 
     [Required] public ClickHouseSettings ClickHouse { get; init; } = new();
 
     [Required] public HttpSettings Http { get; init; } = new();
+
+    public PolicySettings Policy { get; init; } = new();
 }
