@@ -160,6 +160,81 @@ SETTINGS index_granularity = 8192;";
         return await ReadAsync(command, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AuditLogRecord>> GetFilteredWithCursorAsync(
+        DiffFilterRequest filter,
+        long? cursorLogId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+
+        var whereConditions = new List<string>();
+
+        if (cursorLogId.HasValue)
+        {
+            whereConditions.Add("log_id < {cursor:UInt64}");
+            command.Parameters.Add(CreateParameter(command, "cursor", (ulong)cursorLogId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TableName))
+        {
+            whereConditions.Add("table_name = {tableName:String}");
+            command.Parameters.Add(CreateParameter(command, "tableName", filter.TableName.Trim()));
+        }
+
+        if (filter.FromTime.HasValue)
+        {
+            whereConditions.Add("change_time >= {fromTime:DateTime}");
+            command.Parameters.Add(CreateParameter(command, "fromTime",
+                DateTime.SpecifyKind(filter.FromTime.Value, DateTimeKind.Utc)));
+        }
+
+        if (filter.ToTime.HasValue)
+        {
+            whereConditions.Add("change_time <= {toTime:DateTime}");
+            command.Parameters.Add(CreateParameter(command, "toTime",
+                DateTime.SpecifyKind(filter.ToTime.Value, DateTimeKind.Utc)));
+        }
+
+        if (filter.Operation.HasValue)
+        {
+            whereConditions.Add("operation = {operation:UInt8}");
+            command.Parameters.Add(CreateParameter(command, "operation", (byte)filter.Operation.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.UserId))
+        {
+            whereConditions.Add("user_id = {userId:String}");
+            command.Parameters.Add(CreateParameter(command, "userId", filter.UserId.Trim()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.EntityId))
+        {
+            whereConditions.Add("entity_id = {entityId:String}");
+            command.Parameters.Add(CreateParameter(command, "entityId", filter.EntityId.Trim()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TransactionId))
+        {
+            whereConditions.Add("tx_id = {txId:String}");
+            command.Parameters.Add(CreateParameter(command, "txId", filter.TransactionId.Trim()));
+        }
+
+        var whereClause = whereConditions.Count > 0
+            ? "WHERE " + string.Join(" AND ", whereConditions)
+            : string.Empty;
+
+        command.CommandText =
+            $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+            $"{whereClause} " +
+            "ORDER BY log_id DESC LIMIT {limit:Int32}";
+
+        command.Parameters.Add(CreateParameter(command, "limit", limit));
+
+        return await ReadAsync(command, cancellationToken);
+    }
+
     private static async Task<IReadOnlyList<AuditLogRecord>> ReadAsync(
         ClickHouseCommand command,
         CancellationToken cancellationToken)

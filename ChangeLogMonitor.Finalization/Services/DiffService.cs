@@ -58,6 +58,33 @@ internal sealed class DiffService : IDiffService
         return records.Select(DiffResponse.FromRecord).ToList();
     }
 
+    public async Task<PaginatedResult<DiffResponse>> GetFilteredAsync(
+        DiffFilterRequest filter,
+        string? paginationToken,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var cursor = DecodeCursor(paginationToken);
+
+        var records = await _repository.GetFilteredWithCursorAsync(filter, cursor, limit + 1, cancellationToken);
+
+        var hasMore = records.Count > limit;
+        var resultRecords = hasMore ? records.Take(limit).ToList() : records;
+
+        string? nextToken = null;
+        if (hasMore && resultRecords.Count > 0)
+        {
+            var lastRecord = resultRecords[^1];
+            nextToken = EncodeCursor(lastRecord.LogId);
+        }
+
+        var data = resultRecords.Select(DiffResponse.FromRecord).ToList();
+
+        return new PaginatedResult<DiffResponse>(
+            data,
+            new PaginationInfo(nextToken, hasMore, limit));
+    }
+
     private static long? DecodeCursor(string? token)
     {
         if (string.IsNullOrWhiteSpace(token))

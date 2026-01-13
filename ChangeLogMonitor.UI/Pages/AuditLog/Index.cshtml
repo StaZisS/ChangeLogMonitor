@@ -1,0 +1,307 @@
+@page
+@model ChangeLogMonitor.UI.Pages.AuditLog.IndexModel
+@{
+    ViewData["Title"] = "Audit Log";
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul me-2"></i>Audit Log</span>
+        @if (Model.ViewModel.Items.Count > 0)
+        {
+            <span class="badge bg-secondary">@Model.ViewModel.TotalShown entries</span>
+        }
+    </div>
+
+    <form id="filterForm" method="get">
+        <div class="table-responsive">
+            <table class="table table-hover log-table mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px"></th>
+                        <th>Time</th>
+                        <th>Table</th>
+                        <th>Operation</th>
+                        <th>Entity ID</th>
+                        <th>User</th>
+                        <th>Transaction</th>
+                    </tr>
+                    <tr class="filter-row-header">
+                        <td>
+                            <button type="submit" class="btn btn-sm btn-primary" title="Search">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <input type="datetime-local" class="form-control form-control-sm"
+                                       name="fromTime" value="@(Model.FromTime?.ToString("yyyy-MM-ddTHH:mm"))"
+                                       title="From" placeholder="From"/>
+                                <input type="datetime-local" class="form-control form-control-sm"
+                                       name="toTime" value="@(Model.ToTime?.ToString("yyyy-MM-ddTHH:mm"))"
+                                       title="To" placeholder="To"/>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm" name="tableName"
+                                   value="@Model.TableName" placeholder="Table..."/>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm" name="operation">
+                                <option value="">All</option>
+                                <option value="0" selected="@(Model.Operation == 0)">Create</option>
+                                <option value="1" selected="@(Model.Operation == 1)">Update</option>
+                                <option value="2" selected="@(Model.Operation == 2)">Delete</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm" name="entityId"
+                                   value="@Model.EntityId" placeholder="Entity ID..."/>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm" name="userId"
+                                   value="@Model.UserId" placeholder="User..."/>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <input type="text" class="form-control form-control-sm" name="transactionId"
+                                       value="@Model.TransactionId" placeholder="TX ID..."/>
+                                <button type="button" id="clearFilters" class="btn btn-sm btn-outline-secondary" title="Clear">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.ViewModel.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <i class="bi bi-inbox"></i>
+                                    <p class="mb-0">No audit log entries found</p>
+                                    <small class="text-muted">Try adjusting your filters</small>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.ViewModel.Items)
+                        {
+                            <tr class="log-entry-row">
+                                <td>
+                                    <button class="btn btn-sm btn-outline-secondary expand-btn"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#diff-@item.LogId"
+                                            aria-expanded="false">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </td>
+                                <td>
+                                    <span class="text-muted">@item.ChangeTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                </td>
+                                <td><code>@item.TableName</code></td>
+                                <td>
+                                    <span class="badge @item.OperationBadgeClass">@item.OperationName</span>
+                                </td>
+                                <td>
+                                    <code class="text-truncate-sm" title="@item.EntityId">@item.EntityId</code>
+                                </td>
+                                <td>@item.UserId</td>
+                                <td>
+                                    <code class="text-truncate-sm" title="@item.TransactionId">
+                                        @(item.TransactionId.Length > 12 ? item.TransactionId[..12] + "..." : item.TransactionId)
+                                    </code>
+                                </td>
+                            </tr>
+                            <tr class="collapse" id="diff-@item.LogId">
+                                <td colspan="7" class="bg-light p-0">
+                                    <div class="diff-container m-2">
+                                        @{
+                                            var payload = Model.GetParsedPayload(item.PayloadJson);
+                                        }
+                                        @if (!payload.HasAnyChanges)
+                                        {
+                                            <div class="text-muted text-center py-3">
+                                                <i class="bi bi-info-circle me-1"></i>No change details available
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @if (payload.FieldChanges.Count > 0)
+                                            {
+                                                <div class="diff-section">
+                                                    <h6><i class="bi bi-pencil me-1"></i>Field Changes</h6>
+                                                    <table class="table table-sm table-bordered diff-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style="width: 200px">Field</th>
+                                                                <th>Old Value</th>
+                                                                <th>New Value</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var fc in payload.FieldChanges)
+                                                            {
+                                                                <tr>
+                                                                    <td>
+                                                                        <code>@fc.FieldName</code>
+                                                                        @if (fc.IsMasked)
+                                                                        {
+                                                                            <i class="bi bi-eye-slash ms-1 text-muted" title="Masked"></i>
+                                                                        }
+                                                                        @if (fc.IsHashed)
+                                                                        {
+                                                                            <i class="bi bi-hash ms-1 text-muted" title="Hashed"></i>
+                                                                        }
+                                                                        @if (fc.IsEncrypted)
+                                                                        {
+                                                                            <i class="bi bi-lock ms-1 text-muted" title="Encrypted"></i>
+                                                                        }
+                                                                    </td>
+                                                                    <td class="old-value">
+                                                                        @if (fc.IsMasked)
+                                                                        {
+                                                                            <span class="badge bg-secondary">***</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            @(fc.ViewOldValue ?? fc.RawOldValue ?? "-")
+                                                                        }
+                                                                    </td>
+                                                                    <td class="new-value">
+                                                                        @if (fc.IsMasked)
+                                                                        {
+                                                                            <span class="badge bg-secondary">***</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            @(fc.ViewNewValue ?? fc.RawNewValue ?? "-")
+                                                                        }
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            }
+
+                                            @if (payload.ReferenceChanges.Count > 0)
+                                            {
+                                                <div class="diff-section">
+                                                    <h6><i class="bi bi-link-45deg me-1"></i>Reference Changes</h6>
+                                                    <table class="table table-sm table-bordered diff-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style="width: 200px">Reference</th>
+                                                                <th>Old</th>
+                                                                <th>New</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var rc in payload.ReferenceChanges)
+                                                            {
+                                                                <tr>
+                                                                    <td><code>@rc.ReferenceName</code></td>
+                                                                    <td class="old-value">
+                                                                        @(rc.ViewOldValue ?? $"{rc.OldName} ({rc.OldKey})" ?? "-")
+                                                                    </td>
+                                                                    <td class="new-value">
+                                                                        @(rc.ViewNewValue ?? $"{rc.NewName} ({rc.NewKey})" ?? "-")
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            }
+
+                                            @if (payload.CollectionChanges.Count > 0)
+                                            {
+                                                <div class="diff-section">
+                                                    <h6><i class="bi bi-collection me-1"></i>Collection Changes</h6>
+                                                    @foreach (var cc in payload.CollectionChanges)
+                                                    {
+                                                        <div class="mb-2">
+                                                            <strong><code>@cc.CollectionName</code></strong>
+                                                            @if (cc.IsCollapsedToCounters)
+                                                            {
+                                                                <span class="ms-2">
+                                                                    @if (cc.AddedCount > 0)
+                                                                    {
+                                                                        <span class="badge collection-badge collection-added">
+                                                                            +@cc.AddedCount added
+                                                                        </span>
+                                                                    }
+                                                                    @if (cc.RemovedCount > 0)
+                                                                    {
+                                                                        <span class="badge collection-badge collection-removed">
+                                                                            -@cc.RemovedCount removed
+                                                                        </span>
+                                                                    }
+                                                                </span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="row mt-1">
+                                                                    @if (cc.AddedItems?.Count > 0)
+                                                                    {
+                                                                        <div class="col-md-6">
+                                                                            <small class="text-success fw-bold">Added:</small>
+                                                                            <ul class="list-unstyled mb-0 ms-2">
+                                                                                @foreach (var addedItem in cc.AddedItems)
+                                                                                {
+                                                                                    <li><small>@(addedItem.ViewValue ?? addedItem.Name ?? addedItem.Key)</small></li>
+                                                                                }
+                                                                            </ul>
+                                                                        </div>
+                                                                    }
+                                                                    @if (cc.RemovedItems?.Count > 0)
+                                                                    {
+                                                                        <div class="col-md-6">
+                                                                            <small class="text-danger fw-bold">Removed:</small>
+                                                                            <ul class="list-unstyled mb-0 ms-2">
+                                                                                @foreach (var removedItem in cc.RemovedItems)
+                                                                                {
+                                                                                    <li><small>@(removedItem.ViewValue ?? removedItem.Name ?? removedItem.Key)</small></li>
+                                                                                }
+                                                                            </ul>
+                                                                        </div>
+                                                                    }
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+
+                                            @if (payload.IsIncomplete)
+                                            {
+                                                <div class="alert alert-warning py-2 mb-0">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                    <small>Payload was truncated</small>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+    @if (Model.ViewModel.HasMore)
+    {
+        <div class="card-footer text-center">
+            <a href="@Model.BuildNextPageUrl()" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-down me-1"></i>Load More
+            </a>
+        </div>
+    }
+</div>

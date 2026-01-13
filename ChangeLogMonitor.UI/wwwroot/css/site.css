@@ -1,0 +1,152 @@
+/* Audit Log UI Styles */
+
+.filter-row-header {
+    background-color: #f8f9fa;
+}
+
+.filter-row-header td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+
+.filter-row-header input,
+.filter-row-header select {
+    font-size: 0.8125rem;
+}
+
+.log-table {
+    font-size: 0.875rem;
+}
+
+.log-table th {
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.log-table td {
+    vertical-align: middle;
+}
+
+.log-table code {
+    font-size: 0.8125rem;
+    background-color: #f1f3f4;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+}
+
+.expand-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.expand-btn.expanded i {
+    transform: rotate(90deg);
+}
+
+.diff-container {
+    background-color: #fff;
+    border-radius: 0.375rem;
+    padding: 1rem;
+}
+
+.diff-section {
+    margin-bottom: 1rem;
+}
+
+.diff-section:last-child {
+    margin-bottom: 0;
+}
+
+.diff-section h6 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.diff-table {
+    font-size: 0.8125rem;
+    margin-bottom: 0;
+}
+
+.diff-table th {
+    font-weight: 600;
+    background-color: #f8f9fa;
+}
+
+.diff-table .old-value {
+    color: #dc3545;
+}
+
+.diff-table .new-value {
+    color: #198754;
+}
+
+.badge-create {
+    background-color: #198754;
+}
+
+.badge-update {
+    background-color: #0d6efd;
+}
+
+.badge-delete {
+    background-color: #dc3545;
+}
+
+.text-truncate-sm {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.collection-badge {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.collection-added {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.collection-removed {
+    background-color: #f8d7da;
+    color: #842029;
+}

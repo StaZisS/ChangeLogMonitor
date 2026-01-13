@@ -19,4 +19,10 @@ public interface IDiffService
         string transactionId,
         int limit,
         CancellationToken cancellationToken);
+
+    Task<PaginatedResult<DiffResponse>> GetFilteredAsync(
+        DiffFilterRequest filter,
+        string? paginationToken,
+        int limit,
+        CancellationToken cancellationToken);
 }

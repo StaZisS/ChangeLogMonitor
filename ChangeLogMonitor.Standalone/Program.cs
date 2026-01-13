@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using ChangeLogMonitor.DataAggregator.Extensions;
 using ChangeLogMonitor.DataAggregator.Services;
 using ChangeLogMonitor.Finalization.Extensions;
+using ChangeLogMonitor.UI.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,9 @@ builder.Services.AddDataAggregator(builder.Configuration);
 
 // Register Finalization services (Kafka consumer -> ClickHouse storage)
 builder.Services.AddFinalization(builder.Configuration, builder.Environment.ContentRootPath);
+
+// Register UI services
+builder.Services.AddAuditLogUI();
 
 // ASP.NET Core services
 builder.Services.AddRazorPages();

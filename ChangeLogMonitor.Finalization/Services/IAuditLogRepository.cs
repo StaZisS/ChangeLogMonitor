@@ -23,4 +23,10 @@ public interface IAuditLogRepository
         long? cursorLogId,
         int limit,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AuditLogRecord>> GetFilteredWithCursorAsync(
+        DiffFilterRequest filter,
+        long? cursorLogId,
+        int limit,
+        CancellationToken cancellationToken);
 }
