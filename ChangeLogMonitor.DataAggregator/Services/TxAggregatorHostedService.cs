@@ -71,7 +71,14 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
         finally
         {
             stream.StateChanged -= OnStateChanged;
-            stream.Dispose();
+            try
+            {
+                stream.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Streamiz may dispose internal CancellationTokenSource before we call Dispose()
+            }
             _stream = null;
             _isRunning = false;
             _isReady = false;
