@@ -19,8 +19,8 @@ public interface IAuditLogRepository
         int limit,
         CancellationToken cancellationToken);
 
-    Task<(IReadOnlyList<AuditLogRecord> Records, long TotalCount)> GetAllAsync(
-        int offset,
+    Task<IReadOnlyList<AuditLogRecord>> GetAllWithCursorAsync(
+        long? cursorLogId,
         int limit,
         CancellationToken cancellationToken);
 }

@@ -132,27 +132,32 @@ SETTINGS index_granularity = 8192;";
         return await ReadAsync(command, cancellationToken);
     }
 
-    public async Task<(IReadOnlyList<AuditLogRecord> Records, long TotalCount)> GetAllAsync(
-        int offset,
+    public async Task<IReadOnlyList<AuditLogRecord>> GetAllWithCursorAsync(
+        long? cursorLogId,
         int limit,
         CancellationToken cancellationToken)
     {
         await using var connection = await OpenAsync(cancellationToken);
-
-        await using var countCommand = connection.CreateCommand();
-        countCommand.CommandText = $"SELECT count() FROM {_quotedTableName}";
-        var totalCount = Convert.ToInt64(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
-
         await using var command = connection.CreateCommand();
-        command.CommandText =
-            $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
-            "ORDER BY log_id DESC LIMIT {limit:Int32} OFFSET {offset:Int32}";
+
+        if (cursorLogId.HasValue)
+        {
+            command.CommandText =
+                $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+                "WHERE log_id < {cursor:UInt64} " +
+                "ORDER BY log_id DESC LIMIT {limit:Int32}";
+            command.Parameters.Add(CreateParameter(command, "cursor", (ulong)cursorLogId.Value));
+        }
+        else
+        {
+            command.CommandText =
+                $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+                "ORDER BY log_id DESC LIMIT {limit:Int32}";
+        }
 
         command.Parameters.Add(CreateParameter(command, "limit", limit));
-        command.Parameters.Add(CreateParameter(command, "offset", offset));
 
-        var records = await ReadAsync(command, cancellationToken);
-        return (records, totalCount);
+        return await ReadAsync(command, cancellationToken);
     }
 
     private static async Task<IReadOnlyList<AuditLogRecord>> ReadAsync(
