@@ -21,4 +21,6 @@ public sealed class KafkaSettings
     public string? DlqTopic { get; init; }
 
     public bool EnableAutoTopicCreation { get; init; } = false;
+
+    public int DefaultNumPartitions { get; init; } = 1;
 }

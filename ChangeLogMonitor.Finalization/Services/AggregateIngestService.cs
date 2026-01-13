@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace ChangeLogMonitor.Finalization.Services;
 
-internal sealed class AggregateIngestService : BackgroundService
+public sealed class AggregateIngestService : BackgroundService
 {
     private readonly IAggregateFlattener _flattener;
     private readonly KafkaSettings _kafkaSettings;
@@ -27,6 +27,9 @@ internal sealed class AggregateIngestService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Yield to allow the host to continue starting (HTTP server, other services)
+        await Task.Yield();
+
         var config = new ConsumerConfig
         {
             BootstrapServers = _kafkaSettings.BootstrapServers,

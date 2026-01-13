@@ -72,7 +72,7 @@ SETTINGS index_granularity = 8192;";
                 builder.Append(',');
 
             builder.Append(
-                $"(@id{index}, @ct{index}, @uid{index}, @tbl{index}, @op{index}, @eid{index}, @tx{index}, @payload{index})");
+                $"({{id{index}:UInt64}}, {{ct{index}:DateTime}}, {{uid{index}:String}}, {{tbl{index}:String}}, {{op{index}:UInt8}}, {{eid{index}:String}}, {{tx{index}:String}}, {{payload{index}:String}})");
 
             command.Parameters.Add(CreateParameter(command, $"id{index}", GenerateLogId(record)));
             command.Parameters.Add(CreateParameter(command, $"ct{index}",
@@ -103,8 +103,8 @@ SETTINGS index_granularity = 8192;";
 
         command.CommandText =
             $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
-            "WHERE table_name = @table AND entity_id = @entity " +
-            "ORDER BY log_id DESC LIMIT @limit";
+            "WHERE table_name = {table:String} AND entity_id = {entity:String} " +
+            "ORDER BY log_id DESC LIMIT {limit:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "table", normalizedTable));
         command.Parameters.Add(CreateParameter(command, "entity", entityId));
@@ -123,8 +123,8 @@ SETTINGS index_granularity = 8192;";
 
         command.CommandText =
             $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
-            "WHERE tx_id = @tx " +
-            "ORDER BY log_id DESC LIMIT @limit";
+            "WHERE tx_id = {tx:String} " +
+            "ORDER BY log_id DESC LIMIT {limit:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "tx", transactionId));
         command.Parameters.Add(CreateParameter(command, "limit", limit));
@@ -146,7 +146,7 @@ SETTINGS index_granularity = 8192;";
         await using var command = connection.CreateCommand();
         command.CommandText =
             $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
-            "ORDER BY log_id DESC LIMIT @limit OFFSET @offset";
+            "ORDER BY log_id DESC LIMIT {limit:Int32} OFFSET {offset:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "limit", limit));
         command.Parameters.Add(CreateParameter(command, "offset", offset));

@@ -42,6 +42,9 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Yield to allow the host to continue starting (HTTP server, other services)
+        await Task.Yield();
+
         var (topology, config) = _topologyFactory.Build();
         var stream = new KafkaStream(topology, config);
         _stream = stream;

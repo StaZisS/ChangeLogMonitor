@@ -4,7 +4,7 @@ namespace ChangeLogMonitor.Finalization.Options;
 
 public sealed class AppSettings
 {
-    public const string SectionName = "App";
+    public const string SectionName = "Finalizer";
 
     [Required] public KafkaSettings Kafka { get; init; } = new();
 
