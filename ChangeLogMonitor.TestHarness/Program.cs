@@ -411,4 +411,91 @@ app.MapDelete("/orders/{orderId:guid}/tags/{tagId:guid}", async Task<IResult> (
     .WithTags("OrderTags")
     .RequireAuthorization();
 
+// ===== Debug: Raw Audit Log Payload (PostgreSQL) =====
+app.MapGet("/debug/audit-logs", async Task<IResult> (
+        int? limit,
+        IServiceProvider serviceProvider,
+        IConfiguration configuration,
+        CancellationToken cancellationToken) =>
+    {
+        var connString = configuration.GetConnectionString("AuditDb")
+                         ?? configuration.GetConnectionString("TestHarnessDb");
+
+        if (string.IsNullOrWhiteSpace(connString) || !connString.Contains("Host=", StringComparison.OrdinalIgnoreCase))
+            return Results.BadRequest(new { message = "PostgreSQL connection string not configured." });
+
+        var take = Math.Clamp(limit ?? 10, 1, 100);
+        var results = new List<object>();
+
+        await using var connection = new Npgsql.NpgsqlConnection(connString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT id, created_at, transaction_id, payload FROM audit_log ORDER BY id DESC LIMIT {take}";
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var id = reader.GetInt64(0);
+            var createdAt = reader.GetDateTime(1);
+            var transactionId = reader.GetString(2);
+            var payloadBytes = reader.GetFieldValue<byte[]>(3);
+
+            object? payloadJson = null;
+            string? error = null;
+
+            try
+            {
+                var envelope = Auditmeta.Raw.AuditMetaEnvelope.Parser.ParseFrom(payloadBytes);
+                payloadJson = new
+                {
+                    transactionId = envelope.TransactionId,
+                    createdAtUtcMs = envelope.CreatedAtUtcMs,
+                    actor = envelope.Actor != null ? new
+                    {
+                        userId = envelope.Actor.UserId,
+                        userName = envelope.Actor.UserName
+                    } : null,
+                    request = envelope.Request != null ? new
+                    {
+                        requestId = envelope.Request.RequestId,
+                        serviceName = envelope.Request.HasServiceName ? envelope.Request.ServiceName : null,
+                        clientIp = envelope.Request.HasClientIp ? envelope.Request.ClientIp : null,
+                        userAgent = envelope.Request.HasUserAgent ? envelope.Request.UserAgent : null
+                    } : null,
+                    bulk = envelope.Bulk != null ? new
+                    {
+                        isBulk = envelope.Bulk.IsBulk,
+                        affectedCount = envelope.Bulk.AffectedCount,
+                        target = envelope.Bulk.Target
+                    } : null,
+                    hints = envelope.Hints.Select(h => new { key = h.Key, value = h.Value }).ToList(),
+                    enumSnapshots = envelope.EnumSnapshots.Select(es => new
+                    {
+                        enumType = es.EnumType,
+                        pairs = es.Pairs.Select(p => new { code = p.Code, label = p.Label }).ToList()
+                    }).ToList()
+                };
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+            }
+
+            results.Add(new
+            {
+                id,
+                createdAt,
+                transactionId,
+                payloadBase64 = Convert.ToBase64String(payloadBytes),
+                payloadJson,
+                parseError = error
+            });
+        }
+
+        return Results.Ok(results);
+    })
+    .WithName("GetAuditLogsDebug")
+    .WithTags("Debug");
+
 app.Run();

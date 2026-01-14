@@ -16,6 +16,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\ChangeLogMonitor.Interceptor\ChangeLogMonitor.Interceptor.csproj"/>
+        <ProjectReference Include="..\ChangeLogMonitor.Protos\ChangeLogMonitor.Protos.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

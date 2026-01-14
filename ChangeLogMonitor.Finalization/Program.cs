@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Finalization.Extensions;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Options;
 using ChangeLogMonitor.Finalization.Services;
@@ -103,6 +104,8 @@ app.MapGet("/diffs", async Task<IResult> (
     })
     .WithName("GetAllDiffs")
     .WithTags("Diffs");
+
+app.MapFinalizationEndpoints();
 
 app.Logger.LogInformation("ChangeLogMonitor.Finalization is running on http://0.0.0.0:{Port}", httpPort);
 

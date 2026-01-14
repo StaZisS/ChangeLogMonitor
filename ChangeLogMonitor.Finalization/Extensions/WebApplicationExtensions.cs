@@ -28,6 +28,9 @@ public static class WebApplicationExtensions
         // Formatted endpoints (human-readable)
         MapFormattedEndpoints(app);
 
+        // Debug endpoints
+        MapDebugEndpoints(app);
+
         return app;
     }
 
@@ -202,5 +205,103 @@ public static class WebApplicationExtensions
         }
 
         return AuditLogMessages.DefaultTimezone;
+    }
+
+    private static void MapDebugEndpoints(IEndpointRouteBuilder app)
+    {
+        app.MapGet("/debug/audit-logs", async Task<IResult> (
+                [FromQuery] int? limit,
+                [FromServices] IAuditLogRepository repository,
+                CancellationToken cancellationToken) =>
+            {
+                var take = Math.Clamp(limit ?? 10, 1, 100);
+                var records = await repository.GetAllWithCursorAsync(null, take, cancellationToken);
+
+                var results = new List<object>();
+
+                foreach (var record in records)
+                {
+                    object? payloadJson = null;
+                    string? error = null;
+
+                    try
+                    {
+                        var payloadBytes = Convert.FromBase64String(record.Payload);
+                        var auditRecord = Audit.V1.AuditRecord.Parser.ParseFrom(payloadBytes);
+
+                        payloadJson = new
+                        {
+                            id = auditRecord.Id,
+                            entityType = auditRecord.EntityType,
+                            entityId = auditRecord.EntityId,
+                            entityTitle = auditRecord.EntityTitle,
+                            operation = auditRecord.Operation.ToString(),
+                            timestampUtc = auditRecord.TimestampUtc?.ToDateTime(),
+                            userId = auditRecord.UserId,
+                            userTitle = auditRecord.UserTitle,
+                            userType = auditRecord.UserType,
+                            fieldChanges = auditRecord.FieldChanges.Select(fc => new
+                            {
+                                fieldName = fc.FieldName,
+                                fieldTitle = fc.FieldTitle,
+                                valueKind = fc.ValueKind.ToString(),
+                                sensitiveMode = fc.SensitiveMode.ToString(),
+                                oldValue = fc.OldValue != null ? new
+                                {
+                                    normalized = fc.OldValue.Normalized,
+                                    enumCode = fc.OldValue.EnumCode,
+                                    enumTitle = fc.OldValue.EnumTitle,
+                                    referenceKey = fc.OldValue.ReferenceKey,
+                                    referenceTitle = fc.OldValue.ReferenceTitle
+                                } : null,
+                                newValue = fc.NewValue != null ? new
+                                {
+                                    normalized = fc.NewValue.Normalized,
+                                    enumCode = fc.NewValue.EnumCode,
+                                    enumTitle = fc.NewValue.EnumTitle,
+                                    referenceKey = fc.NewValue.ReferenceKey,
+                                    referenceTitle = fc.NewValue.ReferenceTitle
+                                } : null
+                            }).ToList(),
+                            collectionChanges = auditRecord.CollectionChanges.Select(cc => new
+                            {
+                                fieldName = cc.FieldName,
+                                fieldTitle = cc.FieldTitle,
+                                items = cc.Items.Select(item => new
+                                {
+                                    kind = item.Kind.ToString(),
+                                    itemKey = item.ItemKey,
+                                    itemTitle = item.ItemTitle,
+                                    rawNormalized = item.RawNormalized
+                                }).ToList()
+                            }).ToList(),
+                            rawPayloadJson = auditRecord.RawPayloadJson,
+                            normalizationVersion = auditRecord.NormalizationVersion
+                        };
+                    }
+                    catch (Exception ex)
+                    {
+                        error = ex.Message;
+                    }
+
+                    results.Add(new
+                    {
+                        logId = record.LogId,
+                        changeTimeUtc = record.ChangeTimeUtc,
+                        userId = record.UserId,
+                        tableName = record.TableName,
+                        operationCode = record.OperationCode,
+                        entityId = record.EntityId,
+                        txId = record.TxId,
+                        payloadBase64 = record.Payload,
+                        payloadJson,
+                        parseError = error
+                    });
+                }
+
+                return Results.Ok(results);
+            })
+            .WithName("GetAuditLogsDebug")
+            .WithTags("Debug");
     }
 }
