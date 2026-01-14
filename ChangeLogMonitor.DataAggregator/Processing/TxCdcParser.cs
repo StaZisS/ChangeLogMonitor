@@ -52,17 +52,8 @@ internal static class TxCdcParser
                 orderElement.TryGetInt64(out var totalOrderValue))
                 totalOrder = totalOrderValue;
 
-            var payloadElement = payload.TryGetProperty("after", out var afterElement) &&
-                                 afterElement.ValueKind != JsonValueKind.Null &&
-                                 afterElement.ValueKind != JsonValueKind.Undefined
-                ? afterElement
-                : payload.TryGetProperty("before", out var beforeElement)
-                    ? beforeElement
-                    : default;
-
-            var payloadJson = payloadElement.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-                ? "{}"
-                : payloadElement.GetRawText();
+            // Preserve both before and after for delta comparison
+            var payloadJson = BuildPayloadJson(payload);
 
             bucketEvent = new TxBucketEvent(
                 sourceTable,
@@ -131,5 +122,27 @@ internal static class TxCdcParser
                payload.ValueKind != JsonValueKind.Undefined
             ? payload
             : root;
+    }
+
+    private static string BuildPayloadJson(JsonElement payload)
+    {
+        var hasBefore = payload.TryGetProperty("before", out var beforeElement) &&
+                        beforeElement.ValueKind != JsonValueKind.Null &&
+                        beforeElement.ValueKind != JsonValueKind.Undefined;
+
+        var hasAfter = payload.TryGetProperty("after", out var afterElement) &&
+                       afterElement.ValueKind != JsonValueKind.Null &&
+                       afterElement.ValueKind != JsonValueKind.Undefined;
+
+        // If we have both before and after, preserve the structure for delta comparison
+        if (hasBefore || hasAfter)
+        {
+            var beforeJson = hasBefore ? beforeElement.GetRawText() : "null";
+            var afterJson = hasAfter ? afterElement.GetRawText() : "null";
+            return $"{{\"before\":{beforeJson},\"after\":{afterJson}}}";
+        }
+
+        // Fallback: return empty object
+        return "{}";
     }
 }

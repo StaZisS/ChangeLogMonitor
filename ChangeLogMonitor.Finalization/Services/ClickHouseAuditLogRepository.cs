@@ -49,10 +49,60 @@ SETTINGS index_granularity = 8192;";
         if (!_settings.EnsureSchema) return;
 
         await using var connection = await OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = string.Format(CultureInfo.InvariantCulture, CreateTableTemplate, _quotedTableName);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        // Create table if not exists
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = string.Format(CultureInfo.InvariantCulture, CreateTableTemplate, _quotedTableName);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
         _logger.LogInformation("Ensured ClickHouse table {Table}", _tableName);
+
+        // Run migrations
+        await MigrateSchemaAsync(connection, cancellationToken);
+    }
+
+    private async Task MigrateSchemaAsync(ClickHouseConnection connection, CancellationToken cancellationToken)
+    {
+        var existingColumns = await GetExistingColumnsAsync(connection, cancellationToken);
+
+        // Migration: Add user_name column if missing
+        if (!existingColumns.Contains("user_name", StringComparer.OrdinalIgnoreCase))
+        {
+            await AddColumnAsync(connection, "user_name", "String", "user_id", cancellationToken);
+            _logger.LogInformation("Migration: Added column 'user_name' to table {Table}", _tableName);
+        }
+    }
+
+    private async Task<HashSet<string>> GetExistingColumnsAsync(
+        ClickHouseConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"DESCRIBE TABLE {_quotedTableName}";
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var columnName = reader.GetString(0);
+            columns.Add(columnName);
+        }
+
+        return columns;
+    }
+
+    private async Task AddColumnAsync(
+        ClickHouseConnection connection,
+        string columnName,
+        string columnType,
+        string afterColumn,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"ALTER TABLE {_quotedTableName} ADD COLUMN IF NOT EXISTS `{columnName}` {columnType} DEFAULT '' AFTER `{afterColumn}`";
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task InsertAsync(IReadOnlyCollection<AuditLogRecord> records, CancellationToken cancellationToken)
@@ -106,7 +156,7 @@ SETTINGS index_granularity = 8192;";
         command.CommandText =
             $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
             "WHERE table_name = {table:String} AND entity_id = {entity:String} " +
-            "ORDER BY log_id DESC LIMIT {limit:Int32}";
+            "ORDER BY change_time DESC, log_id DESC LIMIT {limit:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "table", normalizedTable));
         command.Parameters.Add(CreateParameter(command, "entity", entityId));
@@ -126,7 +176,7 @@ SETTINGS index_granularity = 8192;";
         command.CommandText =
             $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
             "WHERE tx_id = {tx:String} " +
-            "ORDER BY log_id DESC LIMIT {limit:Int32}";
+            "ORDER BY change_time DESC, log_id DESC LIMIT {limit:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "tx", transactionId));
         command.Parameters.Add(CreateParameter(command, "limit", limit));
@@ -147,14 +197,14 @@ SETTINGS index_granularity = 8192;";
             command.CommandText =
                 $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
                 "WHERE log_id < {cursor:UInt64} " +
-                "ORDER BY log_id DESC LIMIT {limit:Int32}";
+                "ORDER BY change_time DESC, log_id DESC LIMIT {limit:Int32}";
             command.Parameters.Add(CreateParameter(command, "cursor", (ulong)cursorLogId.Value));
         }
         else
         {
             command.CommandText =
                 $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
-                "ORDER BY log_id DESC LIMIT {limit:Int32}";
+                "ORDER BY change_time DESC, log_id DESC LIMIT {limit:Int32}";
         }
 
         command.Parameters.Add(CreateParameter(command, "limit", limit));
@@ -230,7 +280,7 @@ SETTINGS index_granularity = 8192;";
         command.CommandText =
             $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
             $"{whereClause} " +
-            "ORDER BY log_id DESC LIMIT {limit:Int32}";
+            "ORDER BY change_time DESC, log_id DESC LIMIT {limit:Int32}";
 
         command.Parameters.Add(CreateParameter(command, "limit", limit));
 

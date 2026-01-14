@@ -449,8 +449,22 @@ public sealed class AggregateFlattener(
     {
         if (payload.ValueKind != JsonValueKind.Object) return string.Empty;
 
+        // Try to get entity ID from "after" first (for create/update), then "before" (for delete)
+        JsonElement targetElement = payload;
+
+        if (TryGetPropertyCaseInsensitive(payload, "after", out var afterEl) &&
+            afterEl.ValueKind == JsonValueKind.Object)
+        {
+            targetElement = afterEl;
+        }
+        else if (TryGetPropertyCaseInsensitive(payload, "before", out var beforeEl) &&
+                 beforeEl.ValueKind == JsonValueKind.Object)
+        {
+            targetElement = beforeEl;
+        }
+
         foreach (var candidate in EntityIdCandidates)
-            if (TryGetPropertyCaseInsensitive(payload, candidate, out var valueElement))
+            if (TryGetPropertyCaseInsensitive(targetElement, candidate, out var valueElement))
             {
                 var value = ExtractScalar(valueElement);
                 if (!string.IsNullOrWhiteSpace(value)) return value;
