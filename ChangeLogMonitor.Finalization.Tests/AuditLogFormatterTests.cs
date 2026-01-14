@@ -219,8 +219,8 @@ public class AuditLogFormatterTests
         var result = _formatter.Format(record, "UTC");
 
         Assert.NotEmpty(result.Details);
-        // Masked fields should show that value was changed but masked
-        Assert.Contains(result.Details, d => d.Contains("Пароль") && d.Contains("данные скрыты"));
+        // Masked fields show the masked values as-is (e.g., "***")
+        Assert.Contains(result.Details, d => d.Contains("Пароль") && d.Contains("***"));
     }
 
     [Fact]
@@ -239,7 +239,9 @@ public class AuditLogFormatterTests
             FieldName = "SSN",
             FieldTitle = "ИИН",
             ValueKind = ValueKind.Scalar,
-            SensitiveMode = SensitiveMode.Hashed
+            SensitiveMode = SensitiveMode.Hashed,
+            OldValue = new FieldValue { Normalized = "abc123" },
+            NewValue = new FieldValue { Normalized = "def456" }
         });
 
         var record = CreateAuditLogRecord(payload: auditRecord);
@@ -247,7 +249,8 @@ public class AuditLogFormatterTests
         var result = _formatter.Format(record, "UTC");
 
         Assert.NotEmpty(result.Details);
-        Assert.Contains(result.Details, d => d.Contains("ИИН") && d.Contains("данные скрыты"));
+        // Hashed fields show "[SHA256]" prefix before values
+        Assert.Contains(result.Details, d => d.Contains("ИИН") && d.Contains("[SHA256]"));
     }
 
     [Fact]

@@ -50,7 +50,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
 
         // Verify Interceptor created audit log
         var auditLogs = await GetAllAuditLogsAsync();
-        auditLogs.Should().HaveCount(1, "Interceptor should create one audit log entry");
+        auditLogs.Should().HaveCount(1, "Interceptor should create one audit log entry per SaveChanges");
 
         var auditLog = auditLogs[0];
         auditLog.TransactionId.Should().NotBeNullOrEmpty();
@@ -74,11 +74,11 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             userTitle: envelope.Actor.UserName,
             fieldChanges: new[]
             {
-                CreateFieldChange("Name", "Имя клиента", null, customer.Name),
-                CreateFieldChange("Email", "Электронная почта", null, customer.Email),
-                CreateFieldChange("Phone", "Телефон", null, customer.Phone),
-                CreateFieldChange("PasswordHash", null, null, "***HASHED***", SensitiveMode.Hashed),
-                CreateFieldChange("IsActive", "Активен", null, customer.IsActive.ToString())
+                CreateFieldChange("name", "Имя клиента", null, customer.Name),
+                CreateFieldChange("email", "Электронная почта", null, customer.Email),
+                CreateFieldChange("phone", "Телефон", null, customer.Phone),
+                CreateFieldChange("password_hash", null, null, "***HASHED***", SensitiveMode.Hashed),
+                CreateFieldChange("is_active", "Активен", null, customer.IsActive.ToString())
             });
 
         // Create AuditLogRecord (what would be stored after aggregation)
@@ -100,13 +100,13 @@ public class EndToEndIntegrationTests : IntegrationTestBase
 
         // Assert formatted output
         formatted.LogId.Should().Be(auditLog.Id);
-        formatted.TableName.Should().Be("Customer");
-        formatted.Operation.Should().Be("Создано");
+        formatted.TableName.Should().Be("customers");
+        formatted.Operation.Should().Be("CREATE");
         formatted.EntityId.Should().Be(customer.Id.ToString());
-        formatted.EntityTitle.Should().Be("ООО Рога и Копыта");
+        formatted.EntityTitle.Should().Be("ООО Рога и Копыта"); // from protobuf EntityTitle
         formatted.UserId.Should().Be("user-123");
         formatted.UserTitle.Should().Be("Иван Петров");
-        formatted.Summary.Should().Contain("Клиент");
+        formatted.Summary.Should().Contain("Создана запись");
         formatted.Summary.Should().Contain("Иван Петров");
         formatted.Details.Should().NotBeEmpty();
         formatted.Details.Should().Contain(d => d.Contains("Имя клиента"));
@@ -147,9 +147,6 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         appContext.Orders.Add(order);
         await appContext.SaveChangesAsync();
 
-        // Clear audit logs to isolate update
-        var auditLogsBeforeUpdate = await GetAuditLogCountAsync();
-
         // Act - Update order status
         order.Status = "Processing";
         order.TotalAmount = 1500.00m;
@@ -158,6 +155,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
 
         // Verify
         var auditLogs = await GetAllAuditLogsAsync();
+        auditLogs.Should().HaveCount(3, "Should have 3 audit logs: customer create, order create, order update");
         var updateAuditLog = auditLogs.Last();
 
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(updateAuditLog.Payload);
@@ -173,8 +171,8 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             userTitle: envelope.Actor.UserName,
             fieldChanges: new[]
             {
-                CreateFieldChange("Status", "Статус", "New", "Processing"),
-                CreateFieldChange("TotalAmount", "Сумма заказа", "1000.00", "1500.00")
+                CreateFieldChange("status", "Статус", "New", "Processing"),
+                CreateFieldChange("total_amount", "Сумма заказа", "1000.00", "1500.00")
             });
 
         var auditLogRecord = new AuditLogRecord(
@@ -193,9 +191,9 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         var formatted = formatter.Format(auditLogRecord, "Europe/Moscow");
 
         // Assert
-        formatted.Operation.Should().Be("Изменено");
+        formatted.Operation.Should().Be("UPDATE");
         formatted.EntityTitle.Should().Be("ORD-001");
-        formatted.Summary.Should().Contain("Заказ");
+        formatted.Summary.Should().Contain("Изменена запись");
         formatted.Details.Should().Contain(d => d.Contains("Статус"));
         formatted.Details.Should().Contain(d => d.Contains("New") && d.Contains("Processing"));
     }
@@ -212,7 +210,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
 
         await using var appContext = CreateAppDbContext(ConfigPath);
 
-        // Create all entities in single transaction
+        // Create all entities in single transaction (one SaveChanges)
         var customer = new Customer
         {
             Name = "Крупный Заказчик",
@@ -238,10 +236,10 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         };
         appContext.Products.AddRange(product1, product2);
 
-        // Save all in one transaction
+        // Save all in one transaction - creates ONE audit log entry
         await appContext.SaveChangesAsync();
 
-        // Create order with items
+        // Create order with items in separate transactions
         var order = new Order
         {
             OrderNumber = "BULK-001",
@@ -251,7 +249,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
         appContext.Orders.Add(order);
-        await appContext.SaveChangesAsync();
+        await appContext.SaveChangesAsync(); // Second audit log
 
         var item1 = new OrderItem
         {
@@ -268,14 +266,13 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             UnitPrice = product2.Price
         };
         appContext.OrderItems.AddRange(item1, item2);
-        await appContext.SaveChangesAsync();
+        await appContext.SaveChangesAsync(); // Third audit log
 
-        // Verify all audit logs created
+        // Verify - one audit log per SaveChanges (3 total)
         var auditLogs = await GetAllAuditLogsAsync();
-        auditLogs.Should().HaveCountGreaterThanOrEqualTo(4,
-            "Should have audit logs for Customer, 2 Products, Order, and 2 OrderItems");
+        auditLogs.Should().HaveCount(3, "Should have 3 audit logs (one per SaveChanges call)");
 
-        // Verify each audit log has valid envelope
+        // Verify each audit log has valid envelope with correct user
         foreach (var log in auditLogs)
         {
             var envelope = AuditMetaEnvelope.Parser.ParseFrom(log.Payload);
@@ -283,7 +280,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             envelope.TransactionId.Should().NotBeNullOrEmpty();
         }
 
-        // Format last audit log (OrderItem creation)
+        // Format last audit log (OrderItems creation)
         var lastLog = auditLogs.Last();
         var envelope2 = AuditMetaEnvelope.Parser.ParseFrom(lastLog.Payload);
 
@@ -295,8 +292,8 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             userTitle: envelope2.Actor.UserName,
             fieldChanges: new[]
             {
-                CreateFieldChange("Quantity", "Количество", null, item2.Quantity.ToString()),
-                CreateFieldChange("UnitPrice", "Цена за единицу", null, item2.UnitPrice.ToString("F2"))
+                CreateFieldChange("quantity", "Количество", null, item2.Quantity.ToString()),
+                CreateFieldChange("unit_price", "Цена за единицу", null, item2.UnitPrice.ToString("F2"))
             });
 
         var auditLogRecord = new AuditLogRecord(
@@ -314,7 +311,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         var formatter = new AuditLogFormatter(configService);
         var formatted = formatter.Format(auditLogRecord, "UTC");
 
-        formatted.Operation.Should().Be("Создано");
+        formatted.Operation.Should().Be("CREATE");
         formatted.Details.Should().Contain(d => d.Contains("Количество"));
     }
 
@@ -345,8 +342,9 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         appContext.Products.Remove(product);
         await appContext.SaveChangesAsync();
 
-        // Verify
+        // Verify - 2 audit logs: create and delete
         var auditLogs = await GetAllAuditLogsAsync();
+        auditLogs.Should().HaveCount(2, "Should have 2 audit logs: create and delete");
         var deleteAuditLog = auditLogs.Last();
 
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(deleteAuditLog.Payload);
@@ -381,9 +379,9 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         var formatted = formatter.Format(auditLogRecord, "Europe/Moscow");
 
         // Assert
-        formatted.Operation.Should().Be("Удалено");
+        formatted.Operation.Should().Be("DELETE");
         formatted.EntityTitle.Should().Be("Удаляемый товар");
-        formatted.Summary.Should().Contain("Товар");
+        formatted.Summary.Should().Contain("Удалена запись");
         formatted.Summary.Should().Contain("Менеджер");
     }
 
@@ -418,9 +416,9 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             userTitle: "System Admin",
             fieldChanges: new[]
             {
-                CreateFieldChange("Name", "Имя клиента", null, customer.Name),
-                CreateFieldChange("Email", "Электронная почта", null, customer.Email),
-                CreateFieldChange("PasswordHash", null, null, "a1b2c3d4e5f6...", SensitiveMode.Hashed)
+                CreateFieldChange("name", "Имя клиента", null, customer.Name),
+                CreateFieldChange("email", "Электронная почта", null, customer.Email),
+                CreateFieldChange("password_hash", null, null, "a1b2c3d4e5f6...", SensitiveMode.Hashed)
             });
 
         var auditLogs = await GetAllAuditLogsAsync();
@@ -442,7 +440,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         var formatted = formatter.Format(auditLogRecord, "UTC");
 
         // Assert - hashed field should show hash prefix
-        formatted.Details.Should().Contain(d => d.Contains("[SHA256]") || d.Contains("PasswordHash"));
+        formatted.Details.Should().Contain(d => d.Contains("[SHA256]") || d.Contains("password_hash"));
     }
 
     #region Helper Methods
