@@ -9,6 +9,11 @@ public class EntityPolicy
 {
     public bool Enabled { get; set; } = true;
 
+    /// <summary>
+    ///     Отображаемое имя сущности для UI (например "Заказы" вместо "Orders")
+    /// </summary>
+    public string? DisplayName { get; set; }
+
     public CreateBehavior? OnCreate { get; set; }
 
     public UpdateBehavior? OnUpdate { get; set; }

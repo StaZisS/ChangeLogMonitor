@@ -21,7 +21,8 @@ builder.Services.AddHttpContextAccessor();
 
 if (usePostgres)
 {
-    var configPath = Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
+    var configPath = builder.Configuration.GetValue<string>("AuditConfiguration:ConfigFilePath")
+        ?? "changelog-config.yaml";
 
     builder.Services.AddChangeLogInterceptor(
         auditConnectionString,

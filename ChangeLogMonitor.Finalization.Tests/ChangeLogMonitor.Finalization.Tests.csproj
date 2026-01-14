@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ChangeLogMonitor.Configuration\ChangeLogMonitor.Configuration.csproj" />
     <ProjectReference Include="..\ChangeLogMonitor.Finalization\ChangeLogMonitor.Finalization.csproj" />
     <ProjectReference Include="..\ChangeLogMonitor.Protos\ChangeLogMonitor.Protos.csproj" />
   </ItemGroup>

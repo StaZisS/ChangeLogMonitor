@@ -38,6 +38,7 @@ builder.Services.AddSingleton<IAuditConfigurationService>(sp =>
 
 builder.Services.AddSingleton<IAggregateFlattener, AggregateFlattener>();
 builder.Services.AddSingleton<IAuditLogRepository, ClickHouseAuditLogRepository>();
+builder.Services.AddSingleton<IAuditLogFormatter, AuditLogFormatter>();
 builder.Services.AddSingleton<IDiffService, DiffService>();
 builder.Services.AddHostedService<AggregateIngestService>();
 builder.Services.AddEndpointsApiExplorer();
@@ -52,58 +53,6 @@ using (var scope = app.Services.CreateScope())
     var repository = scope.ServiceProvider.GetRequiredService<IAuditLogRepository>();
     await repository.EnsureSchemaAsync(app.Lifetime.ApplicationStopping);
 }
-
-app.MapGet("/healthz", () => Results.Json(new
-{
-    status = "ok",
-    service = "finalizer"
-}));
-
-app.MapGet("/diffs/{tableName}/{entityId}", async Task<IResult> (
-        string tableName,
-        string entityId,
-        int? limit,
-        IDiffService diffService,
-        CancellationToken cancellationToken) =>
-    {
-        if (string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(entityId))
-            return Results.BadRequest(new { message = "tableName and entityId are required." });
-
-        var take = Math.Clamp(limit ?? 50, 1, 500);
-        var response = await diffService.GetByEntityAsync(tableName, entityId, take, cancellationToken);
-        return Results.Ok(response);
-    })
-    .WithName("GetDiffsByEntity")
-    .WithTags("Diffs");
-
-app.MapGet("/diffs/tx/{transactionId}", async Task<IResult> (
-        string transactionId,
-        int? limit,
-        IDiffService diffService,
-        CancellationToken cancellationToken) =>
-    {
-        if (string.IsNullOrWhiteSpace(transactionId))
-            return Results.BadRequest(new { message = "transactionId is required." });
-
-        var take = Math.Clamp(limit ?? 50, 1, 500);
-        var response = await diffService.GetByTransactionAsync(transactionId, take, cancellationToken);
-        return Results.Ok(response);
-    })
-    .WithName("GetDiffsByTransaction")
-    .WithTags("Diffs");
-
-app.MapGet("/diffs", async Task<IResult> (
-        string? pageToken,
-        int? limit,
-        IDiffService diffService,
-        CancellationToken cancellationToken) =>
-    {
-        var take = Math.Clamp(limit ?? 50, 1, 500);
-        var result = await diffService.GetAllAsync(pageToken, take, cancellationToken);
-        return Results.Ok(result);
-    })
-    .WithName("GetAllDiffs")
-    .WithTags("Diffs");
 
 app.MapFinalizationEndpoints();
 

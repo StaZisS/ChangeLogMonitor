@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="changelog-config.yaml">
+        <None Include="..\changelog-config.yaml" Link="changelog-config.yaml">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>

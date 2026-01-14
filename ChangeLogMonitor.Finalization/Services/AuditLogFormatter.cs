@@ -1,11 +1,22 @@
 using Audit.V1;
+using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
+using Microsoft.Extensions.Logging;
 
 namespace ChangeLogMonitor.Finalization.Services;
 
 public sealed class AuditLogFormatter : IAuditLogFormatter
 {
+    private readonly IAuditConfigurationService _configurationService;
+    private readonly ILogger<AuditLogFormatter>? _logger;
+
+    public AuditLogFormatter(IAuditConfigurationService configurationService, ILogger<AuditLogFormatter>? logger = null)
+    {
+        _configurationService = configurationService;
+        _logger = logger;
+    }
+
     public FormattedDiffResponse Format(AuditLogRecord record, string timezone)
     {
         var tz = GetTimeZoneInfo(timezone);
@@ -23,7 +34,7 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
             // Failed to parse protobuf, use fallback values
         }
 
-        var entityTitle = GetEntityTitle(auditRecord, record.TableName);
+        var entityTitle = GetEntityTitle(auditRecord, record.TableName, _configurationService, _logger);
         var userTitle = GetUserTitle(auditRecord, record.UserId, record.UserName);
         var operationName = GetOperationName(record.OperationCode);
         var summary = BuildSummary(record.OperationCode, entityTitle, formattedTime, userTitle);
@@ -63,11 +74,24 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
         }
     }
 
-    private static string GetEntityTitle(AuditRecord? auditRecord, string tableName)
+    private static string GetEntityTitle(AuditRecord? auditRecord, string tableName, IAuditConfigurationService configurationService, ILogger? logger)
     {
+        // 1. Сначала проверяем EntityTitle из protobuf (может быть установлен динамически)
         if (auditRecord != null && !string.IsNullOrWhiteSpace(auditRecord.EntityTitle))
+        {
+            logger?.LogDebug("Using EntityTitle from protobuf: {EntityTitle}", auditRecord.EntityTitle);
             return auditRecord.EntityTitle;
+        }
 
+        // 2. Затем проверяем displayName из конфигурации
+        var entityPolicy = configurationService.GetEntityPolicy(tableName);
+        logger?.LogDebug("GetEntityPolicy for '{TableName}': policy={PolicyFound}, displayName='{DisplayName}'",
+            tableName, entityPolicy != null, entityPolicy?.DisplayName);
+
+        if (entityPolicy != null && !string.IsNullOrWhiteSpace(entityPolicy.DisplayName))
+            return entityPolicy.DisplayName;
+
+        // 3. Fallback на техническое имя таблицы
         return tableName;
     }
 
@@ -147,10 +171,9 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
             : fieldChange.FieldName;
 
         // Handle sensitive modes
-        if (fieldChange.SensitiveMode == SensitiveMode.Masked ||
-            fieldChange.SensitiveMode == SensitiveMode.Encrypted ||
-            fieldChange.SensitiveMode == SensitiveMode.Hashed)
+        if (fieldChange.SensitiveMode == SensitiveMode.Encrypted)
         {
+            // Encrypted - cannot show values
             return string.Format(AuditLogMessages.Ru.FieldChangedMasked, fieldName);
         }
 
@@ -167,17 +190,25 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
         var oldValue = GetDisplayValue(fieldChange.OldValue, fieldChange.ValueKind);
         var newValue = GetDisplayValue(fieldChange.NewValue, fieldChange.ValueKind);
 
+        // For Hashed/Masked - show the transformed values (hash or masked)
+        var valuePrefix = fieldChange.SensitiveMode switch
+        {
+            SensitiveMode.Hashed => "[SHA256] ",
+            SensitiveMode.Masked => "",
+            _ => ""
+        };
+
         if (string.IsNullOrEmpty(oldValue) && !string.IsNullOrEmpty(newValue))
         {
-            return string.Format(AuditLogMessages.Ru.FieldChangedFromEmpty, fieldName, newValue);
+            return string.Format(AuditLogMessages.Ru.FieldChangedFromEmpty, fieldName, valuePrefix + newValue);
         }
 
         if (!string.IsNullOrEmpty(oldValue) && string.IsNullOrEmpty(newValue))
         {
-            return string.Format(AuditLogMessages.Ru.FieldChangedToEmpty, fieldName, oldValue);
+            return string.Format(AuditLogMessages.Ru.FieldChangedToEmpty, fieldName, valuePrefix + oldValue);
         }
 
-        return string.Format(AuditLogMessages.Ru.FieldChanged, fieldName, oldValue, newValue);
+        return string.Format(AuditLogMessages.Ru.FieldChanged, fieldName, valuePrefix + oldValue, valuePrefix + newValue);
     }
 
     private static string GetDisplayValue(FieldValue? fieldValue, ValueKind valueKind)

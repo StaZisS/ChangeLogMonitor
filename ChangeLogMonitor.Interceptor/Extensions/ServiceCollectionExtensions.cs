@@ -37,7 +37,8 @@ public static class ServiceCollectionExtensions
         });
 
         // Регистрируем конфигурацию
-        var configPath = configFilePath ?? "changelog-config.yaml";
+        var configPath = ResolveConfigPath(configFilePath);
+        ValidateConfigFile(configPath);
         services.AddSingleton<IAuditPolicyProvider>(sp => new YamlAuditPolicyProvider(configPath));
         services.AddSingleton<IAuditConfigurationService, AuditConfigurationService>();
 
@@ -67,5 +68,57 @@ public static class ServiceCollectionExtensions
     {
         var interceptor = serviceProvider.GetRequiredService<ChangeLogInterceptor>();
         return optionsBuilder.AddInterceptors(interceptor);
+    }
+
+    /// <summary>
+    ///     Определяет путь к файлу конфигурации, поддерживая абсолютные и относительные пути
+    /// </summary>
+    private static string ResolveConfigPath(string? configFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(configFilePath))
+        {
+            return Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
+        }
+
+        // Если путь абсолютный - используем как есть
+        if (Path.IsPathRooted(configFilePath))
+        {
+            return configFilePath;
+        }
+
+        // Относительный путь - относительно BaseDirectory
+        return Path.Combine(AppContext.BaseDirectory, configFilePath);
+    }
+
+    /// <summary>
+    ///     Проверяет существование и доступность файла конфигурации
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Файл не существует или недоступен</exception>
+    private static void ValidateConfigFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new InvalidOperationException(
+                $"Файл конфигурации аудита не найден: '{filePath}'. " +
+                $"Создайте файл changelog-config.yaml или укажите правильный путь.");
+        }
+
+        // Проверяем доступность файла на чтение
+        try
+        {
+            using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new InvalidOperationException(
+                $"Нет доступа к файлу конфигурации аудита: '{filePath}'. " +
+                $"Проверьте права доступа к файлу.", ex);
+        }
+        catch (IOException ex)
+        {
+            throw new InvalidOperationException(
+                $"Не удалось открыть файл конфигурации аудита: '{filePath}'. " +
+                $"Убедитесь, что файл не заблокирован другим процессом.", ex);
+        }
     }
 }

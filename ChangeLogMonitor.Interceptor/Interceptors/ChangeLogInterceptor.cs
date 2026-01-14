@@ -6,6 +6,7 @@ using ChangeLogMonitor.Interceptor.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -180,26 +181,36 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
 
         foreach (var entry in entries)
         {
-            var entityName = entry.Entity.GetType().Name;
+            // Используем имя таблицы из БД, а не имя класса C#
+            var tableName = GetTableName(context, entry);
 
             // Проверяем включено ли логирование для этой сущности
-            if (_configService.IsEntityEnabled(entityName))
+            if (_configService.IsEntityEnabled(tableName))
             {
                 auditableEntries.Add(entry);
                 _logger?.LogDebug(
-                    "Entity {EntityName} with state {State} will be audited",
-                    entityName,
+                    "Entity {TableName} with state {State} will be audited",
+                    tableName,
                     entry.State);
             }
             else
             {
                 _logger?.LogTrace(
-                    "Entity {EntityName} is excluded from audit by configuration",
-                    entityName);
+                    "Entity {TableName} is excluded from audit by configuration",
+                    tableName);
             }
         }
 
         return auditableEntries;
+    }
+
+    /// <summary>
+    ///     Получает имя таблицы в БД для сущности
+    /// </summary>
+    private static string GetTableName(DbContext context, EntityEntry entry)
+    {
+        var entityType = context.Model.FindEntityType(entry.Entity.GetType());
+        return entityType?.GetTableName() ?? entry.Entity.GetType().Name;
     }
 
     /// <summary>

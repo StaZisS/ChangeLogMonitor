@@ -55,6 +55,7 @@ public class AuditPolicyMapper
         var entity = new EntityPolicy
         {
             Enabled = yaml.Enabled ?? true,
+            DisplayName = yaml.DisplayName,
             OnCreate = ParseCreateBehavior(yaml.OnCreate),
             OnUpdate = ParseUpdateBehavior(yaml.OnUpdate),
             OnDelete = ParseDeleteBehavior(yaml.OnDelete)

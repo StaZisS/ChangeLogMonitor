@@ -1,3 +1,4 @@
+using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
@@ -209,6 +210,49 @@ public static class WebApplicationExtensions
 
     private static void MapDebugEndpoints(IEndpointRouteBuilder app)
     {
+        app.MapGet("/debug/config", (
+                [FromServices] IAuditConfigurationService configService) =>
+            {
+                try
+                {
+                    var policy = configService.GetPolicy();
+                    var entities = policy.Entities.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new
+                        {
+                            enabled = kvp.Value.Enabled,
+                            displayName = kvp.Value.DisplayName,
+                            onCreate = kvp.Value.OnCreate?.ToString(),
+                            onUpdate = kvp.Value.OnUpdate?.ToString(),
+                            onDelete = kvp.Value.OnDelete?.ToString(),
+                            fieldsCount = kvp.Value.Fields.Count,
+                            fields = kvp.Value.Fields.ToDictionary(
+                                f => f.Key,
+                                f => new { action = f.Value.Action.ToString() })
+                        });
+
+                    return Results.Ok(new
+                    {
+                        version = policy.Version,
+                        mode = policy.Mode.ToString(),
+                        defaultCulture = policy.DefaultCulture,
+                        defaultTimeZone = policy.DefaultTimeZone,
+                        entitiesCount = policy.Entities.Count,
+                        entities
+                    });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Ok(new
+                    {
+                        error = ex.Message,
+                        stackTrace = ex.StackTrace
+                    });
+                }
+            })
+            .WithName("GetConfigDebug")
+            .WithTags("Debug");
+
         app.MapGet("/debug/audit-logs", async Task<IResult> (
                 [FromQuery] int? limit,
                 [FromServices] IAuditLogRepository repository,

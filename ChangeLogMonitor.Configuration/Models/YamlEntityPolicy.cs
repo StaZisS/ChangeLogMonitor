@@ -9,6 +9,8 @@ public class YamlEntityPolicy
 {
     [YamlMember(Alias = "enabled")] public bool? Enabled { get; set; }
 
+    [YamlMember(Alias = "displayName")] public string? DisplayName { get; set; }
+
     [YamlMember(Alias = "onCreate")] public string? OnCreate { get; set; }
 
     [YamlMember(Alias = "onUpdate")] public string? OnUpdate { get; set; }

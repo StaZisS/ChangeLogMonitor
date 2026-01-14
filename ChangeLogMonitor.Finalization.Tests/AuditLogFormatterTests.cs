@@ -1,15 +1,28 @@
 using Audit.V1;
+using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Models.Policy;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
+using Moq;
 using Xunit;
 
 namespace ChangeLogMonitor.Finalization.Tests;
 
 public class AuditLogFormatterTests
 {
-    private readonly AuditLogFormatter _formatter = new();
+    private readonly Mock<IAuditConfigurationService> _configurationServiceMock;
+    private readonly AuditLogFormatter _formatter;
+
+    public AuditLogFormatterTests()
+    {
+        _configurationServiceMock = new Mock<IAuditConfigurationService>();
+        _configurationServiceMock
+            .Setup(x => x.GetEntityPolicy(It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns((EntityPolicy?)null);
+        _formatter = new AuditLogFormatter(_configurationServiceMock.Object);
+    }
 
     #region Basic Formatting Tests
 
@@ -401,6 +414,62 @@ public class AuditLogFormatterTests
         var result = _formatter.Format(record, "UTC");
 
         Assert.Equal("Orders", result.EntityTitle);
+    }
+
+    [Fact]
+    public void Format_UsesDisplayNameFromConfig_WhenEntityTitleIsEmpty()
+    {
+        // Arrange
+        var entityPolicy = new EntityPolicy { DisplayName = "Заказы" };
+        _configurationServiceMock
+            .Setup(x => x.GetEntityPolicy("Orders", It.IsAny<bool>()))
+            .Returns(entityPolicy);
+
+        var auditRecord = new AuditRecord
+        {
+            Id = "test-1",
+            EntityType = "Orders",
+            EntityId = "order-1",
+            EntityTitle = "",
+            Operation = OperationType.OperationCreate,
+            TimestampUtc = Timestamp.FromDateTime(DateTime.UtcNow)
+        };
+
+        var record = CreateAuditLogRecord(tableName: "Orders", payload: auditRecord);
+
+        // Act
+        var result = _formatter.Format(record, "UTC");
+
+        // Assert
+        Assert.Equal("Заказы", result.EntityTitle);
+    }
+
+    [Fact]
+    public void Format_PrefersEntityTitleFromPayload_OverDisplayNameFromConfig()
+    {
+        // Arrange
+        var entityPolicy = new EntityPolicy { DisplayName = "Заказы" };
+        _configurationServiceMock
+            .Setup(x => x.GetEntityPolicy("Orders", It.IsAny<bool>()))
+            .Returns(entityPolicy);
+
+        var auditRecord = new AuditRecord
+        {
+            Id = "test-1",
+            EntityType = "Orders",
+            EntityId = "order-1",
+            EntityTitle = "Order #12345", // This should take priority
+            Operation = OperationType.OperationCreate,
+            TimestampUtc = Timestamp.FromDateTime(DateTime.UtcNow)
+        };
+
+        var record = CreateAuditLogRecord(tableName: "Orders", payload: auditRecord);
+
+        // Act
+        var result = _formatter.Format(record, "UTC");
+
+        // Assert
+        Assert.Equal("Order #12345", result.EntityTitle);
     }
 
     #endregion

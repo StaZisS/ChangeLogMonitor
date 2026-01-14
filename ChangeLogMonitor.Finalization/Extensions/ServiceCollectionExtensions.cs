@@ -27,7 +27,16 @@ public static class ServiceCollectionExtensions
         {
             var settings = sp.GetRequiredService<IOptions<AppSettings>>().Value;
             var path = settings.Policy?.ConfigPath ?? "changelog-config.yaml";
-            var fullPath = Path.IsPathRooted(path) ? path : Path.Combine(contentRootPath, path);
+            var fullPath = Path.IsPathRooted(path) ? path : Path.Combine(AppContext.BaseDirectory, path);
+
+            // Validate config file exists
+            if (!File.Exists(fullPath))
+            {
+                throw new InvalidOperationException(
+                    $"Файл конфигурации аудита не найден: '{fullPath}'. " +
+                    $"Убедитесь что файл changelog-config.yaml существует.");
+            }
+
             return new AuditConfigurationService(
                 new YamlAuditPolicyProvider(fullPath),
                 sp.GetService<ILogger<AuditConfigurationService>>());

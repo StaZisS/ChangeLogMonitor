@@ -1,0 +1,72 @@
+# E2E интеграционный тест конфигурация
+# Имена сущностей должны соответствовать именам таблиц в БД
+auditPolicy:
+  version: "1.0"
+  mode: whitelist
+
+  onCreate: allFields
+  onUpdate: delta
+  onDelete: eventOnly
+
+  entities:
+    # Таблица customers
+    customers:
+      enabled: true
+      displayName: "Клиент"
+      onCreate: allFields
+      onUpdate: delta
+      onDelete: eventOnly
+      fields:
+        password_hash:
+          action: hash
+        email:
+          displayName: "Электронная почта"
+        name:
+          displayName: "Имя клиента"
+        phone:
+          displayName: "Телефон"
+        is_active:
+          displayName: "Активен"
+
+    # Таблица products
+    products:
+      enabled: true
+      displayName: "Товар"
+      onCreate: allFields
+      onUpdate: delta
+      onDelete: eventOnly
+      fields:
+        name:
+          displayName: "Название товара"
+        price:
+          displayName: "Цена"
+        stock_quantity:
+          displayName: "Количество на складе"
+
+    # Таблица orders
+    orders:
+      enabled: true
+      displayName: "Заказ"
+      onCreate: allFields
+      onUpdate: delta
+      onDelete: eventOnly
+      fields:
+        order_number:
+          displayName: "Номер заказа"
+        total_amount:
+          displayName: "Сумма заказа"
+        status:
+          displayName: "Статус"
+
+    # Таблица order_items
+    order_items:
+      enabled: true
+      displayName: "Позиция заказа"
+      onCreate: allFields
+      onUpdate: delta
+      onDelete: eventOnly
+      fields:
+        quantity:
+          displayName: "Количество"
+        unit_price:
+          displayName: "Цена за единицу"

@@ -22,4 +22,13 @@
         <Compile Include="..\ChangeLogMonitor.DataAggregator\Models\TxAggregate.cs" Link="Models\TxAggregate.cs"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="..\changelog-config.yaml" Link="changelog-config.yaml">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
 </Project>
