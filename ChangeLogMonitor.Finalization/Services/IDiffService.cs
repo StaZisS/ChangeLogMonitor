@@ -25,4 +25,30 @@ public interface IDiffService
         string? paginationToken,
         int limit,
         CancellationToken cancellationToken);
+
+    Task<PaginatedResult<FormattedDiffResponse>> GetAllFormattedAsync(
+        string? paginationToken,
+        int limit,
+        string timezone,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<FormattedDiffResponse>> GetByEntityFormattedAsync(
+        string tableName,
+        string entityId,
+        int limit,
+        string timezone,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<FormattedDiffResponse>> GetByTransactionFormattedAsync(
+        string transactionId,
+        int limit,
+        string timezone,
+        CancellationToken cancellationToken);
+
+    Task<PaginatedResult<FormattedDiffResponse>> GetFilteredFormattedAsync(
+        DiffFilterRequest filter,
+        string? paginationToken,
+        int limit,
+        string timezone,
+        CancellationToken cancellationToken);
 }

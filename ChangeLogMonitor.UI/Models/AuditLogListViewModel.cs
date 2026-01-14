@@ -19,7 +19,13 @@ public class AuditLogItemViewModel
     public string OperationName { get; set; } = string.Empty;
     public string OperationBadgeClass { get; set; } = string.Empty;
     public string EntityId { get; set; } = string.Empty;
+    public string EntityTitle { get; set; } = string.Empty;
     public string TransactionId { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
+    public string UserTitle { get; set; } = string.Empty;
     public string PayloadJson { get; set; } = string.Empty;
+
+    // Human-readable representation
+    public string Summary { get; set; } = string.Empty;
+    public List<string> Details { get; set; } = new();
 }

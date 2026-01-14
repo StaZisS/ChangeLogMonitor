@@ -1,3 +1,4 @@
+using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.UI.Models;
 using ChangeLogMonitor.UI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,7 @@ namespace ChangeLogMonitor.UI.Pages.AuditLog;
 
 public class IndexModel : PageModel
 {
+    private const string TimezoneHeader = "X-Timezone";
     private readonly IAuditLogViewService _viewService;
 
     public IndexModel(IAuditLogViewService viewService)
@@ -57,7 +59,19 @@ public class IndexModel : PageModel
         };
 
         var limit = Math.Clamp(PageSize, 10, 100);
-        ViewModel = await _viewService.GetLogsAsync(filter, Cursor, limit, cancellationToken);
+        var timezone = GetTimezone();
+        ViewModel = await _viewService.GetLogsAsync(filter, Cursor, limit, timezone, cancellationToken);
+    }
+
+    private string GetTimezone()
+    {
+        if (Request.Headers.TryGetValue(TimezoneHeader, out var timezoneHeader) &&
+            !string.IsNullOrWhiteSpace(timezoneHeader))
+        {
+            return timezoneHeader.ToString();
+        }
+
+        return AuditLogMessages.DefaultTimezone;
     }
 
     public ParsedPayload GetParsedPayload(string json)

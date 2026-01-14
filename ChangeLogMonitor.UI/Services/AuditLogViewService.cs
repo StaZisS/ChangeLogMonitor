@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ChangeLogMonitor.Core.Models;
+using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
 using ChangeLogMonitor.UI.Models;
@@ -24,6 +25,7 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         AuditLogFilterViewModel filter,
         string? cursor,
         int limit,
+        string timezone,
         CancellationToken cancellationToken)
     {
         var filterRequest = new DiffFilterRequest(
@@ -35,7 +37,8 @@ internal sealed class AuditLogViewService : IAuditLogViewService
             filter.EntityId,
             filter.TransactionId);
 
-        var result = await _diffService.GetFilteredAsync(filterRequest, cursor, limit, cancellationToken);
+        var tz = string.IsNullOrWhiteSpace(timezone) ? AuditLogMessages.DefaultTimezone : timezone;
+        var result = await _diffService.GetFilteredFormattedAsync(filterRequest, cursor, limit, tz, cancellationToken);
 
         var viewModel = new AuditLogListViewModel
         {
@@ -92,35 +95,53 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         }
     }
 
-    private static AuditLogItemViewModel MapToViewModel(DiffResponse response)
+    private static AuditLogItemViewModel MapToViewModel(FormattedDiffResponse response)
     {
-        var (operationName, badgeClass) = GetOperationInfo(response.Operation);
+        var badgeClass = GetOperationBadgeClass(response.Operation);
 
         return new AuditLogItemViewModel
         {
             LogId = response.LogId,
             ChangeTime = response.ChangeTime,
             TableName = response.TableName,
-            Operation = response.Operation,
-            OperationName = operationName,
+            Operation = GetOperationCode(response.Operation),
+            OperationName = response.Operation,
             OperationBadgeClass = badgeClass,
             EntityId = response.EntityId,
+            EntityTitle = response.EntityTitle,
             TransactionId = response.TransactionId,
             UserId = response.UserId,
-            PayloadJson = response.Payload
+            UserTitle = response.UserTitle,
+            PayloadJson = string.Empty,
+            Summary = response.Summary,
+            Details = response.Details.ToList()
         };
     }
 
-    private static (string Name, string BadgeClass) GetOperationInfo(int operation)
+    private static string GetOperationBadgeClass(string operation)
     {
-        return operation switch
+        return operation.ToUpperInvariant() switch
         {
-            0 => ("CREATE", "badge-create"),
-            1 => ("UPDATE", "badge-update"),
-            2 => ("DELETE", "badge-delete"),
-            3 => ("BULK UPDATE", "badge-update"),
-            4 => ("BULK DELETE", "badge-delete"),
-            _ => ("UNKNOWN", "bg-secondary")
+            "CREATE" => "badge-create",
+            "UPDATE" => "badge-update",
+            "DELETE" or "SOFT_DELETE" => "badge-delete",
+            "BULK_UPDATE" => "badge-update",
+            "BULK_DELETE" => "badge-delete",
+            _ => "bg-secondary"
+        };
+    }
+
+    private static int GetOperationCode(string operation)
+    {
+        return operation.ToUpperInvariant() switch
+        {
+            "CREATE" => 1,
+            "UPDATE" => 2,
+            "DELETE" => 3,
+            "SOFT_DELETE" => 4,
+            "BULK_UPDATE" => 5,
+            "BULK_DELETE" => 6,
+            _ => 0
         };
     }
 

@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IAggregateFlattener, AggregateFlattener>();
         services.AddSingleton<IAuditLogRepository, ClickHouseAuditLogRepository>();
+        services.AddSingleton<IAuditLogFormatter, AuditLogFormatter>();
         services.AddScoped<IDiffService, DiffService>();
         services.AddHostedService<AggregateIngestService>();
 

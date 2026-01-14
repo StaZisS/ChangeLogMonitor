@@ -8,6 +8,7 @@ public interface IAuditLogViewService
         AuditLogFilterViewModel filter,
         string? cursor,
         int limit,
+        string timezone,
         CancellationToken cancellationToken);
 
     ParsedPayload ParsePayload(string json);
