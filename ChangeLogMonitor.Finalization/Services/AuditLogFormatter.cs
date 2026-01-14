@@ -4,7 +4,7 @@ using ChangeLogMonitor.Finalization.Models;
 
 namespace ChangeLogMonitor.Finalization.Services;
 
-internal sealed class AuditLogFormatter : IAuditLogFormatter
+public sealed class AuditLogFormatter : IAuditLogFormatter
 {
     public FormattedDiffResponse Format(AuditLogRecord record, string timezone)
     {
@@ -24,7 +24,7 @@ internal sealed class AuditLogFormatter : IAuditLogFormatter
         }
 
         var entityTitle = GetEntityTitle(auditRecord, record.TableName);
-        var userTitle = GetUserTitle(auditRecord, record.UserId);
+        var userTitle = GetUserTitle(auditRecord, record.UserId, record.UserName);
         var operationName = GetOperationName(record.OperationCode);
         var summary = BuildSummary(record.OperationCode, entityTitle, formattedTime, userTitle);
         var details = BuildDetails(auditRecord);
@@ -71,11 +71,17 @@ internal sealed class AuditLogFormatter : IAuditLogFormatter
         return tableName;
     }
 
-    private static string GetUserTitle(AuditRecord? auditRecord, string userId)
+    private static string GetUserTitle(AuditRecord? auditRecord, string userId, string userName)
     {
+        // Prefer userName from record
+        if (!string.IsNullOrWhiteSpace(userName))
+            return userName;
+
+        // Then try UserTitle from protobuf
         if (auditRecord != null && !string.IsNullOrWhiteSpace(auditRecord.UserTitle))
             return auditRecord.UserTitle;
 
+        // Fallback to userId
         return string.IsNullOrWhiteSpace(userId)
             ? AuditLogMessages.Ru.UnknownUser
             : userId;

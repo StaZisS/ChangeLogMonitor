@@ -289,6 +289,7 @@ public static class WebApplicationExtensions
                         logId = record.LogId,
                         changeTimeUtc = record.ChangeTimeUtc,
                         userId = record.UserId,
+                        userName = record.UserName,
                         tableName = record.TableName,
                         operationCode = record.OperationCode,
                         entityId = record.EntityId,

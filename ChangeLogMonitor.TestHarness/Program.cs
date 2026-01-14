@@ -17,11 +17,16 @@ var connectionString = builder.Configuration.GetConnectionString("TestHarnessDb"
 var auditConnectionString = builder.Configuration.GetConnectionString("AuditDb") ?? connectionString;
 var usePostgres = connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase);
 
+builder.Services.AddHttpContextAccessor();
+
 if (usePostgres)
 {
     var configPath = Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
 
-    builder.Services.AddChangeLogInterceptor(auditConnectionString, configPath);
+    builder.Services.AddChangeLogInterceptor(
+        auditConnectionString,
+        configPath,
+        sp => new HttpContextAuditMetadataProvider(sp.GetRequiredService<IHttpContextAccessor>()));
 
     builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     {

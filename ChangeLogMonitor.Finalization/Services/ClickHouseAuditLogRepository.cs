@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS {0} (
     log_id UInt64,
     change_time DateTime,
     user_id String,
+    user_name String,
     table_name LowCardinality(String),
     operation UInt8,
     entity_id String,
@@ -67,17 +68,18 @@ SETTINGS index_granularity = 8192;";
         {
             if (index == 0)
                 builder.Append(
-                    $"INSERT INTO {_quotedTableName} (log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload) VALUES ");
+                    $"INSERT INTO {_quotedTableName} (log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload) VALUES ");
             else
                 builder.Append(',');
 
             builder.Append(
-                $"({{id{index}:UInt64}}, {{ct{index}:DateTime}}, {{uid{index}:String}}, {{tbl{index}:String}}, {{op{index}:UInt8}}, {{eid{index}:String}}, {{tx{index}:String}}, {{payload{index}:String}})");
+                $"({{id{index}:UInt64}}, {{ct{index}:DateTime}}, {{uid{index}:String}}, {{uname{index}:String}}, {{tbl{index}:String}}, {{op{index}:UInt8}}, {{eid{index}:String}}, {{tx{index}:String}}, {{payload{index}:String}})");
 
             command.Parameters.Add(CreateParameter(command, $"id{index}", GenerateLogId(record)));
             command.Parameters.Add(CreateParameter(command, $"ct{index}",
                 DateTime.SpecifyKind(record.ChangeTimeUtc, DateTimeKind.Utc)));
             command.Parameters.Add(CreateParameter(command, $"uid{index}", record.UserId ?? string.Empty));
+            command.Parameters.Add(CreateParameter(command, $"uname{index}", record.UserName ?? string.Empty));
             command.Parameters.Add(CreateParameter(command, $"tbl{index}", record.TableName ?? string.Empty));
             command.Parameters.Add(CreateParameter(command, $"op{index}", record.OperationCode));
             command.Parameters.Add(CreateParameter(command, $"eid{index}", record.EntityId ?? string.Empty));
@@ -102,7 +104,7 @@ SETTINGS index_granularity = 8192;";
         await using var command = connection.CreateCommand();
 
         command.CommandText =
-            $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+            $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
             "WHERE table_name = {table:String} AND entity_id = {entity:String} " +
             "ORDER BY log_id DESC LIMIT {limit:Int32}";
 
@@ -122,7 +124,7 @@ SETTINGS index_granularity = 8192;";
         await using var command = connection.CreateCommand();
 
         command.CommandText =
-            $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+            $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
             "WHERE tx_id = {tx:String} " +
             "ORDER BY log_id DESC LIMIT {limit:Int32}";
 
@@ -143,7 +145,7 @@ SETTINGS index_granularity = 8192;";
         if (cursorLogId.HasValue)
         {
             command.CommandText =
-                $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+                $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
                 "WHERE log_id < {cursor:UInt64} " +
                 "ORDER BY log_id DESC LIMIT {limit:Int32}";
             command.Parameters.Add(CreateParameter(command, "cursor", (ulong)cursorLogId.Value));
@@ -151,7 +153,7 @@ SETTINGS index_granularity = 8192;";
         else
         {
             command.CommandText =
-                $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+                $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
                 "ORDER BY log_id DESC LIMIT {limit:Int32}";
         }
 
@@ -226,7 +228,7 @@ SETTINGS index_granularity = 8192;";
             : string.Empty;
 
         command.CommandText =
-            $"SELECT log_id, change_time, user_id, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
+            $"SELECT log_id, change_time, user_id, user_name, table_name, operation, entity_id, tx_id, payload FROM {_quotedTableName} " +
             $"{whereClause} " +
             "ORDER BY log_id DESC LIMIT {limit:Int32}";
 
@@ -247,13 +249,14 @@ SETTINGS index_granularity = 8192;";
             var logId = reader.GetFieldValue<ulong>(0);
             var changeTime = reader.GetDateTime(1);
             var userId = reader.GetFieldValue<string>(2);
-            var tableName = reader.GetFieldValue<string>(3);
-            var operation = Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture);
-            var entityId = reader.GetFieldValue<string>(5);
-            var txId = reader.GetFieldValue<string>(6);
-            var payload = reader.GetFieldValue<string>(7);
+            var userName = reader.GetFieldValue<string>(3);
+            var tableName = reader.GetFieldValue<string>(4);
+            var operation = Convert.ToByte(reader.GetValue(5), CultureInfo.InvariantCulture);
+            var entityId = reader.GetFieldValue<string>(6);
+            var txId = reader.GetFieldValue<string>(7);
+            var payload = reader.GetFieldValue<string>(8);
 
-            result.Add(new AuditLogRecord((long)logId, changeTime, userId, tableName, operation, entityId, txId,
+            result.Add(new AuditLogRecord((long)logId, changeTime, userId, userName, tableName, operation, entityId, txId,
                 payload));
         }
 
