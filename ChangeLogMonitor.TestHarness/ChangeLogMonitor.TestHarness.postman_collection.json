@@ -15,6 +15,16 @@
 			"key": "token",
 			"value": "",
 			"type": "string"
+		},
+		{
+			"key": "demoUserId",
+			"value": "fe3eab31-1fc4-4c1f-b1f0-60bc78cb2a86",
+			"type": "string"
+		},
+		{
+			"key": "testUserId",
+			"value": "a1b2c3d4-5e6f-7a8b-9c0d-e1f2a3b4c5d6",
+			"type": "string"
 		}
 	],
 	"auth": {
@@ -60,14 +70,54 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin123\"\n}"
+							"raw": "{\n    \"username\": \"demo-user\",\n    \"password\": \"demo-pass\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/token",
 							"host": ["{{baseUrl}}"],
 							"path": ["auth", "token"]
 						},
-						"description": "Получить JWT токен для авторизации. Токен автоматически сохраняется в переменную коллекции."
+						"description": "Получить JWT токен для demo-user. Токен автоматически сохраняется в переменную коллекции."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Token (Test User)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('token', jsonData.accessToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"test-user\",\n    \"password\": \"test-pass\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/token",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "token"]
+						},
+						"description": "Получить JWT токен для test-user. Используй этого пользователя для тестирования reassign."
 					},
 					"response": []
 				}
@@ -141,7 +191,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"newUserId\": \"NEW_USER_ID_HERE\"\n}"
+							"raw": "{\n    \"newUserId\": \"{{testUserId}}\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/orders/:orderId/reassign",

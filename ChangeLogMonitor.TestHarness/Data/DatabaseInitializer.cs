@@ -14,18 +14,39 @@ public static class DatabaseInitializer
 
         await context.Database.EnsureCreatedAsync(cancellationToken);
 
-        if (await context.Users.AnyAsync(cancellationToken)) return;
+        var hasChanges = false;
 
-        context.Users.Add(new User
+        if (!await context.Users.AnyAsync(u => u.Id == SeedData.DefaultUserId, cancellationToken))
         {
-            Id = SeedData.DefaultUserId,
-            Username = SeedData.DefaultUsername,
-            PasswordHash = PasswordHasher.Hash(SeedData.DefaultPassword),
-            FullName = "Demo Operator",
-            Email = "demo@example.com",
-            CreatedAt = DateTimeOffset.UtcNow
-        });
+            context.Users.Add(new User
+            {
+                Id = SeedData.DefaultUserId,
+                Username = SeedData.DefaultUsername,
+                PasswordHash = PasswordHasher.Hash(SeedData.DefaultPassword),
+                FullName = "Demo Operator",
+                Email = "demo@example.com",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            hasChanges = true;
+        }
 
-        await context.SaveChangesAsync(cancellationToken);
+        if (!await context.Users.AnyAsync(u => u.Id == SeedData.SecondUserId, cancellationToken))
+        {
+            context.Users.Add(new User
+            {
+                Id = SeedData.SecondUserId,
+                Username = SeedData.SecondUsername,
+                PasswordHash = PasswordHasher.Hash(SeedData.SecondPassword),
+                FullName = "Test User",
+                Email = "test@example.com",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
     }
 }
