@@ -208,4 +208,207 @@ app.MapPut("/orders/{orderId:guid}", async Task<IResult> (
     .WithTags("Orders")
     .RequireAuthorization();
 
+// Reassign order to another user (reference change test)
+app.MapPatch("/orders/{orderId:guid}/reassign", async Task<IResult> (
+        Guid orderId,
+        ReassignOrderRequest request,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Results.Unauthorized();
+
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order is null) return Results.NotFound();
+
+        if (order.UserId != currentUserId) return Results.Forbid();
+
+        var newUserExists = await dbContext.Users.AnyAsync(u => u.Id == request.NewUserId, cancellationToken);
+        if (!newUserExists) return Results.BadRequest(new { message = "Target user does not exist." });
+
+        order.UserId = request.NewUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.CreatedAt, order.UserId);
+        return Results.Ok(response);
+    })
+    .WithName("ReassignOrder")
+    .WithTags("Orders")
+    .RequireAuthorization();
+
+// ===== Tag CRUD =====
+app.MapGet("/tags", async (AppDbContext dbContext, CancellationToken cancellationToken) =>
+    {
+        var tags = await dbContext.Tags
+            .AsNoTracking()
+            .Select(t => new TagResponse(t.Id, t.Name, t.Color))
+            .ToListAsync(cancellationToken);
+        return Results.Ok(tags);
+    })
+    .WithName("GetTags")
+    .WithTags("Tags");
+
+app.MapPost("/tags", async Task<IResult> (
+        CreateTagRequest request,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return Results.BadRequest(new { message = "Name is required." });
+
+        var exists = await dbContext.Tags.AnyAsync(t => t.Name == request.Name.Trim(), cancellationToken);
+        if (exists) return Results.Conflict(new { message = "Tag with this name already exists." });
+
+        var tag = new Tag
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name.Trim(),
+            Color = request.Color?.Trim()
+        };
+
+        dbContext.Tags.Add(tag);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = new TagResponse(tag.Id, tag.Name, tag.Color);
+        return Results.Created($"/tags/{tag.Id}", response);
+    })
+    .WithName("CreateTag")
+    .WithTags("Tags")
+    .RequireAuthorization();
+
+app.MapPut("/tags/{tagId:guid}", async Task<IResult> (
+        Guid tagId,
+        UpdateTagRequest request,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return Results.BadRequest(new { message = "Name is required." });
+
+        var tag = await dbContext.Tags.FirstOrDefaultAsync(t => t.Id == tagId, cancellationToken);
+        if (tag is null) return Results.NotFound();
+
+        var duplicate = await dbContext.Tags.AnyAsync(t => t.Name == request.Name.Trim() && t.Id != tagId, cancellationToken);
+        if (duplicate) return Results.Conflict(new { message = "Tag with this name already exists." });
+
+        tag.Name = request.Name.Trim();
+        tag.Color = request.Color?.Trim();
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = new TagResponse(tag.Id, tag.Name, tag.Color);
+        return Results.Ok(response);
+    })
+    .WithName("UpdateTag")
+    .WithTags("Tags")
+    .RequireAuthorization();
+
+app.MapDelete("/tags/{tagId:guid}", async Task<IResult> (
+        Guid tagId,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        var tag = await dbContext.Tags.FirstOrDefaultAsync(t => t.Id == tagId, cancellationToken);
+        if (tag is null) return Results.NotFound();
+
+        dbContext.Tags.Remove(tag);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Results.NoContent();
+    })
+    .WithName("DeleteTag")
+    .WithTags("Tags")
+    .RequireAuthorization();
+
+// ===== Order Tags (collection changes) =====
+app.MapGet("/orders/{orderId:guid}/tags", async Task<IResult> (
+        Guid orderId,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        var order = await dbContext.Orders
+            .AsNoTracking()
+            .Include(o => o.OrderTags)
+            .ThenInclude(ot => ot.Tag)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+
+        if (order is null) return Results.NotFound();
+
+        var tags = order.OrderTags
+            .Where(ot => ot.Tag is not null)
+            .Select(ot => new TagResponse(ot.Tag!.Id, ot.Tag.Name, ot.Tag.Color))
+            .ToList();
+
+        return Results.Ok(tags);
+    })
+    .WithName("GetOrderTags")
+    .WithTags("OrderTags");
+
+app.MapPost("/orders/{orderId:guid}/tags", async Task<IResult> (
+        Guid orderId,
+        AddTagToOrderRequest request,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
+
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order is null) return Results.NotFound();
+
+        if (order.UserId != userId) return Results.Forbid();
+
+        var tagExists = await dbContext.Tags.AnyAsync(t => t.Id == request.TagId, cancellationToken);
+        if (!tagExists) return Results.BadRequest(new { message = "Tag does not exist." });
+
+        var alreadyAssigned = await dbContext.OrderTags
+            .AnyAsync(ot => ot.OrderId == orderId && ot.TagId == request.TagId, cancellationToken);
+        if (alreadyAssigned) return Results.Conflict(new { message = "Tag already assigned to this order." });
+
+        var orderTag = new OrderTag
+        {
+            OrderId = orderId,
+            TagId = request.TagId,
+            AssignedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.OrderTags.Add(orderTag);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Results.Created($"/orders/{orderId}/tags/{request.TagId}", null);
+    })
+    .WithName("AddTagToOrder")
+    .WithTags("OrderTags")
+    .RequireAuthorization();
+
+app.MapDelete("/orders/{orderId:guid}/tags/{tagId:guid}", async Task<IResult> (
+        Guid orderId,
+        Guid tagId,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
+
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order is null) return Results.NotFound();
+
+        if (order.UserId != userId) return Results.Forbid();
+
+        var orderTag = await dbContext.OrderTags
+            .FirstOrDefaultAsync(ot => ot.OrderId == orderId && ot.TagId == tagId, cancellationToken);
+        if (orderTag is null) return Results.NotFound();
+
+        dbContext.OrderTags.Remove(orderTag);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Results.NoContent();
+    })
+    .WithName("RemoveTagFromOrder")
+    .WithTags("OrderTags")
+    .RequireAuthorization();
+
 app.Run();

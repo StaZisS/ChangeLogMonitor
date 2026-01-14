@@ -16,4 +16,6 @@ public class Order
     [Column(TypeName = "decimal(18,2)")] public decimal Amount { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
+
+    public ICollection<OrderTag> OrderTags { get; set; } = new List<OrderTag>();
 }
