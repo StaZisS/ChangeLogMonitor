@@ -71,6 +71,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var serializer = new AuditMetadataSerializer(MetadataProvider);
         var enumLabelProvider = new AttributeEnumLabelProvider();
         var enumExtractor = new EnumMetadataExtractor(enumLabelProvider);
+        var referenceExtractor = new ReferenceMetadataExtractor(configService);
+        var collectionExtractor = new CollectionDeltaExtractor(configService);
         var logger = LoggerFactory.Create(builder => builder.AddConsole())
             .CreateLogger<ChangeLogInterceptor>();
 
@@ -79,6 +81,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             configService,
             serializer,
             enumExtractor,
+            referenceExtractor,
+            collectionExtractor,
             logger);
 
         var options = new DbContextOptionsBuilder<TestAppDbContext>()

@@ -20,23 +20,29 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     private static readonly SemaphoreSlim SchemaLock = new(1, 1);
     private static bool _schemaReady;
     private readonly AuditDbContext _auditDbContext;
+    private readonly CollectionDeltaExtractor _collectionExtractor;
     private readonly IAuditConfigurationService _configService;
     private readonly EnumMetadataExtractor _enumExtractor;
     private readonly ILogger<ChangeLogInterceptor>? _logger;
     private readonly AuditMetadataSerializer _metadataSerializer;
     private readonly ConcurrentDictionary<DbContext, IDbContextTransaction> _ownedTransactions = new();
+    private readonly ReferenceMetadataExtractor _referenceExtractor;
 
     public ChangeLogInterceptor(
         AuditDbContext auditDbContext,
         IAuditConfigurationService configService,
         AuditMetadataSerializer metadataSerializer,
         EnumMetadataExtractor enumExtractor,
+        ReferenceMetadataExtractor referenceExtractor,
+        CollectionDeltaExtractor collectionExtractor,
         ILogger<ChangeLogInterceptor>? logger = null)
     {
         _auditDbContext = auditDbContext ?? throw new ArgumentNullException(nameof(auditDbContext));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _metadataSerializer = metadataSerializer ?? throw new ArgumentNullException(nameof(metadataSerializer));
         _enumExtractor = enumExtractor ?? throw new ArgumentNullException(nameof(enumExtractor));
+        _referenceExtractor = referenceExtractor ?? throw new ArgumentNullException(nameof(referenceExtractor));
+        _collectionExtractor = collectionExtractor ?? throw new ArgumentNullException(nameof(collectionExtractor));
         _logger = logger;
     }
 
@@ -141,7 +147,21 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                 enumSnapshots.Count,
                 enumSnapshots.Values.Sum(v => v.Count));
 
-        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots);
+        // Извлекаем снепшоты ссылочных полей (FK)
+        var referenceSnapshots = _referenceExtractor.ExtractReferenceSnapshots(context, entries);
+        if (referenceSnapshots.Count > 0)
+            _logger?.LogDebug(
+                "Extracted {RefCount} reference snapshots",
+                referenceSnapshots.Count);
+
+        // Извлекаем дельты коллекций (M2M)
+        var collectionDeltas = _collectionExtractor.ExtractCollectionDeltas(context, entries);
+        if (collectionDeltas.Count > 0)
+            _logger?.LogDebug(
+                "Extracted {CollCount} collection deltas",
+                collectionDeltas.Count);
+
+        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots, referenceSnapshots, collectionDeltas);
         var createdAt = DateTime.UtcNow;
         WriteAuditLog(context, transactionId, payload, createdAt);
 
@@ -175,7 +195,21 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                 enumSnapshots.Count,
                 enumSnapshots.Values.Sum(v => v.Count));
 
-        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots);
+        // Извлекаем снепшоты ссылочных полей (FK)
+        var referenceSnapshots = _referenceExtractor.ExtractReferenceSnapshots(context, entries);
+        if (referenceSnapshots.Count > 0)
+            _logger?.LogDebug(
+                "Extracted {RefCount} reference snapshots",
+                referenceSnapshots.Count);
+
+        // Извлекаем дельты коллекций (M2M)
+        var collectionDeltas = _collectionExtractor.ExtractCollectionDeltas(context, entries);
+        if (collectionDeltas.Count > 0)
+            _logger?.LogDebug(
+                "Extracted {CollCount} collection deltas",
+                collectionDeltas.Count);
+
+        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots, referenceSnapshots, collectionDeltas);
         var createdAt = DateTime.UtcNow;
         await WriteAuditLogAsync(context, transactionId, payload, createdAt, cancellationToken);
 

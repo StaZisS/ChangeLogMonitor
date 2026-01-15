@@ -42,6 +42,31 @@ message EnumDictSnapshot {
   repeated CodeLabel pairs = 2;  // только коды, реально встретившиеся в транзакции
 }
 
+/** Снепшот значения ссылочного поля (FK) - денормализованное имя на момент изменения */
+message ReferenceSnapshot {
+  string entity_type = 1;        // тип сущности, содержащей FK (напр. "Order")
+  string field_name = 2;         // имя FK поля (напр. "UserId")
+  string related_entity_type = 3; // тип связанной сущности (напр. "User")
+  string key = 4;                // ключ связанной сущности (GUID/ID как строка)
+  string title = 5;              // человекочитаемое имя на момент изменения
+}
+
+/** Элемент коллекции с денормализованным именем */
+message CollectionItemSnapshot {
+  string key = 1;                // ключ элемента (ID)
+  string title = 2;              // человекочитаемое имя на момент изменения
+}
+
+/** Дельта изменений коллекции в рамках транзакции */
+message CollectionDeltaSnapshot {
+  string entity_type = 1;        // тип сущности-владельца (напр. "Order")
+  string entity_id = 2;          // ID сущности-владельца
+  string field_name = 3;         // имя коллекции (напр. "OrderTags", "Roles")
+  string related_entity_type = 4; // тип элементов коллекции (напр. "Tag")
+  repeated CollectionItemSnapshot added = 5;   // добавленные элементы
+  repeated CollectionItemSnapshot removed = 6; // удалённые элементы
+}
+
 /** Одна запись метаданных на транзакцию */
 message AuditMetaEnvelope {
   string transaction_id = 1; // общий ID транзакции (ключ для join)
@@ -54,4 +79,6 @@ message AuditMetaEnvelope {
   repeated Hint  hints = 7; // опционально: "мягкие" подсказки
 
   repeated EnumDictSnapshot enum_snapshots = 8;
+  repeated ReferenceSnapshot reference_snapshots = 9;   // денормализованные имена FK
+  repeated CollectionDeltaSnapshot collection_deltas = 10; // дельты коллекций
 }

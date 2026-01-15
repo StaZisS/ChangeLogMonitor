@@ -58,8 +58,10 @@ public static class ServiceCollectionExtensions
         else
             services.AddSingleton<IEnumLabelProvider, AttributeEnumLabelProvider>();
 
-        // Регистрируем экстрактор enum метаданных
+        // Регистрируем экстракторы метаданных
         services.AddSingleton<EnumMetadataExtractor>();
+        services.AddScoped<ReferenceMetadataExtractor>();
+        services.AddScoped<CollectionDeltaExtractor>();
 
         // Регистрируем сериализатор
         services.AddScoped<AuditMetadataSerializer>();

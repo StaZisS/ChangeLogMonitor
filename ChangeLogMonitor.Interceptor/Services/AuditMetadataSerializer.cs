@@ -33,6 +33,23 @@ public class AuditMetadataSerializer
     /// <returns>Сериализованный protobuf как массив байт</returns>
     public byte[] Serialize(string transactionId, Dictionary<string, Dictionary<string, string>>? enumSnapshots)
     {
+        return Serialize(transactionId, enumSnapshots, null, null);
+    }
+
+    /// <summary>
+    ///     Создает и сериализует AuditMetaEnvelope со всеми метаданными
+    /// </summary>
+    /// <param name="transactionId">ID транзакции</param>
+    /// <param name="enumSnapshots">Снепшоты enum значений</param>
+    /// <param name="referenceSnapshots">Снепшоты ссылочных полей (FK)</param>
+    /// <param name="collectionDeltas">Дельты коллекций</param>
+    /// <returns>Сериализованный protobuf как массив байт</returns>
+    public byte[] Serialize(
+        string transactionId,
+        Dictionary<string, Dictionary<string, string>>? enumSnapshots,
+        List<ReferenceSnapshotData>? referenceSnapshots,
+        List<CollectionDeltaData>? collectionDeltas)
+    {
         var envelope = new AuditMetaEnvelope
         {
             TransactionId = transactionId,
@@ -94,6 +111,47 @@ public class AuditMetadataSerializer
                     });
 
                 envelope.EnumSnapshots.Add(snapshot);
+            }
+
+        // Добавляем снепшоты ссылочных полей (если есть)
+        if (referenceSnapshots != null && referenceSnapshots.Count > 0)
+            foreach (var refData in referenceSnapshots)
+                envelope.ReferenceSnapshots.Add(new ReferenceSnapshot
+                {
+                    EntityType = refData.EntityType,
+                    FieldName = refData.FieldName,
+                    RelatedEntityType = refData.RelatedEntityType,
+                    Key = refData.Key,
+                    Title = refData.Title
+                });
+
+        // Добавляем дельты коллекций (если есть)
+        if (collectionDeltas != null && collectionDeltas.Count > 0)
+            foreach (var delta in collectionDeltas)
+            {
+                var deltaSnapshot = new CollectionDeltaSnapshot
+                {
+                    EntityType = delta.EntityType,
+                    EntityId = delta.EntityId,
+                    FieldName = delta.FieldName,
+                    RelatedEntityType = delta.RelatedEntityType
+                };
+
+                foreach (var added in delta.Added)
+                    deltaSnapshot.Added.Add(new CollectionItemSnapshot
+                    {
+                        Key = added.Key,
+                        Title = added.Title
+                    });
+
+                foreach (var removed in delta.Removed)
+                    deltaSnapshot.Removed.Add(new CollectionItemSnapshot
+                    {
+                        Key = removed.Key,
+                        Title = removed.Title
+                    });
+
+                envelope.CollectionDeltas.Add(deltaSnapshot);
             }
 
         return envelope.ToByteArray();

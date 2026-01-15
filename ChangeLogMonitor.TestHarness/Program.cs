@@ -509,6 +509,23 @@ app.MapGet("/debug/audit-logs", async Task<IResult> (
                     {
                         enumType = es.EnumType,
                         pairs = es.Pairs.Select(p => new { code = p.Code, label = p.Label }).ToList()
+                    }).ToList(),
+                    referenceSnapshots = envelope.ReferenceSnapshots.Select(rs => new
+                    {
+                        entityType = rs.EntityType,
+                        fieldName = rs.FieldName,
+                        relatedEntityType = rs.RelatedEntityType,
+                        key = rs.Key,
+                        title = rs.Title
+                    }).ToList(),
+                    collectionDeltas = envelope.CollectionDeltas.Select(cd => new
+                    {
+                        entityType = cd.EntityType,
+                        entityId = cd.EntityId,
+                        fieldName = cd.FieldName,
+                        relatedEntityType = cd.RelatedEntityType,
+                        added = cd.Added.Select(a => new { key = a.Key, title = a.Title }).ToList(),
+                        removed = cd.Removed.Select(r => new { key = r.Key, title = r.Title }).ToList()
                     }).ToList()
                 };
             }

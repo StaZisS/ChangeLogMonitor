@@ -65,8 +65,13 @@ public sealed class AggregateFlattener(
         var normalizedMeta = NormalizeMeta(aggregate.Meta);
         var (userId, userName) = ResolveUserInfo(normalizedMeta);
         var enumSnapshots = ExtractEnumSnapshots(normalizedMeta);
+        var referenceSnapshots = ExtractReferenceSnapshots(normalizedMeta);
+        var collectionDeltas = ExtractCollectionDeltas(normalizedMeta);
         var normalizationVersion = ResolveNormalizationVersion();
         var records = new List<AuditLogRecord>(aggregate.Events.Count);
+
+        // Track which (entityType, entityId) combinations have records
+        var processedEntities = new HashSet<(string entityType, string entityId)>();
 
         for (var i = 0; i < aggregate.Events.Count; i++)
         {
@@ -78,6 +83,8 @@ public sealed class AggregateFlattener(
             var operation = MapOperation(aggregateEvent.Operation);
             var tableName = aggregateEvent.Table?.Trim() ?? string.Empty;
 
+            processedEntities.Add((tableName, entityId));
+
             var auditRecord = BuildAuditRecord(
                 aggregate,
                 aggregateEvent,
@@ -87,7 +94,9 @@ public sealed class AggregateFlattener(
                 userId,
                 operation,
                 normalizationVersion,
-                enumSnapshots);
+                enumSnapshots,
+                referenceSnapshots,
+                collectionDeltas);
 
             var payload = Convert.ToBase64String(auditRecord.ToByteArray());
 
@@ -103,6 +112,18 @@ public sealed class AggregateFlattener(
                 payload));
         }
 
+        // Create synthetic records for collection changes on parent entities
+        // that weren't directly modified in this transaction
+        var syntheticRecords = BuildSyntheticCollectionRecords(
+            aggregate,
+            collectionDeltas,
+            processedEntities,
+            userId,
+            userName,
+            normalizationVersion);
+
+        records.AddRange(syntheticRecords);
+
         return records;
     }
 
@@ -115,7 +136,9 @@ public sealed class AggregateFlattener(
         string userId,
         byte operation,
         uint normalizationVersion,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
+        IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots,
+        IReadOnlyList<CollectionDeltaInfo> collectionDeltas)
     {
         var tableName = aggregateEvent.Table ?? string.Empty;
         var record = new AuditRecord
@@ -134,20 +157,165 @@ public sealed class AggregateFlattener(
         };
 
         // Apply policy-based field changes
-        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots);
+        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots, referenceSnapshots);
         foreach (var fc in fieldChanges)
         {
             record.FieldChanges.Add(fc);
         }
 
+        // Add collection changes for this entity
+        var entityCollectionDeltas = collectionDeltas
+            .Where(d => d.EntityType.Equals(tableName, StringComparison.OrdinalIgnoreCase) &&
+                        d.EntityId == entityId)
+            .ToList();
+
+        foreach (var delta in entityCollectionDeltas)
+        {
+            var collectionChange = new Audit.V1.CollectionChange
+            {
+                FieldName = delta.FieldName,
+                FieldTitle = delta.FieldName // TODO: could resolve from policy
+            };
+
+            foreach (var added in delta.Added)
+            {
+                collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                {
+                    Kind = Audit.V1.CollectionDeltaKind.Add,
+                    ItemKey = added.Key,
+                    ItemTitle = added.Title,
+                    RawNormalized = added.Title
+                });
+            }
+
+            foreach (var removed in delta.Removed)
+            {
+                collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                {
+                    Kind = Audit.V1.CollectionDeltaKind.Remove,
+                    ItemKey = removed.Key,
+                    ItemTitle = removed.Title,
+                    RawNormalized = removed.Title
+                });
+            }
+
+            if (collectionChange.Items.Count > 0)
+            {
+                record.CollectionChanges.Add(collectionChange);
+            }
+        }
+
         return record;
+    }
+
+    /// <summary>
+    ///     Создаёт синтетические записи аудита для родительских сущностей,
+    ///     чьи коллекции изменились, но сами сущности не были напрямую модифицированы
+    /// </summary>
+    private List<AuditLogRecord> BuildSyntheticCollectionRecords(
+        TxAggregate aggregate,
+        IReadOnlyList<CollectionDeltaInfo> collectionDeltas,
+        HashSet<(string entityType, string entityId)> processedEntities,
+        string userId,
+        string userName,
+        uint normalizationVersion)
+    {
+        var result = new List<AuditLogRecord>();
+
+        // Group collection deltas by owner entity
+        var deltasByOwner = collectionDeltas
+            .GroupBy(d => (d.EntityType, d.EntityId))
+            .Where(g => !processedEntities.Contains(g.Key)) // Only for entities not already processed
+            .ToList();
+
+        var ordinal = aggregate.Events?.Count ?? 0;
+
+        foreach (var group in deltasByOwner)
+        {
+            var (entityType, entityId) = group.Key;
+            var changeTime = DateTime.UtcNow;
+
+            // Build synthetic AuditRecord for collection changes
+            var record = new AuditRecord
+            {
+                Id = $"{aggregate.TxId}-coll-{ordinal}",
+                EntityType = entityType,
+                EntityId = entityId,
+                EntityTitle = string.Empty,
+                Operation = OperationType.OperationUpdate, // Collection change is like an update
+                TimestampUtc = Timestamp.FromDateTime(DateTime.SpecifyKind(changeTime, DateTimeKind.Utc)),
+                UserId = userId,
+                UserTitle = string.Empty,
+                UserType = string.IsNullOrWhiteSpace(userId) ? "system" : "user",
+                RawPayloadJson = "{}",
+                NormalizationVersion = normalizationVersion
+            };
+
+            // Add all collection changes for this entity
+            foreach (var delta in group)
+            {
+                var collectionChange = new Audit.V1.CollectionChange
+                {
+                    FieldName = delta.FieldName,
+                    FieldTitle = delta.FieldName
+                };
+
+                foreach (var added in delta.Added)
+                {
+                    collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                    {
+                        Kind = Audit.V1.CollectionDeltaKind.Add,
+                        ItemKey = added.Key,
+                        ItemTitle = added.Title,
+                        RawNormalized = added.Title
+                    });
+                }
+
+                foreach (var removed in delta.Removed)
+                {
+                    collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                    {
+                        Kind = Audit.V1.CollectionDeltaKind.Remove,
+                        ItemKey = removed.Key,
+                        ItemTitle = removed.Title,
+                        RawNormalized = removed.Title
+                    });
+                }
+
+                if (collectionChange.Items.Count > 0)
+                {
+                    record.CollectionChanges.Add(collectionChange);
+                }
+            }
+
+            if (record.CollectionChanges.Count > 0)
+            {
+                var payload = Convert.ToBase64String(record.ToByteArray());
+
+                result.Add(new AuditLogRecord(
+                    0,
+                    changeTime,
+                    userId,
+                    userName,
+                    entityType,
+                    2, // UPDATE operation
+                    entityId,
+                    aggregate.TxId,
+                    payload));
+
+                ordinal++;
+            }
+        }
+
+        return result;
     }
 
     private IEnumerable<FieldChange> BuildFieldChanges(
         string tableName,
         byte operation,
         JsonElement payload,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
+        IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots)
     {
         var entityPolicy = _configurationService?.GetEntityPolicy(tableName);
         var globalPolicy = _configurationService?.GetPolicy();
@@ -191,7 +359,7 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -215,7 +383,7 @@ public sealed class AggregateFlattener(
                     if (oldStr == newStr)
                         continue;
 
-                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy, globalPolicy, enumSnapshots);
+                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -225,7 +393,7 @@ public sealed class AggregateFlattener(
                 // No before data, show all after values
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -238,7 +406,7 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in before.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy, enumSnapshots);
+                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -252,7 +420,9 @@ public sealed class AggregateFlattener(
         JsonElement? newValue,
         ChangeLogMonitor.Core.Models.Policy.EntityPolicy? entityPolicy,
         ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
+        IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots,
+        string tableName)
     {
         // Skip system fields
         if (IsSystemField(fieldName))
@@ -307,13 +477,21 @@ public sealed class AggregateFlattener(
             }
         }
 
-        // Determine if this is an enum field and resolve labels
+        // Determine field kind and resolve labels/titles
         var valueKind = ValueKind.Scalar;
         var enumType = fieldPolicy?.View?.EnumType;
         IReadOnlyDictionary<string, string>? enumLabels = null;
+        ReferenceSnapshotInfo? referenceInfo = null;
 
+        // Check if field has reference snapshot (FK field)
+        var refKey = (tableName, fieldName);
+        if (referenceSnapshots.TryGetValue(refKey, out var refSnapshot))
+        {
+            referenceInfo = refSnapshot;
+            valueKind = ValueKind.Reference;
+        }
         // Check if field is configured as enum or if we have snapshots for this field
-        if (fieldPolicy?.View?.Format == ChangeLogMonitor.Core.Enums.FieldType.Enum && !string.IsNullOrEmpty(enumType))
+        else if (fieldPolicy?.View?.Format == ChangeLogMonitor.Core.Enums.FieldType.Enum && !string.IsNullOrEmpty(enumType))
         {
             enumSnapshots.TryGetValue(enumType, out enumLabels);
             valueKind = ValueKind.Enum;
@@ -334,7 +512,7 @@ public sealed class AggregateFlattener(
             }
         }
 
-        // Build FieldValue with enum support
+        // Build FieldValue with enum/reference support
         FieldValue? oldFieldValue = null;
         FieldValue? newFieldValue = null;
 
@@ -348,6 +526,14 @@ public sealed class AggregateFlattener(
                     ? oldLabel
                     : processedOld;
             }
+            else if (valueKind == ValueKind.Reference && referenceInfo != null)
+            {
+                oldFieldValue.ReferenceKey = oldStr ?? string.Empty;
+                // Look up title from reference snapshots if key matches
+                oldFieldValue.ReferenceTitle = referenceInfo.KeyTitles.TryGetValue(oldStr ?? string.Empty, out var oldRefTitle)
+                    ? oldRefTitle
+                    : oldStr ?? string.Empty;
+            }
         }
 
         if (processedNew != null)
@@ -359,6 +545,14 @@ public sealed class AggregateFlattener(
                 newFieldValue.EnumTitle = enumLabels.TryGetValue(newStr ?? string.Empty, out var newLabel)
                     ? newLabel
                     : processedNew;
+            }
+            else if (valueKind == ValueKind.Reference && referenceInfo != null)
+            {
+                newFieldValue.ReferenceKey = newStr ?? string.Empty;
+                // Look up title from reference snapshots if key matches
+                newFieldValue.ReferenceTitle = referenceInfo.KeyTitles.TryGetValue(newStr ?? string.Empty, out var newRefTitle)
+                    ? newRefTitle
+                    : newStr ?? string.Empty;
             }
         }
 
@@ -741,4 +935,137 @@ public sealed class AggregateFlattener(
 
         return value.Substring(0, maxLength) + "...";
     }
+
+    /// <summary>
+    ///     Извлекает reference снепшоты из метаданных транзакции (protobuf payload)
+    /// </summary>
+    private static IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> ExtractReferenceSnapshots(JsonElement? meta)
+    {
+        var emptyResult = new Dictionary<(string, string), ReferenceSnapshotInfo>();
+
+        if (meta is null || meta.Value.ValueKind != JsonValueKind.Object)
+            return emptyResult;
+
+        var root = meta.Value;
+
+        // Try to extract from protobuf payload
+        if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
+            payloadElement.ValueKind == JsonValueKind.String)
+        {
+            var base64 = payloadElement.GetString();
+            if (!string.IsNullOrWhiteSpace(base64))
+            {
+                try
+                {
+                    var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
+                    if (envelope.ReferenceSnapshots.Count > 0)
+                    {
+                        var result = new Dictionary<(string, string), ReferenceSnapshotInfo>();
+                        foreach (var snapshot in envelope.ReferenceSnapshots)
+                        {
+                            var key = (snapshot.EntityType, snapshot.FieldName);
+                            if (!result.TryGetValue(key, out var info))
+                            {
+                                info = new ReferenceSnapshotInfo(
+                                    snapshot.EntityType,
+                                    snapshot.FieldName,
+                                    snapshot.RelatedEntityType,
+                                    new Dictionary<string, string>());
+                                result[key] = info;
+                            }
+                            // Add key->title mapping
+                            info.KeyTitles[snapshot.Key] = snapshot.Title;
+                        }
+                        return result;
+                    }
+                }
+                catch (Exception)
+                {
+                    // not a valid protobuf payload – skip
+                }
+            }
+        }
+
+        return emptyResult;
+    }
+
+    /// <summary>
+    ///     Извлекает дельты коллекций из метаданных транзакции (protobuf payload)
+    /// </summary>
+    private static IReadOnlyList<CollectionDeltaInfo> ExtractCollectionDeltas(JsonElement? meta)
+    {
+        var emptyResult = Array.Empty<CollectionDeltaInfo>();
+
+        if (meta is null || meta.Value.ValueKind != JsonValueKind.Object)
+            return emptyResult;
+
+        var root = meta.Value;
+
+        // Try to extract from protobuf payload
+        if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
+            payloadElement.ValueKind == JsonValueKind.String)
+        {
+            var base64 = payloadElement.GetString();
+            if (!string.IsNullOrWhiteSpace(base64))
+            {
+                try
+                {
+                    var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
+                    if (envelope.CollectionDeltas.Count > 0)
+                    {
+                        var result = new List<CollectionDeltaInfo>();
+                        foreach (var delta in envelope.CollectionDeltas)
+                        {
+                            var added = delta.Added
+                                .Select(a => new CollectionItemInfo(a.Key, a.Title))
+                                .ToList();
+                            var removed = delta.Removed
+                                .Select(r => new CollectionItemInfo(r.Key, r.Title))
+                                .ToList();
+
+                            result.Add(new CollectionDeltaInfo(
+                                delta.EntityType,
+                                delta.EntityId,
+                                delta.FieldName,
+                                delta.RelatedEntityType,
+                                added,
+                                removed));
+                        }
+                        return result;
+                    }
+                }
+                catch (Exception)
+                {
+                    // not a valid protobuf payload – skip
+                }
+            }
+        }
+
+        return emptyResult;
+    }
 }
+
+/// <summary>
+///     Информация о снепшоте ссылочного поля
+/// </summary>
+internal sealed record ReferenceSnapshotInfo(
+    string EntityType,
+    string FieldName,
+    string RelatedEntityType,
+    Dictionary<string, string> KeyTitles);
+
+/// <summary>
+///     Элемент коллекции
+/// </summary>
+internal sealed record CollectionItemInfo(string Key, string Title);
+
+/// <summary>
+///     Информация о дельте коллекции
+/// </summary>
+internal sealed record CollectionDeltaInfo(
+    string EntityType,
+    string EntityId,
+    string FieldName,
+    string RelatedEntityType,
+    List<CollectionItemInfo> Added,
+    List<CollectionItemInfo> Removed);
