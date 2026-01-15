@@ -1,5 +1,7 @@
 using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Interfaces;
+using ChangeLogMonitor.Core.Services;
 using ChangeLogMonitor.Interceptor.Interceptors;
 using ChangeLogMonitor.Interceptor.Models;
 using ChangeLogMonitor.Interceptor.Services;
@@ -21,13 +23,15 @@ public static class ServiceCollectionExtensions
     /// <param name="configFilePath">Путь к файлу конфигурации (по умолчанию changelog-config.yaml)</param>
     /// <param name="metadataProviderFactory">Фабрика для создания провайдера метаданных (опционально)</param>
     /// <param name="applyMigrations">Автоматически применить EF миграции audit_log при старте</param>
+    /// <param name="enumLabelProviderFactory">Фабрика для создания провайдера лейблов enum (опционально)</param>
     /// <returns>Service collection для цепочки вызовов</returns>
     public static IServiceCollection AddChangeLogInterceptor(
         this IServiceCollection services,
         string auditDbConnectionString,
         string? configFilePath = null,
         Func<IServiceProvider, IAuditMetadataProvider>? metadataProviderFactory = null,
-        bool applyMigrations = true)
+        bool applyMigrations = true,
+        Func<IServiceProvider, IEnumLabelProvider>? enumLabelProviderFactory = null)
     {
         // Регистрируем AuditDbContext
         services.AddDbContext<AuditDbContext>(options =>
@@ -47,6 +51,15 @@ public static class ServiceCollectionExtensions
             services.AddScoped(metadataProviderFactory);
         else
             services.AddScoped<IAuditMetadataProvider, DefaultAuditMetadataProvider>();
+
+        // Регистрируем провайдер лейблов enum
+        if (enumLabelProviderFactory != null)
+            services.AddSingleton(enumLabelProviderFactory);
+        else
+            services.AddSingleton<IEnumLabelProvider, AttributeEnumLabelProvider>();
+
+        // Регистрируем экстрактор enum метаданных
+        services.AddSingleton<EnumMetadataExtractor>();
 
         // Регистрируем сериализатор
         services.AddScoped<AuditMetadataSerializer>();

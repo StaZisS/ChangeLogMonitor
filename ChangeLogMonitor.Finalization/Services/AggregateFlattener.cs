@@ -64,6 +64,7 @@ public sealed class AggregateFlattener(
 
         var normalizedMeta = NormalizeMeta(aggregate.Meta);
         var (userId, userName) = ResolveUserInfo(normalizedMeta);
+        var enumSnapshots = ExtractEnumSnapshots(normalizedMeta);
         var normalizationVersion = ResolveNormalizationVersion();
         var records = new List<AuditLogRecord>(aggregate.Events.Count);
 
@@ -77,7 +78,6 @@ public sealed class AggregateFlattener(
             var operation = MapOperation(aggregateEvent.Operation);
             var tableName = aggregateEvent.Table?.Trim() ?? string.Empty;
 
-            // TODO: применить политики маскирования/нормализации (ChangeLogMonitor.Configuration)
             var auditRecord = BuildAuditRecord(
                 aggregate,
                 aggregateEvent,
@@ -86,7 +86,8 @@ public sealed class AggregateFlattener(
                 entityId,
                 userId,
                 operation,
-                normalizationVersion);
+                normalizationVersion,
+                enumSnapshots);
 
             var payload = Convert.ToBase64String(auditRecord.ToByteArray());
 
@@ -113,7 +114,8 @@ public sealed class AggregateFlattener(
         string entityId,
         string userId,
         byte operation,
-        uint normalizationVersion)
+        uint normalizationVersion,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots)
     {
         var tableName = aggregateEvent.Table ?? string.Empty;
         var record = new AuditRecord
@@ -132,7 +134,7 @@ public sealed class AggregateFlattener(
         };
 
         // Apply policy-based field changes
-        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload);
+        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots);
         foreach (var fc in fieldChanges)
         {
             record.FieldChanges.Add(fc);
@@ -141,7 +143,11 @@ public sealed class AggregateFlattener(
         return record;
     }
 
-    private IEnumerable<FieldChange> BuildFieldChanges(string tableName, byte operation, JsonElement payload)
+    private IEnumerable<FieldChange> BuildFieldChanges(
+        string tableName,
+        byte operation,
+        JsonElement payload,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots)
     {
         var entityPolicy = _configurationService?.GetEntityPolicy(tableName);
         var globalPolicy = _configurationService?.GetPolicy();
@@ -185,7 +191,7 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -209,7 +215,7 @@ public sealed class AggregateFlattener(
                     if (oldStr == newStr)
                         continue;
 
-                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy, globalPolicy);
+                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy, globalPolicy, enumSnapshots);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -219,7 +225,7 @@ public sealed class AggregateFlattener(
                 // No before data, show all after values
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -232,7 +238,7 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in before.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy);
+                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy, enumSnapshots);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -245,7 +251,8 @@ public sealed class AggregateFlattener(
         JsonElement? oldValue,
         JsonElement? newValue,
         ChangeLogMonitor.Core.Models.Policy.EntityPolicy? entityPolicy,
-        ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy)
+        ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots)
     {
         // Skip system fields
         if (IsSystemField(fieldName))
@@ -300,14 +307,69 @@ public sealed class AggregateFlattener(
             }
         }
 
+        // Determine if this is an enum field and resolve labels
+        var valueKind = ValueKind.Scalar;
+        var enumType = fieldPolicy?.View?.EnumType;
+        IReadOnlyDictionary<string, string>? enumLabels = null;
+
+        // Check if field is configured as enum or if we have snapshots for this field
+        if (fieldPolicy?.View?.Format == ChangeLogMonitor.Core.Enums.FieldType.Enum && !string.IsNullOrEmpty(enumType))
+        {
+            enumSnapshots.TryGetValue(enumType, out enumLabels);
+            valueKind = ValueKind.Enum;
+        }
+        else if (enumSnapshots.Count > 0)
+        {
+            // Try to auto-detect enum by field name matching enum type name
+            // e.g., field "Status" might match enum type "Status" or "OrderStatus"
+            foreach (var (typeName, labels) in enumSnapshots)
+            {
+                if (typeName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
+                    typeName.EndsWith(fieldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    enumLabels = labels;
+                    valueKind = ValueKind.Enum;
+                    break;
+                }
+            }
+        }
+
+        // Build FieldValue with enum support
+        FieldValue? oldFieldValue = null;
+        FieldValue? newFieldValue = null;
+
+        if (processedOld != null)
+        {
+            oldFieldValue = new FieldValue { Normalized = processedOld };
+            if (valueKind == ValueKind.Enum && enumLabels != null)
+            {
+                oldFieldValue.EnumCode = oldStr ?? string.Empty;
+                oldFieldValue.EnumTitle = enumLabels.TryGetValue(oldStr ?? string.Empty, out var oldLabel)
+                    ? oldLabel
+                    : processedOld;
+            }
+        }
+
+        if (processedNew != null)
+        {
+            newFieldValue = new FieldValue { Normalized = processedNew };
+            if (valueKind == ValueKind.Enum && enumLabels != null)
+            {
+                newFieldValue.EnumCode = newStr ?? string.Empty;
+                newFieldValue.EnumTitle = enumLabels.TryGetValue(newStr ?? string.Empty, out var newLabel)
+                    ? newLabel
+                    : processedNew;
+            }
+        }
+
         return new FieldChange
         {
             FieldName = fieldName,
             FieldTitle = fieldName,
-            ValueKind = ValueKind.Scalar,
+            ValueKind = valueKind,
             SensitiveMode = sensitiveMode,
-            OldValue = processedOld != null ? new FieldValue { Normalized = processedOld } : null,
-            NewValue = processedNew != null ? new FieldValue { Normalized = processedNew } : null
+            OldValue = oldFieldValue,
+            NewValue = newFieldValue
         };
     }
 
@@ -510,6 +572,53 @@ public sealed class AggregateFlattener(
             return (protoUserId, protoUserName);
 
         return (string.Empty, string.Empty);
+    }
+
+    /// <summary>
+    ///     Извлекает enum снепшоты из метаданных транзакции (protobuf payload)
+    /// </summary>
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ExtractEnumSnapshots(JsonElement? meta)
+    {
+        var emptyResult = new Dictionary<string, IReadOnlyDictionary<string, string>>();
+
+        if (meta is null || meta.Value.ValueKind != JsonValueKind.Object)
+            return emptyResult;
+
+        var root = meta.Value;
+
+        // Try to extract from protobuf payload
+        if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
+            payloadElement.ValueKind == JsonValueKind.String)
+        {
+            var base64 = payloadElement.GetString();
+            if (!string.IsNullOrWhiteSpace(base64))
+            {
+                try
+                {
+                    var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
+                    if (envelope.EnumSnapshots.Count > 0)
+                    {
+                        var result = new Dictionary<string, IReadOnlyDictionary<string, string>>();
+                        foreach (var snapshot in envelope.EnumSnapshots)
+                        {
+                            var pairs = new Dictionary<string, string>();
+                            foreach (var pair in snapshot.Pairs)
+                            {
+                                pairs[pair.Code] = pair.Label;
+                            }
+                            result[snapshot.EnumType] = pairs;
+                        }
+                        return result;
+                    }
+                }
+                catch (Exception)
+                {
+                    // not a valid protobuf payload – skip
+                }
+            }
+        }
+
+        return emptyResult;
     }
 
     private static bool TryExtractUserInfoFromObject(JsonElement obj, out string userId, out string userName)

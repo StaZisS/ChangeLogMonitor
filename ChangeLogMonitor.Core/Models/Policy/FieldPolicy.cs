@@ -36,6 +36,12 @@ public class ViewSettings
     public bool EnumLabel { get; set; } = true;
 
     public bool RefName { get; set; } = true;
+
+    /// <summary>
+    ///     Имя типа enum для связи со снепшотами enum значений.
+    ///     Используется когда Format = Enum для получения человекочитаемых лейблов.
+    /// </summary>
+    public string? EnumType { get; set; }
 }
 
 /// <summary>

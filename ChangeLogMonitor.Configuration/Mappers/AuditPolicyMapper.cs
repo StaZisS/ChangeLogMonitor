@@ -94,7 +94,8 @@ public class AuditPolicyMapper
                 Pattern = yaml.View.Pattern,
                 Culture = yaml.View.Culture,
                 EnumLabel = yaml.View.EnumLabel ?? true,
-                RefName = yaml.View.RefName ?? true
+                RefName = yaml.View.RefName ?? true,
+                EnumType = yaml.View.EnumType
             };
 
         if (yaml.Mask != null) policy.Mask = MapMaskSettings(yaml.Mask, parentPolicy);

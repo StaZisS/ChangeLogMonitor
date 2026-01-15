@@ -21,6 +21,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
     private static bool _schemaReady;
     private readonly AuditDbContext _auditDbContext;
     private readonly IAuditConfigurationService _configService;
+    private readonly EnumMetadataExtractor _enumExtractor;
     private readonly ILogger<ChangeLogInterceptor>? _logger;
     private readonly AuditMetadataSerializer _metadataSerializer;
     private readonly ConcurrentDictionary<DbContext, IDbContextTransaction> _ownedTransactions = new();
@@ -29,11 +30,13 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         AuditDbContext auditDbContext,
         IAuditConfigurationService configService,
         AuditMetadataSerializer metadataSerializer,
+        EnumMetadataExtractor enumExtractor,
         ILogger<ChangeLogInterceptor>? logger = null)
     {
         _auditDbContext = auditDbContext ?? throw new ArgumentNullException(nameof(auditDbContext));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _metadataSerializer = metadataSerializer ?? throw new ArgumentNullException(nameof(metadataSerializer));
+        _enumExtractor = enumExtractor ?? throw new ArgumentNullException(nameof(enumExtractor));
         _logger = logger;
     }
 
@@ -129,7 +132,16 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         }
 
         var transactionId = GenerateTransactionId();
-        var payload = _metadataSerializer.Serialize(transactionId);
+
+        // Извлекаем enum снепшоты из изменённых сущностей
+        var enumSnapshots = _enumExtractor.ExtractEnumSnapshots(entries);
+        if (enumSnapshots.Count > 0)
+            _logger?.LogDebug(
+                "Extracted {EnumCount} enum types with {TotalValues} values",
+                enumSnapshots.Count,
+                enumSnapshots.Values.Sum(v => v.Count));
+
+        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots);
         var createdAt = DateTime.UtcNow;
         WriteAuditLog(context, transactionId, payload, createdAt);
 
@@ -154,7 +166,16 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         }
 
         var transactionId = GenerateTransactionId();
-        var payload = _metadataSerializer.Serialize(transactionId);
+
+        // Извлекаем enum снепшоты из изменённых сущностей
+        var enumSnapshots = _enumExtractor.ExtractEnumSnapshots(entries);
+        if (enumSnapshots.Count > 0)
+            _logger?.LogDebug(
+                "Extracted {EnumCount} enum types with {TotalValues} values",
+                enumSnapshots.Count,
+                enumSnapshots.Values.Sum(v => v.Count));
+
+        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots);
         var createdAt = DateTime.UtcNow;
         await WriteAuditLogAsync(context, transactionId, payload, createdAt, cancellationToken);
 

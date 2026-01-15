@@ -22,6 +22,17 @@ public class AuditMetadataSerializer
     /// <returns>Сериализованный protobuf как массив байт</returns>
     public byte[] Serialize(string transactionId)
     {
+        return Serialize(transactionId, null);
+    }
+
+    /// <summary>
+    ///     Создает и сериализует AuditMetaEnvelope с enum снепшотами
+    /// </summary>
+    /// <param name="transactionId">ID транзакции</param>
+    /// <param name="enumSnapshots">Снепшоты enum значений: имя типа → (код → лейбл)</param>
+    /// <returns>Сериализованный protobuf как массив байт</returns>
+    public byte[] Serialize(string transactionId, Dictionary<string, Dictionary<string, string>>? enumSnapshots)
+    {
         var envelope = new AuditMetaEnvelope
         {
             TransactionId = transactionId,
@@ -65,6 +76,25 @@ public class AuditMetadataSerializer
                     Key = hint.Key,
                     Value = hint.Value
                 });
+
+        // Добавляем enum снепшоты (если есть)
+        if (enumSnapshots != null && enumSnapshots.Count > 0)
+            foreach (var (enumType, pairs) in enumSnapshots)
+            {
+                var snapshot = new EnumDictSnapshot
+                {
+                    EnumType = enumType
+                };
+
+                foreach (var (code, label) in pairs)
+                    snapshot.Pairs.Add(new CodeLabel
+                    {
+                        Code = code,
+                        Label = label
+                    });
+
+                envelope.EnumSnapshots.Add(snapshot);
+            }
 
         return envelope.ToByteArray();
     }

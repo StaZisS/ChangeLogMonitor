@@ -1,5 +1,6 @@
 using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Services;
 using ChangeLogMonitor.Integration.Tests.Helpers;
 using ChangeLogMonitor.Integration.Tests.TestEntities;
 using ChangeLogMonitor.Interceptor.Interceptors;
@@ -61,6 +62,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var policyProvider = new YamlAuditPolicyProvider(configFilePath);
         var configService = new AuditConfigurationService(policyProvider);
         var serializer = new AuditMetadataSerializer(MetadataProvider);
+        var enumLabelProvider = new AttributeEnumLabelProvider();
+        var enumExtractor = new EnumMetadataExtractor(enumLabelProvider);
         var logger = LoggerFactory.Create(builder => builder.AddConsole())
             .CreateLogger<ChangeLogInterceptor>();
 
@@ -68,6 +71,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             auditDbContext,
             configService,
             serializer,
+            enumExtractor,
             logger);
 
         var options = new DbContextOptionsBuilder<TestAppDbContext>()

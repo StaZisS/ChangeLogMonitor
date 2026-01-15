@@ -165,6 +165,7 @@ app.MapPost("/orders", async Task<IResult> (
             Id = Guid.NewGuid(),
             Description = request.Description.Trim(),
             Amount = request.Amount,
+            Status = request.Status,
             UserId = userId,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -172,7 +173,7 @@ app.MapPost("/orders", async Task<IResult> (
         dbContext.Orders.Add(order);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.CreatedAt, order.UserId);
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
         return Results.Created($"/orders/{order.Id}", response);
     })
     .WithName("CreateOrder")
@@ -204,10 +205,12 @@ app.MapPut("/orders/{orderId:guid}", async Task<IResult> (
 
         order.Description = request.Description.Trim();
         order.Amount = request.Amount;
+        if (request.Status.HasValue)
+            order.Status = request.Status.Value;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.CreatedAt, order.UserId);
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
         return Results.Ok(response);
     })
     .WithName("UpdateOrder")
@@ -236,10 +239,36 @@ app.MapPatch("/orders/{orderId:guid}/reassign", async Task<IResult> (
         order.UserId = request.NewUserId;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.CreatedAt, order.UserId);
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
         return Results.Ok(response);
     })
     .WithName("ReassignOrder")
+    .WithTags("Orders")
+    .RequireAuthorization();
+
+// Change order status (enum change test)
+app.MapPatch("/orders/{orderId:guid}/status", async Task<IResult> (
+        Guid orderId,
+        ChangeOrderStatusRequest request,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Results.Unauthorized();
+
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order is null) return Results.NotFound();
+
+        if (order.UserId != currentUserId) return Results.Forbid();
+
+        order.Status = request.Status;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
+        return Results.Ok(response);
+    })
+    .WithName("ChangeOrderStatus")
     .WithTags("Orders")
     .RequireAuthorization();
 

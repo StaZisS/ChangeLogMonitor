@@ -243,9 +243,12 @@ auditPolicy:
             pattern: "dd.MM.yyyy HH:mm"
             culture: "ru-RU"
 
+        # Enum поле со связью на снепшоты из метаданных
         Status:
           action: include
           view:
+            format: enum
+            enumType: OrderStatus    # Связь с enum снепшотами (лейблы из AuditEnumLabelAttribute)
             enumLabel: true
 
         # Чувствительные данные

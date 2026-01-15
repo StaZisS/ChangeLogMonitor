@@ -29,6 +29,8 @@ public class YamlViewSettings
     [YamlMember(Alias = "enumLabel")] public bool? EnumLabel { get; set; }
 
     [YamlMember(Alias = "refName")] public bool? RefName { get; set; }
+
+    [YamlMember(Alias = "enumType")] public string? EnumType { get; set; }
 }
 
 public class YamlMaskSettings
