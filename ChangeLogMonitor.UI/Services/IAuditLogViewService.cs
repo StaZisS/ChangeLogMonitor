@@ -12,4 +12,14 @@ public interface IAuditLogViewService
         CancellationToken cancellationToken);
 
     ParsedPayload ParsePayload(string json);
+
+    /// <summary>
+    ///     Получает список сущностей, доступных текущему пользователю
+    /// </summary>
+    IReadOnlyList<string> GetAllowedEntities();
+
+    /// <summary>
+    ///     Проверяет, включен ли контроль доступа
+    /// </summary>
+    bool IsAccessControlEnabled { get; }
 }

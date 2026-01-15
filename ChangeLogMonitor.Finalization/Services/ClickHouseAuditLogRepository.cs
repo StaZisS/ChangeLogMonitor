@@ -273,6 +273,20 @@ SETTINGS index_granularity = 8192;";
             command.Parameters.Add(CreateParameter(command, "txId", filter.TransactionId.Trim()));
         }
 
+        // Access Control: фильтрация по разрешенным таблицам
+        if (filter.AllowedTableNames is { Count: > 0 })
+        {
+            var tableParams = new List<string>();
+            for (var i = 0; i < filter.AllowedTableNames.Count; i++)
+            {
+                var paramName = $"allowedTable{i}";
+                tableParams.Add($"{{${paramName}:String}}");
+                command.Parameters.Add(CreateParameter(command, paramName, filter.AllowedTableNames[i]));
+            }
+
+            whereConditions.Add($"table_name IN ({string.Join(", ", tableParams)})");
+        }
+
         var whereClause = whereConditions.Count > 0
             ? "WHERE " + string.Join(" AND ", whereConditions)
             : string.Empty;

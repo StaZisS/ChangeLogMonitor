@@ -1,5 +1,6 @@
 using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -36,6 +37,9 @@ public static class ServiceCollectionExtensions
 
         // Регистрируем главный сервис конфигурации
         services.AddSingleton<IAuditConfigurationService, AuditConfigurationService>();
+
+        // Регистрируем сервис контроля доступа
+        services.AddSingleton<IAccessControlService, AccessControlService>();
 
         return services;
     }

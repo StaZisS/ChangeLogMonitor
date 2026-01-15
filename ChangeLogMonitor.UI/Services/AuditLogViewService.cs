@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ChangeLogMonitor.Core.Interfaces;
 using ChangeLogMonitor.Core.Models;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
@@ -15,10 +16,31 @@ internal sealed class AuditLogViewService : IAuditLogViewService
     };
 
     private readonly IDiffService _diffService;
+    private readonly IAccessControlService _accessControl;
+    private readonly ICurrentUserService _currentUser;
 
-    public AuditLogViewService(IDiffService diffService)
+    public AuditLogViewService(
+        IDiffService diffService,
+        IAccessControlService accessControl,
+        ICurrentUserService currentUser)
     {
         _diffService = diffService;
+        _accessControl = accessControl;
+        _currentUser = currentUser;
+    }
+
+    /// <inheritdoc />
+    public bool IsAccessControlEnabled => _accessControl.IsEnabled;
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> GetAllowedEntities()
+    {
+        if (!_accessControl.IsEnabled)
+            return Array.Empty<string>();
+
+        var userId = _currentUser.GetUserId();
+        var roles = _accessControl.GetUserRoles(userId);
+        return _accessControl.GetAllowedEntities(roles);
     }
 
     public async Task<AuditLogListViewModel> GetLogsAsync(

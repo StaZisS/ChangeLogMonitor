@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using ChangeLogMonitor.Core.Enums;
+using ChangeLogMonitor.Core.Interfaces;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
 
@@ -9,11 +11,74 @@ internal sealed class DiffService : IDiffService
 {
     private readonly IAuditLogRepository _repository;
     private readonly IAuditLogFormatter _formatter;
+    private readonly IAccessControlService _accessControl;
+    private readonly ICurrentUserService _currentUser;
 
-    public DiffService(IAuditLogRepository repository, IAuditLogFormatter formatter)
+    public DiffService(
+        IAuditLogRepository repository,
+        IAuditLogFormatter formatter,
+        IAccessControlService accessControl,
+        ICurrentUserService currentUser)
     {
         _repository = repository;
         _formatter = formatter;
+        _accessControl = accessControl;
+        _currentUser = currentUser;
+    }
+
+    /// <summary>
+    ///     Применяет фильтры контроля доступа к запросу
+    /// </summary>
+    private DiffFilterRequest ApplyAccessControl(DiffFilterRequest? baseFilter, string? specificTableName = null)
+    {
+        var userId = _currentUser.GetUserId();
+
+        // Создаем базовый фильтр если не передан
+        var filter = baseFilter ?? new DiffFilterRequest(null, null, null, null, null, null, null);
+
+        if (!_accessControl.IsEnabled)
+            return filter;
+
+        var roles = _accessControl.GetUserRoles(userId);
+        var allowedEntities = _accessControl.GetAllowedEntities(roles);
+
+        // Если запрашивается конкретная таблица - проверяем доступ
+        var tableName = specificTableName ?? filter.TableName;
+        if (!string.IsNullOrWhiteSpace(tableName))
+        {
+            if (!allowedEntities.Contains(tableName))
+            {
+                // Доступ запрещен - вернуть фильтр который ничего не найдет
+                return filter with { AllowedTableNames = new[] { "__DENIED__" } };
+            }
+
+            return filter with
+            {
+                TableName = tableName
+            };
+        }
+
+        // Общий запрос - ограничиваем разрешенными таблицами
+        return filter with
+        {
+            AllowedTableNames = allowedEntities.ToList()
+        };
+    }
+
+    /// <summary>
+    ///     Проверяет доступ к сущности и выбрасывает исключение если доступ запрещен
+    /// </summary>
+    private void EnsureEntityAccess(string tableName)
+    {
+        if (!_accessControl.IsEnabled)
+            return;
+
+        var userId = _currentUser.GetUserId();
+        if (!_accessControl.CanAccessEntity(userId, tableName))
+        {
+            if (_accessControl.GetUnauthorizedBehavior() == UnauthorizedBehavior.Deny)
+                throw new UnauthorizedAccessException($"Access denied to entity: {tableName}");
+        }
     }
 
     public async Task<PaginatedResult<DiffResponse>> GetAllAsync(
@@ -21,9 +86,12 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        var cursor = DecodeCursor(paginationToken);
+        // Применяем фильтр контроля доступа
+        var filter = ApplyAccessControl(null);
 
-        var records = await _repository.GetAllWithCursorAsync(cursor, limit + 1, cancellationToken);
+        // Используем GetFilteredWithCursorAsync вместо GetAllWithCursorAsync для применения фильтра
+        var cursor = DecodeCursor(paginationToken);
+        var records = await _repository.GetFilteredWithCursorAsync(filter, cursor, limit + 1, cancellationToken);
 
         var hasMore = records.Count > limit;
         var resultRecords = hasMore ? records.Take(limit).ToList() : records;
@@ -48,7 +116,19 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        var records = await _repository.GetByEntityAsync(tableName, entityId, limit, cancellationToken);
+        // Проверяем доступ к сущности
+        EnsureEntityAccess(tableName);
+
+        // Применяем фильтр контроля доступа
+        var filter = ApplyAccessControl(
+            new DiffFilterRequest(tableName, null, null, null, null, entityId, null),
+            tableName);
+
+        // Если доступ запрещен через filter - возвращаем пустой список
+        if (filter.AllowedTableNames?.Contains("__DENIED__") == true)
+            return Array.Empty<DiffResponse>();
+
+        var records = await _repository.GetFilteredWithCursorAsync(filter, null, limit, cancellationToken);
         return records.Select(DiffResponse.FromRecord).ToList();
     }
 
@@ -57,7 +137,11 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        var records = await _repository.GetByTransactionAsync(transactionId, limit, cancellationToken);
+        // Применяем фильтр контроля доступа
+        var filter = ApplyAccessControl(
+            new DiffFilterRequest(null, null, null, null, null, null, transactionId));
+
+        var records = await _repository.GetFilteredWithCursorAsync(filter, null, limit, cancellationToken);
         return records.Select(DiffResponse.FromRecord).ToList();
     }
 
@@ -67,9 +151,11 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        var cursor = DecodeCursor(paginationToken);
+        // Применяем фильтр контроля доступа
+        var securedFilter = ApplyAccessControl(filter, filter.TableName);
 
-        var records = await _repository.GetFilteredWithCursorAsync(filter, cursor, limit + 1, cancellationToken);
+        var cursor = DecodeCursor(paginationToken);
+        var records = await _repository.GetFilteredWithCursorAsync(securedFilter, cursor, limit + 1, cancellationToken);
 
         var hasMore = records.Count > limit;
         var resultRecords = hasMore ? records.Take(limit).ToList() : records;
@@ -94,10 +180,13 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
+        // Применяем фильтр контроля доступа
+        var filter = ApplyAccessControl(null);
+
         var tz = string.IsNullOrWhiteSpace(timezone) ? AuditLogMessages.DefaultTimezone : timezone;
         var cursor = DecodeCursor(paginationToken);
 
-        var records = await _repository.GetAllWithCursorAsync(cursor, limit + 1, cancellationToken);
+        var records = await _repository.GetFilteredWithCursorAsync(filter, cursor, limit + 1, cancellationToken);
 
         var hasMore = records.Count > limit;
         var resultRecords = hasMore ? records.Take(limit).ToList() : records;
@@ -123,8 +212,20 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
+        // Проверяем доступ к сущности
+        EnsureEntityAccess(tableName);
+
+        // Применяем фильтр контроля доступа
+        var filter = ApplyAccessControl(
+            new DiffFilterRequest(tableName, null, null, null, null, entityId, null),
+            tableName);
+
+        // Если доступ запрещен через filter - возвращаем пустой список
+        if (filter.AllowedTableNames?.Contains("__DENIED__") == true)
+            return Array.Empty<FormattedDiffResponse>();
+
         var tz = string.IsNullOrWhiteSpace(timezone) ? AuditLogMessages.DefaultTimezone : timezone;
-        var records = await _repository.GetByEntityAsync(tableName, entityId, limit, cancellationToken);
+        var records = await _repository.GetFilteredWithCursorAsync(filter, null, limit, cancellationToken);
         return records.Select(r => _formatter.Format(r, tz)).ToList();
     }
 
@@ -134,8 +235,12 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
+        // Применяем фильтр контроля доступа
+        var filter = ApplyAccessControl(
+            new DiffFilterRequest(null, null, null, null, null, null, transactionId));
+
         var tz = string.IsNullOrWhiteSpace(timezone) ? AuditLogMessages.DefaultTimezone : timezone;
-        var records = await _repository.GetByTransactionAsync(transactionId, limit, cancellationToken);
+        var records = await _repository.GetFilteredWithCursorAsync(filter, null, limit, cancellationToken);
         return records.Select(r => _formatter.Format(r, tz)).ToList();
     }
 
@@ -146,10 +251,13 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
+        // Применяем фильтр контроля доступа
+        var securedFilter = ApplyAccessControl(filter, filter.TableName);
+
         var tz = string.IsNullOrWhiteSpace(timezone) ? AuditLogMessages.DefaultTimezone : timezone;
         var cursor = DecodeCursor(paginationToken);
 
-        var records = await _repository.GetFilteredWithCursorAsync(filter, cursor, limit + 1, cancellationToken);
+        var records = await _repository.GetFilteredWithCursorAsync(securedFilter, cursor, limit + 1, cancellationToken);
 
         var hasMore = records.Count > limit;
         var resultRecords = hasMore ? records.Take(limit).ToList() : records;

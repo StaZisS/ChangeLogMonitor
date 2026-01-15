@@ -28,4 +28,7 @@ public class EntityPolicy
 
     // Настройки коллекций
     public Dictionary<string, CollectionPolicy> Collections { get; set; } = new();
+
+    // Настройки доступа
+    public EntityAccess Access { get; set; } = new();
 }

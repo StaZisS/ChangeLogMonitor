@@ -22,4 +22,6 @@ public class YamlEntityPolicy
     [YamlMember(Alias = "references")] public Dictionary<string, YamlReferencePolicy>? References { get; set; }
 
     [YamlMember(Alias = "collections")] public Dictionary<string, YamlCollectionPolicy>? Collections { get; set; }
+
+    [YamlMember(Alias = "access")] public YamlEntityAccess? Access { get; set; }
 }

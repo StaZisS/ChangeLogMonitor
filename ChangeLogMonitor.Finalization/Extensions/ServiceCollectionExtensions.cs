@@ -1,5 +1,6 @@
 using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Interfaces;
 using ChangeLogMonitor.Finalization.Options;
 using ChangeLogMonitor.Finalization.Services;
 using Microsoft.Extensions.Configuration;
@@ -45,6 +46,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAggregateFlattener, AggregateFlattener>();
         services.AddSingleton<IAuditLogRepository, ClickHouseAuditLogRepository>();
         services.AddSingleton<IAuditLogFormatter, AuditLogFormatter>();
+
+        // Access Control Services
+        services.AddSingleton<IAccessControlService, AccessControlService>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>();
+
         services.AddScoped<IDiffService, DiffService>();
         services.AddHostedService<AggregateIngestService>();
 

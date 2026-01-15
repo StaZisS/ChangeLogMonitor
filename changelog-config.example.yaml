@@ -143,6 +143,11 @@ auditPolicy:
       onUpdate: delta
       onDelete: eventOnly
 
+      # Настройки доступа к аудит-логам этой сущности
+      access:
+        # Роли, которым разрешен доступ (пустой список = доступ всем)
+        allowedRoles: [admin, auditor]
+
       fields:
         # Короткий синтаксис
         Password: exclude
@@ -226,6 +231,10 @@ auditPolicy:
       onCreate: allFields
       onUpdate: delta
       onDelete: allFields
+
+      # Настройки доступа
+      access:
+        allowedRoles: [admin, auditor, manager, user]
 
       fields:
         OrderNumber: include
@@ -311,3 +320,51 @@ auditPolicy:
 
   defaultCulture: "ru-RU"
   defaultTimeZone: "Asia/Almaty"
+
+  # ========== КОНТРОЛЬ ДОСТУПА ==========
+  # Фильтрация доступа к истории аудита по ролям
+
+  accessControl:
+    # Включить/выключить контроль доступа (по умолчанию false)
+    enabled: false
+
+    # Поведение при неавторизованном доступе:
+    # - deny: вернуть 403 Forbidden
+    # - filter: вернуть пустой результат (тихая фильтрация)
+    unauthorizedBehavior: deny
+
+    # Определение ролей
+    roles:
+      admin:
+        description: "Полный доступ ко всем аудит-логам"
+        allowAll: true  # Обходит все проверки
+
+      auditor:
+        description: "Может просматривать все сущности кроме чувствительных"
+
+      manager:
+        description: "Может просматривать записи подразделения"
+
+      user:
+        description: "Может просматривать только свои записи"
+
+    # Маппинг userId -> роли
+    # userId извлекается из JWT claim "sub" или "nameidentifier"
+    users:
+      "550e8400-e29b-41d4-a716-446655440001":
+        roles: [admin]
+
+      "550e8400-e29b-41d4-a716-446655440002":
+        roles: [auditor, manager]
+
+      "550e8400-e29b-41d4-a716-446655440003":
+        roles: [user]
+
+    # Роли по умолчанию для пользователей, не указанных в маппинге
+    defaultRoles: [user]
+
+    # Разрешить анонимный доступ (без JWT токена)
+    allowAnonymous: false
+
+    # Роли для анонимных пользователей (если allowAnonymous: true)
+    anonymousRoles: []

@@ -47,6 +47,10 @@ public class AuditPolicyMapper
             foreach (var (entityName, yamlEntity) in yaml.Entities)
                 policy.Entities[entityName] = MapEntityPolicy(yamlEntity, policy);
 
+        // Маппинг контроля доступа
+        if (yaml.AccessControl != null)
+            policy.AccessControl = MapAccessControl(yaml.AccessControl);
+
         return policy;
     }
 
@@ -76,6 +80,10 @@ public class AuditPolicyMapper
         if (yaml.Collections != null)
             foreach (var (collName, yamlColl) in yaml.Collections)
                 entity.Collections[collName] = MapCollectionPolicy(yamlColl, parentPolicy);
+
+        // Маппинг доступа
+        if (yaml.Access != null)
+            entity.Access = MapEntityAccess(yaml.Access);
 
         return entity;
     }
@@ -499,6 +507,49 @@ public class AuditPolicyMapper
             "money" => FieldType.Money,
             "enum" => FieldType.Enum,
             _ => null
+        };
+    }
+
+    private UnauthorizedBehavior ParseUnauthorizedBehavior(string? value)
+    {
+        return value?.ToLower() switch
+        {
+            "filter" => UnauthorizedBehavior.Filter,
+            "deny" => UnauthorizedBehavior.Deny,
+            _ => UnauthorizedBehavior.Deny
+        };
+    }
+
+    private AccessControl MapAccessControl(YamlAccessControl yaml)
+    {
+        return new AccessControl
+        {
+            Enabled = yaml.Enabled,
+            UnauthorizedBehavior = ParseUnauthorizedBehavior(yaml.UnauthorizedBehavior),
+            Roles = yaml.Roles?.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new RoleDefinition
+                {
+                    Description = kvp.Value.Description,
+                    AllowAll = kvp.Value.AllowAll
+                }) ?? new Dictionary<string, RoleDefinition>(),
+            Users = yaml.Users?.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new UserRoleMapping
+                {
+                    Roles = kvp.Value.Roles ?? new List<string>()
+                }) ?? new Dictionary<string, UserRoleMapping>(),
+            DefaultRoles = yaml.DefaultRoles ?? new List<string>(),
+            AllowAnonymous = yaml.AllowAnonymous,
+            AnonymousRoles = yaml.AnonymousRoles ?? new List<string>()
+        };
+    }
+
+    private EntityAccess MapEntityAccess(YamlEntityAccess yaml)
+    {
+        return new EntityAccess
+        {
+            AllowedRoles = yaml.AllowedRoles ?? new List<string>()
         };
     }
 }

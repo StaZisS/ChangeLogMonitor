@@ -44,4 +44,7 @@ public class AuditPolicy
     public string DefaultCulture { get; set; } = "ru-RU";
 
     public string DefaultTimeZone { get; set; } = "Asia/Almaty";
+
+    // Контроль доступа
+    public AccessControl AccessControl { get; set; } = new();
 }
