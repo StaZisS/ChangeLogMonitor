@@ -391,6 +391,131 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Bulk Operations",
+			"description": "Операции массового обновления и raw SQL запросы с аудитом. Работают только с PostgreSQL.",
+			"item": [
+				{
+					"name": "Batch Update Status (ExecuteUpdate)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fromStatus\": 0,\n    \"toStatus\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders/batch/update-status",
+							"host": ["{{baseUrl}}"],
+							"path": ["orders", "batch", "update-status"]
+						},
+						"description": "Массовое обновление статуса заказов через EF Core ExecuteUpdate.\n\nStatus values:\n- 0: New\n- 1: Processing\n- 2: Confirmed\n- 3: Shipped\n- 4: Delivered\n- 5: Cancelled\n\nТестирует IRawAuditService.RecordRawOperationAsync() с BulkInfo."
+					},
+					"response": []
+				},
+				{
+					"name": "Batch Delete by Status (ExecuteDelete)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": 5\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders/batch/delete-by-status",
+							"host": ["{{baseUrl}}"],
+							"path": ["orders", "batch", "delete-by-status"]
+						},
+						"description": "Массовое удаление заказов по статусу через EF Core ExecuteDelete.\n\nСначала удаляет связанные OrderTags (с отдельной записью аудита), затем сами заказы.\n\nТестирует несколько записей аудита в одной транзакции."
+					},
+					"response": []
+				},
+				{
+					"name": "Raw Update by Amount (Extension Method)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"minAmount\": 100.00,\n    \"maxAmount\": 500.00,\n    \"newStatus\": 2,\n    \"reason\": \"Bulk confirmation for medium orders\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders/raw/update-by-amount",
+							"host": ["{{baseUrl}}"],
+							"path": ["orders", "raw", "update-by-amount"]
+						},
+						"description": "Raw SQL обновление заказов по диапазону суммы.\n\nИспользует extension метод ExecuteSqlRawWithAuditAsync() для автоматической записи аудита.\n\nТестирует wrapper-методы для raw SQL."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Old Orders (AuditScope)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/orders/raw/cancel-old?olderThanDays=30",
+							"host": ["{{baseUrl}}"],
+							"path": ["orders", "raw", "cancel-old"],
+							"query": [
+								{
+									"key": "olderThanDays",
+									"value": "30",
+									"description": "Отменить заказы старше N дней"
+								}
+							]
+						},
+						"description": "Отмена старых заказов через raw SQL с использованием AuditScope.\n\nДемонстрирует ambient context:\n- AuditScope.Begin() устанавливает контекст\n- RecordRawOperationFromScopeAsync() использует данные из scope\n\nТестирует вложенные hints и reason из AuditScope."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Debug",
+			"item": [
+				{
+					"name": "Get Audit Logs (Raw Payload)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/debug/audit-logs?limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["debug", "audit-logs"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Количество записей (1-100)"
+								}
+							]
+						},
+						"description": "Получить последние записи аудита с распарсенным protobuf payload.\n\nРаботает только с PostgreSQL.\n\nПоказывает:\n- actor (userId, userName)\n- request context (requestId, serviceName, clientIp)\n- bulk info (isBulk, affectedCount, target)\n- hints\n- enumSnapshots\n- referenceSnapshots\n- collectionDeltas"
+					},
+					"response": []
+				}
+			]
 		}
 	]
 }

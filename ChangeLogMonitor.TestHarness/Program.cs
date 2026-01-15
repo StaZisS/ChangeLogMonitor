@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using ChangeLogMonitor.Interceptor.Extensions;
+using ChangeLogMonitor.Interceptor.Services;
 using ChangeLogMonitor.TestHarness.Auth;
 using ChangeLogMonitor.TestHarness.Contracts;
 using ChangeLogMonitor.TestHarness.Data;
@@ -444,6 +445,307 @@ app.MapDelete("/orders/{orderId:guid}/tags/{tagId:guid}", async Task<IResult> (
     })
     .WithName("RemoveTagFromOrder")
     .WithTags("OrderTags")
+    .RequireAuthorization();
+
+// ===== Bulk Operations (Raw SQL with audit) =====
+
+// Helper для создания enum snapshot для OrderStatus
+static Dictionary<string, Dictionary<string, string>> CreateOrderStatusSnapshot(params OrderStatus[] statuses)
+{
+    var pairs = new Dictionary<string, string>();
+    foreach (var status in statuses)
+    {
+        var code = ((int)status).ToString();
+        var label = GetOrderStatusLabel(status);
+        pairs[code] = label;
+    }
+    return new Dictionary<string, Dictionary<string, string>>
+    {
+        ["OrderStatus"] = pairs
+    };
+}
+
+// Helper для создания ПОЛНОГО enum snapshot (все значения OrderStatus)
+// Используется для raw SQL операций где неизвестны старые значения
+static Dictionary<string, Dictionary<string, string>> CreateFullOrderStatusSnapshot()
+{
+    return CreateOrderStatusSnapshot(
+        OrderStatus.New,
+        OrderStatus.Processing,
+        OrderStatus.Confirmed,
+        OrderStatus.Shipped,
+        OrderStatus.Delivered,
+        OrderStatus.Cancelled);
+}
+
+static string GetOrderStatusLabel(OrderStatus status) => status switch
+{
+    OrderStatus.New => "Новый",
+    OrderStatus.Processing => "В обработке",
+    OrderStatus.Confirmed => "Подтверждён",
+    OrderStatus.Shipped => "Отправлен",
+    OrderStatus.Delivered => "Доставлен",
+    OrderStatus.Cancelled => "Отменён",
+    _ => status.ToString()
+};
+
+// Batch update order status using ExecuteUpdate (EF Core 7+ bulk update)
+app.MapPost("/orders/batch/update-status", async Task<IResult> (
+        BatchUpdateStatusRequest request,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        IRawAuditService? rawAuditService,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
+
+        if (rawAuditService is null)
+            return Results.BadRequest(new { message = "Raw audit service not available. Use PostgreSQL." });
+
+        // Batch update using EF Core ExecuteUpdate
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            var affected = await dbContext.Orders
+                .Where(o => o.UserId == userId && o.Status == request.FromStatus)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(o => o.Status, request.ToStatus),
+                    cancellationToken);
+
+            // Record audit for bulk operation with enum snapshot
+            await rawAuditService.RecordRawOperationAsync(
+                dbContext,
+                targetEntity: "Orders",
+                affectedCount: affected,
+                reason: $"Batch status update: {request.FromStatus} -> {request.ToStatus}",
+                hints: new Dictionary<string, string>
+                {
+                    ["operation"] = "batch_update_status",
+                    ["from_status"] = request.FromStatus.ToString(),
+                    ["to_status"] = request.ToStatus.ToString()
+                },
+                enumSnapshots: CreateOrderStatusSnapshot(request.FromStatus, request.ToStatus),
+                cancellationToken: cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return Results.Ok(new BulkOperationResult(
+                affected,
+                "BatchUpdateStatus",
+                $"Updated {affected} orders from {request.FromStatus} to {request.ToStatus}"));
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    })
+    .WithName("BatchUpdateOrderStatus")
+    .WithTags("BulkOperations")
+    .RequireAuthorization();
+
+// Batch delete orders by status using ExecuteDelete
+app.MapPost("/orders/batch/delete-by-status", async Task<IResult> (
+        BatchDeleteByStatusRequest request,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        IRawAuditService? rawAuditService,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
+
+        if (rawAuditService is null)
+            return Results.BadRequest(new { message = "Raw audit service not available. Use PostgreSQL." });
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            // First delete related OrderTags
+            var deletedTags = await dbContext.OrderTags
+                .Where(ot => dbContext.Orders
+                    .Where(o => o.UserId == userId && o.Status == request.Status)
+                    .Select(o => o.Id)
+                    .Contains(ot.OrderId))
+                .ExecuteDeleteAsync(cancellationToken);
+
+            if (deletedTags > 0)
+            {
+                await rawAuditService.RecordRawOperationAsync(
+                    dbContext,
+                    targetEntity: "OrderTags",
+                    affectedCount: deletedTags,
+                    reason: $"Cascade delete order tags for status {request.Status}",
+                    cancellationToken: cancellationToken);
+            }
+
+            // Then delete orders
+            var affected = await dbContext.Orders
+                .Where(o => o.UserId == userId && o.Status == request.Status)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await rawAuditService.RecordRawOperationAsync(
+                dbContext,
+                targetEntity: "Orders",
+                affectedCount: affected,
+                reason: $"Batch delete orders with status {request.Status}",
+                hints: new Dictionary<string, string>
+                {
+                    ["operation"] = "batch_delete",
+                    ["status"] = request.Status.ToString()
+                },
+                enumSnapshots: CreateOrderStatusSnapshot(request.Status),
+                cancellationToken: cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return Results.Ok(new BulkOperationResult(
+                affected,
+                "BatchDeleteByStatus",
+                $"Deleted {affected} orders with status {request.Status}"));
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    })
+    .WithName("BatchDeleteOrdersByStatus")
+    .WithTags("BulkOperations")
+    .RequireAuthorization();
+
+// Raw SQL update using extension method with automatic audit
+app.MapPost("/orders/raw/update-by-amount", async Task<IResult> (
+        RawUpdateRequest request,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        IRawAuditService? rawAuditService,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
+
+        if (rawAuditService is null)
+            return Results.BadRequest(new { message = "Raw audit service not available. Use PostgreSQL." });
+
+        if (request.MinAmount >= request.MaxAmount)
+            return Results.BadRequest(new { message = "MinAmount must be less than MaxAmount." });
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            // Using wrapper extension method for automatic audit capture
+            var affected = await dbContext.ExecuteSqlRawWithAuditAsync(
+                rawAuditService,
+                targetEntity: "Orders",
+                sql: @"UPDATE ""Orders""
+                       SET ""Status"" = {0}
+                       WHERE ""UserId"" = {1}
+                         AND ""Amount"" >= {2}
+                         AND ""Amount"" <= {3}",
+                parameters: new object[] { (int)request.NewStatus, userId, request.MinAmount, request.MaxAmount },
+                reason: request.Reason ?? $"Raw update: set status to {request.NewStatus} for amount range",
+                hints: new Dictionary<string, string>
+                {
+                    ["operation"] = "raw_update",
+                    ["min_amount"] = request.MinAmount.ToString("F2"),
+                    ["max_amount"] = request.MaxAmount.ToString("F2"),
+                    ["new_status"] = request.NewStatus.ToString()
+                },
+                enumSnapshots: CreateFullOrderStatusSnapshot(), // Полный snapshot т.к. неизвестны старые значения
+                cancellationToken: cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return Results.Ok(new BulkOperationResult(
+                affected,
+                "RawUpdateByAmount",
+                $"Updated {affected} orders with amount between {request.MinAmount:F2} and {request.MaxAmount:F2}"));
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    })
+    .WithName("RawUpdateOrdersByAmount")
+    .WithTags("BulkOperations")
+    .RequireAuthorization();
+
+// Raw SQL with AuditScope - demonstrates ambient context usage
+app.MapPost("/orders/raw/cancel-old", async Task<IResult> (
+        int olderThanDays,
+        ClaimsPrincipal principal,
+        AppDbContext dbContext,
+        IRawAuditService? rawAuditService,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId)) return Results.Unauthorized();
+
+        if (rawAuditService is null)
+            return Results.BadRequest(new { message = "Raw audit service not available. Use PostgreSQL." });
+
+        if (olderThanDays < 1)
+            return Results.BadRequest(new { message = "olderThanDays must be at least 1." });
+
+        var cutoffDate = DateTimeOffset.UtcNow.AddDays(-olderThanDays);
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            // Using AuditScope for ambient context (demonstrates combining scope hints with explicit enum snapshots)
+            using (AuditScope.Begin()
+                       .AddHint("operation", "cancel_old_orders")
+                       .AddHint("cutoff_date", cutoffDate.ToString("O"))
+                       .AddHint("older_than_days", olderThanDays.ToString()))
+            {
+                var affected = await dbContext.Database.ExecuteSqlRawAsync(
+                    @"UPDATE ""Orders""
+                      SET ""Status"" = {0}
+                      WHERE ""UserId"" = {1}
+                        AND ""CreatedAt"" < {2}
+                        AND ""Status"" NOT IN ({3}, {4})",
+                    new object[]
+                    {
+                        (int)OrderStatus.Cancelled,
+                        userId,
+                        cutoffDate,
+                        (int)OrderStatus.Delivered,
+                        (int)OrderStatus.Cancelled
+                    },
+                    cancellationToken);
+
+                // Use explicit audit recording with enum snapshots (scope hints are merged automatically)
+                await rawAuditService.RecordRawOperationAsync(
+                    dbContext,
+                    targetEntity: "Orders",
+                    affectedCount: affected,
+                    reason: $"Cancel orders older than {olderThanDays} days",
+                    enumSnapshots: CreateFullOrderStatusSnapshot(), // Полный snapshot т.к. неизвестны старые значения
+                    cancellationToken: cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+
+                return Results.Ok(new BulkOperationResult(
+                    affected,
+                    "CancelOldOrders",
+                    $"Cancelled {affected} orders older than {olderThanDays} days"));
+            }
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    })
+    .WithName("CancelOldOrders")
+    .WithTags("BulkOperations")
     .RequireAuthorization();
 
 // ===== Debug: Raw Audit Log Payload (PostgreSQL) =====

@@ -66,6 +66,9 @@ public static class ServiceCollectionExtensions
         // Регистрируем сериализатор
         services.AddScoped<AuditMetadataSerializer>();
 
+        // Регистрируем сервис для raw SQL операций
+        services.AddScoped<IRawAuditService, RawAuditService>();
+
         // Регистрируем интерцептор
         services.AddScoped<ChangeLogInterceptor>();
 
