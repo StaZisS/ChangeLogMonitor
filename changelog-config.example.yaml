@@ -253,13 +253,12 @@ auditPolicy:
             pattern: "dd.MM.yyyy HH:mm"
             culture: "ru-RU"
 
-        # Enum поле со связью на снепшоты из метаданных
+        # Enum поле - тип enum автоопределяется из EF Core модели
+        # enumType указывать НЕ нужно, он извлекается автоматически из CLR типа свойства
         Status:
           action: include
-          view:
-            format: enum
-            enumType: OrderStatus    # Связь с enum снепшотами (лейблы из AuditEnumLabelAttribute)
-            enumLabel: true
+          # view.format: enum и view.enumType больше НЕ требуются!
+          # Enum автоматически определяется интерцептором из модели EF Core
 
         # Чувствительные данные
         CreditCardCVV: exclude

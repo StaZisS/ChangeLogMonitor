@@ -42,6 +42,13 @@ message EnumDictSnapshot {
   repeated CodeLabel pairs = 2;  // только коды, реально встретившиеся в транзакции
 }
 
+/** Маппинг поля к типу enum (для автоопределения без явной YAML-конфигурации) */
+message FieldEnumMapping {
+  string entity_type = 1;        // тип сущности (напр. "Order")
+  string field_name = 2;         // имя поля (напр. "Status")
+  string enum_type = 3;          // тип enum (напр. "OrderStatus")
+}
+
 /** Снепшот значения ссылочного поля (FK) - денормализованное имя на момент изменения */
 message ReferenceSnapshot {
   string entity_type = 1;        // тип сущности, содержащей FK (напр. "Order")
@@ -81,4 +88,5 @@ message AuditMetaEnvelope {
   repeated EnumDictSnapshot enum_snapshots = 8;
   repeated ReferenceSnapshot reference_snapshots = 9;   // денормализованные имена FK
   repeated CollectionDeltaSnapshot collection_deltas = 10; // дельты коллекций
+  repeated FieldEnumMapping field_enum_mappings = 11;   // маппинг field → enumType (автоопределение)
 }

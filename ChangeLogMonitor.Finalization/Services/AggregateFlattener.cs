@@ -66,6 +66,7 @@ public sealed class AggregateFlattener(
         var normalizedMeta = NormalizeMeta(aggregate.Meta);
         var (userId, userName) = ResolveUserInfo(normalizedMeta);
         var enumSnapshots = ExtractEnumSnapshots(normalizedMeta);
+        var fieldEnumMappings = ExtractFieldEnumMappings(normalizedMeta);
         var referenceSnapshots = ExtractReferenceSnapshots(normalizedMeta);
         var collectionDeltas = ExtractCollectionDeltas(normalizedMeta);
         var normalizationVersion = ResolveNormalizationVersion();
@@ -95,6 +96,7 @@ public sealed class AggregateFlattener(
                 operation,
                 normalizationVersion,
                 enumSnapshots,
+                fieldEnumMappings,
                 referenceSnapshots,
                 collectionDeltas);
 
@@ -135,6 +137,7 @@ public sealed class AggregateFlattener(
         OperationCode operation,
         uint normalizationVersion,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
+        IReadOnlyDictionary<(string entityType, string fieldName), string> fieldEnumMappings,
         IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots,
         IReadOnlyList<CollectionDeltaInfo> collectionDeltas)
     {
@@ -154,7 +157,7 @@ public sealed class AggregateFlattener(
             NormalizationVersion = normalizationVersion
         };
         
-        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots, referenceSnapshots);
+        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots, fieldEnumMappings, referenceSnapshots);
         foreach (var fc in fieldChanges)
         {
             record.FieldChanges.Add(fc);
@@ -305,6 +308,7 @@ public sealed class AggregateFlattener(
         OperationCode operation,
         JsonElement payload,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
+        IReadOnlyDictionary<(string entityType, string fieldName), string> fieldEnumMappings,
         IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots)
     {
         var entityPolicy = _configurationService?.GetEntityPolicy(tableName);
@@ -347,7 +351,7 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -369,7 +373,7 @@ public sealed class AggregateFlattener(
                     if (oldStr == newStr)
                         continue;
 
-                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -378,7 +382,7 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -390,7 +394,7 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in before.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -405,6 +409,7 @@ public sealed class AggregateFlattener(
         ChangeLogMonitor.Core.Models.Policy.EntityPolicy? entityPolicy,
         ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
+        IReadOnlyDictionary<(string entityType, string fieldName), string> fieldEnumMappings,
         IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots,
         string tableName)
     {
@@ -454,23 +459,24 @@ public sealed class AggregateFlattener(
         }
         
         var valueKind = ValueKind.Scalar;
-        var enumType = fieldPolicy?.View?.EnumType;
         IReadOnlyDictionary<string, string>? enumLabels = null;
         ReferenceSnapshotInfo? referenceInfo = null;
-        
+
         var refKey = (tableName, fieldName);
         if (referenceSnapshots.TryGetValue(refKey, out var refSnapshot))
         {
             referenceInfo = refSnapshot;
             valueKind = ValueKind.Reference;
         }
-        else if (fieldPolicy?.View?.Format == ChangeLogMonitor.Core.Enums.FieldType.Enum && !string.IsNullOrEmpty(enumType))
+        else if (fieldEnumMappings.TryGetValue((tableName, fieldName), out var autoEnumType))
         {
-            enumSnapshots.TryGetValue(enumType, out enumLabels);
+            // Автоопределённый тип enum из метаданных интерцептора
+            enumSnapshots.TryGetValue(autoEnumType, out enumLabels);
             valueKind = ValueKind.Enum;
         }
         else if (enumSnapshots.Count > 0)
         {
+            // Fallback: пробуем сопоставить по имени поля
             foreach (var (typeName, labels) in enumSnapshots)
             {
                 if (typeName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
@@ -726,7 +732,7 @@ public sealed class AggregateFlattener(
             return emptyResult;
 
         var root = meta.Value;
-        
+
         if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
             payloadElement.ValueKind == JsonValueKind.String)
         {
@@ -747,6 +753,44 @@ public sealed class AggregateFlattener(
                                 pairs[pair.Code] = pair.Label;
                             }
                             result[snapshot.EnumType] = pairs;
+                        }
+                        return result;
+                    }
+                }
+                catch (Exception)
+                {
+                    // not a valid protobuf payload – skip
+                }
+            }
+        }
+
+        return emptyResult;
+    }
+
+    private static IReadOnlyDictionary<(string entityType, string fieldName), string> ExtractFieldEnumMappings(JsonElement? meta)
+    {
+        var emptyResult = new Dictionary<(string, string), string>();
+
+        if (meta is null || meta.Value.ValueKind != JsonValueKind.Object)
+            return emptyResult;
+
+        var root = meta.Value;
+
+        if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
+            payloadElement.ValueKind == JsonValueKind.String)
+        {
+            var base64 = payloadElement.GetString();
+            if (!string.IsNullOrWhiteSpace(base64))
+            {
+                try
+                {
+                    var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
+                    if (envelope.FieldEnumMappings.Count > 0)
+                    {
+                        var result = new Dictionary<(string, string), string>();
+                        foreach (var mapping in envelope.FieldEnumMappings)
+                        {
+                            result[(mapping.EntityType, mapping.FieldName)] = mapping.EnumType;
                         }
                         return result;
                     }

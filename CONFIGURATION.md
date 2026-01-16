@@ -186,12 +186,11 @@ fields:
       pattern: "dd.MM.yyyy"
       culture: "ru-RU"
 
+  # Enum поля автоматически определяются из EF Core модели
+  # format: enum и enumType указывать НЕ нужно!
   Status:
     action: include
-    view:
-      format: enum
-      enumType: OrderStatus
-      enumLabel: true        # Показывать лейбл enum
+    # Тип enum автоматически определяется из CLR типа свойства
 ```
 
 ---

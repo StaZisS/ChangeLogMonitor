@@ -5,6 +5,23 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 namespace ChangeLogMonitor.Interceptor.Services;
 
 /// <summary>
+///     Результат извлечения метаданных enum.
+/// </summary>
+public sealed class EnumExtractionResult
+{
+    /// <summary>
+    ///     Снепшоты значений enum: EnumType → (code → label).
+    /// </summary>
+    public Dictionary<string, Dictionary<string, string>> Snapshots { get; } = new();
+
+    /// <summary>
+    ///     Маппинг field → enumType для автоопределения без YAML-конфигурации.
+    ///     Ключ: (EntityType, FieldName), Значение: EnumTypeName.
+    /// </summary>
+    public Dictionary<(string EntityType, string FieldName), string> FieldEnumMappings { get; } = new();
+}
+
+/// <summary>
 ///     Сервис для извлечения метаданных enum из сущностей EF Core.
 /// </summary>
 public sealed class EnumMetadataExtractor
@@ -16,9 +33,12 @@ public sealed class EnumMetadataExtractor
         _labelProvider = labelProvider ?? throw new ArgumentNullException(nameof(labelProvider));
     }
 
-    public Dictionary<string, Dictionary<string, string>> ExtractEnumSnapshots(IEnumerable<EntityEntry> entries)
+    /// <summary>
+    ///     Извлекает снепшоты enum и маппинг field → enumType.
+    /// </summary>
+    public EnumExtractionResult Extract(IEnumerable<EntityEntry> entries)
     {
-        var result = new Dictionary<string, Dictionary<string, string>>();
+        var result = new EnumExtractionResult();
         var processedEnums = new HashSet<(Type enumType, long value)>();
 
         foreach (var entry in entries)
@@ -29,12 +49,21 @@ public sealed class EnumMetadataExtractor
         return result;
     }
 
+    /// <summary>
+    ///     Только снепшоты (для обратной совместимости).
+    /// </summary>
+    public Dictionary<string, Dictionary<string, string>> ExtractEnumSnapshots(IEnumerable<EntityEntry> entries)
+    {
+        return Extract(entries).Snapshots;
+    }
+
     private void ExtractFromEntry(
         EntityEntry entry,
-        Dictionary<string, Dictionary<string, string>> result,
+        EnumExtractionResult result,
         HashSet<(Type enumType, long value)> processedEnums)
     {
-        var entityType = entry.Entity.GetType();
+        var entityClrType = entry.Entity.GetType();
+        var entityTypeName = entry.Metadata.GetTableName() ?? entityClrType.Name;
 
         foreach (var property in entry.Properties)
         {
@@ -43,12 +72,19 @@ public sealed class EnumMetadataExtractor
 
             if (!underlyingType.IsEnum)
                 continue;
-            
-            CollectEnumValue(underlyingType, property.CurrentValue, result, processedEnums);
+
+            var fieldName = property.Metadata.GetColumnName() ?? property.Metadata.Name;
+            var enumTypeName = underlyingType.Name;
+
+            // Добавляем маппинг field → enumType
+            var mappingKey = (entityTypeName, fieldName);
+            result.FieldEnumMappings.TryAdd(mappingKey, enumTypeName);
+
+            CollectEnumValue(underlyingType, property.CurrentValue, result.Snapshots, processedEnums);
 
             if (entry.State == EntityState.Modified || entry.State == EntityState.Deleted)
             {
-                CollectEnumValue(underlyingType, property.OriginalValue, result, processedEnums);
+                CollectEnumValue(underlyingType, property.OriginalValue, result.Snapshots, processedEnums);
             }
         }
     }

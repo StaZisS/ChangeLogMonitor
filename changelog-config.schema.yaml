@@ -398,12 +398,6 @@ $defs:
       culture:
         type: string
         description: "Culture for formatting (e.g., ru-RU)"
-      enumType:
-        type: string
-        description: Enum type name for enum format
-      enumLabel:
-        type: boolean
-        description: Use enum label instead of value
       refName:
         type: boolean
         description: Show referenced entity name

@@ -138,8 +138,6 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
         if (dict.TryGetValue("format", out var format)) settings.Format = format?.ToString();
         if (dict.TryGetValue("pattern", out var pattern)) settings.Pattern = pattern?.ToString();
         if (dict.TryGetValue("culture", out var culture)) settings.Culture = culture?.ToString();
-        if (dict.TryGetValue("enumLabel", out var enumLabel) && bool.TryParse(enumLabel?.ToString(), out var el))
-            settings.EnumLabel = el;
         if (dict.TryGetValue("refName", out var refName) && bool.TryParse(refName?.ToString(), out var rn))
             settings.RefName = rn;
         return settings;

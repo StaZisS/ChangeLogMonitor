@@ -20,7 +20,7 @@ public sealed class KafkaSettings
 
     public string? DlqTopic { get; init; }
 
-    public bool EnableAutoTopicCreation { get; init; } = false;
+    public bool EnableAutoTopicCreation { get; init; } = true;
 
     public int DefaultNumPartitions { get; init; } = 1;
 }

@@ -31,6 +31,16 @@ public class AuditMetadataSerializer
         List<ReferenceSnapshotData>? referenceSnapshots,
         List<CollectionDeltaData>? collectionDeltas)
     {
+        return Serialize(transactionId, enumSnapshots, referenceSnapshots, collectionDeltas, null);
+    }
+
+    public byte[] Serialize(
+        string transactionId,
+        Dictionary<string, Dictionary<string, string>>? enumSnapshots,
+        List<ReferenceSnapshotData>? referenceSnapshots,
+        List<CollectionDeltaData>? collectionDeltas,
+        Dictionary<(string EntityType, string FieldName), string>? fieldEnumMappings)
+    {
         var envelope = new AuditMetaEnvelope
         {
             TransactionId = transactionId,
@@ -130,9 +140,18 @@ public class AuditMetadataSerializer
                 envelope.CollectionDeltas.Add(deltaSnapshot);
             }
 
+        if (fieldEnumMappings != null && fieldEnumMappings.Count > 0)
+            foreach (var ((entityType, fieldName), enumType) in fieldEnumMappings)
+                envelope.FieldEnumMappings.Add(new FieldEnumMapping
+                {
+                    EntityType = entityType,
+                    FieldName = fieldName,
+                    EnumType = enumType
+                });
+
         return envelope.ToByteArray();
     }
-    
+
     public byte[] SerializeBulkOperation(
         string transactionId,
         string targetEntity,

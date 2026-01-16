@@ -127,27 +127,33 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         }
 
         var transactionId = GenerateTransactionId();
-        
-        var enumSnapshots = _enumExtractor.ExtractEnumSnapshots(entries);
-        if (enumSnapshots.Count > 0)
+
+        var enumResult = _enumExtractor.Extract(entries);
+        if (enumResult.Snapshots.Count > 0)
             _logger?.LogDebug(
-                "Extracted {EnumCount} enum types with {TotalValues} values",
-                enumSnapshots.Count,
-                enumSnapshots.Values.Sum(v => v.Count));
-        
+                "Extracted {EnumCount} enum types with {TotalValues} values, {MappingCount} field mappings",
+                enumResult.Snapshots.Count,
+                enumResult.Snapshots.Values.Sum(v => v.Count),
+                enumResult.FieldEnumMappings.Count);
+
         var referenceSnapshots = _referenceExtractor.ExtractReferenceSnapshots(context, entries);
         if (referenceSnapshots.Count > 0)
             _logger?.LogDebug(
                 "Extracted {RefCount} reference snapshots",
                 referenceSnapshots.Count);
-        
+
         var collectionDeltas = _collectionExtractor.ExtractCollectionDeltas(context, entries);
         if (collectionDeltas.Count > 0)
             _logger?.LogDebug(
                 "Extracted {CollCount} collection deltas",
                 collectionDeltas.Count);
 
-        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots, referenceSnapshots, collectionDeltas);
+        var payload = _metadataSerializer.Serialize(
+            transactionId,
+            enumResult.Snapshots,
+            referenceSnapshots,
+            collectionDeltas,
+            enumResult.FieldEnumMappings);
         var createdAt = DateTime.UtcNow;
         WriteAuditLog(context, transactionId, payload, createdAt);
 
@@ -169,27 +175,33 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         }
 
         var transactionId = GenerateTransactionId();
-        
-        var enumSnapshots = _enumExtractor.ExtractEnumSnapshots(entries);
-        if (enumSnapshots.Count > 0)
+
+        var enumResult = _enumExtractor.Extract(entries);
+        if (enumResult.Snapshots.Count > 0)
             _logger?.LogDebug(
-                "Extracted {EnumCount} enum types with {TotalValues} values",
-                enumSnapshots.Count,
-                enumSnapshots.Values.Sum(v => v.Count));
-        
+                "Extracted {EnumCount} enum types with {TotalValues} values, {MappingCount} field mappings",
+                enumResult.Snapshots.Count,
+                enumResult.Snapshots.Values.Sum(v => v.Count),
+                enumResult.FieldEnumMappings.Count);
+
         var referenceSnapshots = _referenceExtractor.ExtractReferenceSnapshots(context, entries);
         if (referenceSnapshots.Count > 0)
             _logger?.LogDebug(
                 "Extracted {RefCount} reference snapshots",
                 referenceSnapshots.Count);
-        
+
         var collectionDeltas = _collectionExtractor.ExtractCollectionDeltas(context, entries);
         if (collectionDeltas.Count > 0)
             _logger?.LogDebug(
                 "Extracted {CollCount} collection deltas",
                 collectionDeltas.Count);
 
-        var payload = _metadataSerializer.Serialize(transactionId, enumSnapshots, referenceSnapshots, collectionDeltas);
+        var payload = _metadataSerializer.Serialize(
+            transactionId,
+            enumResult.Snapshots,
+            referenceSnapshots,
+            collectionDeltas,
+            enumResult.FieldEnumMappings);
         var createdAt = DateTime.UtcNow;
         await WriteAuditLogAsync(context, transactionId, payload, createdAt, cancellationToken);
 
