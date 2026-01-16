@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Audit.V1;
 using Auditmeta.Raw;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.DataAggregator.Models;
 using ChangeLogMonitor.Finalization.Models;
 using Google.Protobuf;
@@ -79,7 +80,7 @@ public sealed class AggregateFlattener(
 
             var changeTime = ResolveTimestamp(aggregateEvent.TimestampMs);
             var entityId = ResolveEntityId(aggregateEvent.Payload);
-            var operation = MapOperation(aggregateEvent.Operation);
+            var operation = OperationCodeExtensions.FromCdcOperation(aggregateEvent.Operation);
             var tableName = aggregateEvent.Table?.Trim() ?? string.Empty;
 
             processedEntities.Add((tableName, entityId));
@@ -131,7 +132,7 @@ public sealed class AggregateFlattener(
         DateTime changeTime,
         string entityId,
         string userId,
-        byte operation,
+        OperationCode operation,
         uint normalizationVersion,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
         IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots,
@@ -144,7 +145,7 @@ public sealed class AggregateFlattener(
             EntityType = tableName,
             EntityId = entityId,
             EntityTitle = string.Empty,
-            Operation = (OperationType)operation,
+            Operation = (OperationType)(byte)operation,
             TimestampUtc = Timestamp.FromDateTime(DateTime.SpecifyKind(changeTime, DateTimeKind.Utc)),
             UserId = userId,
             UserTitle = string.Empty,
@@ -287,7 +288,7 @@ public sealed class AggregateFlattener(
                     userId,
                     userName,
                     entityType,
-                    2,
+                    OperationCode.Update,
                     entityId,
                     aggregate.TxId,
                     payload));
@@ -301,7 +302,7 @@ public sealed class AggregateFlattener(
 
     private IEnumerable<FieldChange> BuildFieldChanges(
         string tableName,
-        byte operation,
+        OperationCode operation,
         JsonElement payload,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
         IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots)
@@ -312,9 +313,9 @@ public sealed class AggregateFlattener(
         // Determine behavior based on operation
         var shouldIncludeFields = operation switch
         {
-            1 => ShouldIncludeFieldsOnCreate(entityPolicy, globalPolicy), // create
-            2 => true, // update always includes delta
-            3 => ShouldIncludeFieldsOnDelete(entityPolicy, globalPolicy), // delete
+            OperationCode.Create => ShouldIncludeFieldsOnCreate(entityPolicy, globalPolicy),
+            OperationCode.Update => true, // update always includes delta
+            OperationCode.Delete => ShouldIncludeFieldsOnDelete(entityPolicy, globalPolicy),
             _ => false
         };
 
@@ -339,7 +340,7 @@ public sealed class AggregateFlattener(
         }
 
         // Build field changes based on operation
-        if (operation == 1) // create
+        if (operation == OperationCode.Create)
         {
             // For create, show all fields from "after" as new values
             if (after?.ValueKind == JsonValueKind.Object)
@@ -352,7 +353,7 @@ public sealed class AggregateFlattener(
                 }
             }
         }
-        else if (operation == 2) // update
+        else if (operation == OperationCode.Update)
         {
             if (before?.ValueKind == JsonValueKind.Object && after?.ValueKind == JsonValueKind.Object)
             {
@@ -362,7 +363,7 @@ public sealed class AggregateFlattener(
                 foreach (var afterProp in afterProps)
                 {
                     var beforeValue = beforeProps.TryGetValue(afterProp.Key, out var bv) ? bv : (JsonElement?)null;
-                    
+
                     var oldStr = beforeValue.HasValue ? ExtractScalar(beforeValue.Value) : string.Empty;
                     var newStr = ExtractScalar(afterProp.Value);
                     if (oldStr == newStr)
@@ -383,7 +384,7 @@ public sealed class AggregateFlattener(
                 }
             }
         }
-        else if (operation == 3) // delete
+        else if (operation == OperationCode.Delete)
         {
             if (before?.ValueKind == JsonValueKind.Object)
             {
@@ -648,21 +649,6 @@ public sealed class AggregateFlattener(
     {
         var ts = timestampMs > 0 ? timestampMs : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         return DateTimeOffset.FromUnixTimeMilliseconds(ts).UtcDateTime;
-    }
-
-    private static byte MapOperation(string rawOp)
-    {
-        var op = rawOp?.Trim();
-        if (string.IsNullOrWhiteSpace(op)) return 0;
-
-        return char.ToLowerInvariant(op[0]) switch
-        {
-            'c' => 1, // insert/created
-            'r' => 1, // snapshot/read is treated as insert
-            'u' => 2, // update
-            'd' => 3, // delete
-            _ => 0
-        };
     }
 
     private static string ResolveEntityId(JsonElement payload)

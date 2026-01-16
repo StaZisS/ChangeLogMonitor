@@ -24,7 +24,7 @@ public sealed record DiffResponse(
             record.LogId,
             record.ChangeTimeUtc,
             record.TableName,
-            record.OperationCode,
+            (int)record.Operation,
             record.EntityId,
             record.TxId,
             record.UserId,

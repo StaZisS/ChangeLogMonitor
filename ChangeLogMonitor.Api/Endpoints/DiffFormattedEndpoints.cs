@@ -1,3 +1,4 @@
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
@@ -82,11 +83,12 @@ public static class DiffFormattedEndpoints
             {
                 var take = Math.Clamp(limit ?? 50, 1, 500);
                 var timezone = GetTimezone(httpContext);
+                var operationCode = operation.HasValue ? (OperationCode?)operation.Value : null;
                 var filter = new DiffFilterRequest(
                     tableName,
                     fromTime,
                     toTime,
-                    operation,
+                    operationCode,
                     userId,
                     entityId,
                     transactionId);

@@ -1,3 +1,4 @@
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
 using Microsoft.AspNetCore.Builder;
@@ -71,11 +72,12 @@ public static class DiffRawEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var take = Math.Clamp(limit ?? 50, 1, 500);
+                var operationCode = operation.HasValue ? (OperationCode?)operation.Value : null;
                 var filter = new DiffFilterRequest(
                     tableName,
                     fromTime,
                     toTime,
-                    operation,
+                    operationCode,
                     userId,
                     entityId,
                     transactionId);

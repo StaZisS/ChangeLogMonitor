@@ -1,5 +1,6 @@
 using Audit.V1;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Core.Models.Policy;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
@@ -32,7 +33,7 @@ public class AuditLogFormatterTests
         var record = CreateAuditLogRecord(
             logId: 1,
             tableName: "Orders",
-            operationCode: 1, // Create
+            operation: OperationCode.Create,
             entityId: "order-123",
             userId: "user-1",
             userName: "John Doe");
@@ -99,15 +100,15 @@ public class AuditLogFormatterTests
     #region Operation Name Tests
 
     [Theory]
-    [InlineData(1, "CREATE")]
-    [InlineData(2, "UPDATE")]
-    [InlineData(3, "DELETE")]
-    [InlineData(4, "SOFT_DELETE")]
-    [InlineData(5, "BULK_UPDATE")]
-    [InlineData(6, "BULK_DELETE")]
-    public void Format_ReturnsCorrectOperationName(byte operationCode, string expectedName)
+    [InlineData(OperationCode.Create, "CREATE")]
+    [InlineData(OperationCode.Update, "UPDATE")]
+    [InlineData(OperationCode.Delete, "DELETE")]
+    [InlineData(OperationCode.SoftDelete, "SOFT_DELETE")]
+    [InlineData(OperationCode.BulkUpdate, "BULK_UPDATE")]
+    [InlineData(OperationCode.BulkDelete, "BULK_DELETE")]
+    public void Format_ReturnsCorrectOperationName(OperationCode operation, string expectedName)
     {
-        var record = CreateAuditLogRecord(operationCode: operationCode);
+        var record = CreateAuditLogRecord(operation: operation);
 
         var result = _formatter.Format(record, "UTC");
 
@@ -123,7 +124,7 @@ public class AuditLogFormatterTests
     {
         var record = CreateAuditLogRecord(
             tableName: "Orders",
-            operationCode: 1,
+            operation: OperationCode.Create,
             userName: "John Doe");
 
         var result = _formatter.Format(record, "UTC");
@@ -137,7 +138,7 @@ public class AuditLogFormatterTests
     {
         var record = CreateAuditLogRecord(
             tableName: "Orders",
-            operationCode: 2,
+            operation: OperationCode.Update,
             userName: "Jane Smith");
 
         var result = _formatter.Format(record, "UTC");
@@ -151,7 +152,7 @@ public class AuditLogFormatterTests
     {
         var record = CreateAuditLogRecord(
             tableName: "Users",
-            operationCode: 3,
+            operation: OperationCode.Delete,
             userName: "Admin");
 
         var result = _formatter.Format(record, "UTC");
@@ -485,7 +486,7 @@ public class AuditLogFormatterTests
         string userId = "user-1",
         string userName = "Test User",
         string tableName = "TestTable",
-        byte operationCode = 1,
+        OperationCode operation = OperationCode.Create,
         string entityId = "entity-1",
         string txId = "tx-1",
         AuditRecord? payload = null)
@@ -499,7 +500,7 @@ public class AuditLogFormatterTests
                 Id = $"{txId}-0",
                 EntityType = tableName,
                 EntityId = entityId,
-                Operation = (OperationType)operationCode,
+                Operation = (OperationType)(byte)operation,
                 TimestampUtc = Timestamp.FromDateTime(DateTime.SpecifyKind(time, DateTimeKind.Utc)),
                 UserId = userId
             };
@@ -514,7 +515,7 @@ public class AuditLogFormatterTests
             userId,
             userName,
             tableName,
-            operationCode,
+            operation,
             entityId,
             txId,
             payloadBase64);

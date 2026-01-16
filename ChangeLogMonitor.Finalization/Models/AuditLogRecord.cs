@@ -1,3 +1,5 @@
+using ChangeLogMonitor.Core.Enums;
+
 namespace ChangeLogMonitor.Finalization.Models;
 
 public sealed record AuditLogRecord(
@@ -6,7 +8,7 @@ public sealed record AuditLogRecord(
     string UserId,
     string UserName,
     string TableName,
-    byte OperationCode,
+    OperationCode Operation,
     string EntityId,
     string TxId,
     string Payload);

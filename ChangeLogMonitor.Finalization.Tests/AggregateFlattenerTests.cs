@@ -40,7 +40,7 @@ public class AggregateFlattenerTests
         var record = Assert.Single(rows);
         Assert.Equal("orders", record.TableName);
         Assert.Equal("order-1", record.EntityId);
-        Assert.Equal((byte)2, record.OperationCode); // 'u' -> Update
+        Assert.Equal(OperationCode.Update, record.Operation); // 'u' -> Update
 
         var parsed = AuditRecord.Parser.ParseFrom(Convert.FromBase64String(record.Payload));
         Assert.Equal("tx-123-0", parsed.Id);

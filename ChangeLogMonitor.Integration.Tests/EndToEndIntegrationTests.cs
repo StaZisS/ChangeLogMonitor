@@ -1,5 +1,6 @@
 using Audit.V1;
 using Auditmeta.Raw;
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
 using ChangeLogMonitor.Integration.Tests.Infrastructure;
@@ -88,7 +89,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             UserId: envelope.Actor.UserId,
             UserName: envelope.Actor.UserName,
             TableName: "customers",
-            OperationCode: 1, // CREATE
+            Operation: OperationCode.Create,
             EntityId: customer.Id.ToString(),
             TxId: auditLog.TransactionId,
             Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
@@ -181,7 +182,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             UserId: envelope.Actor.UserId,
             UserName: envelope.Actor.UserName,
             TableName: "orders",
-            OperationCode: 2, // UPDATE
+            Operation: OperationCode.Update,
             EntityId: order.Id.ToString(),
             TxId: updateAuditLog.TransactionId,
             Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
@@ -302,7 +303,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             UserId: envelope2.Actor.UserId,
             UserName: envelope2.Actor.UserName,
             TableName: "order_items",
-            OperationCode: 1,
+            Operation: OperationCode.Create,
             EntityId: item2.Id.ToString(),
             TxId: lastLog.TransactionId,
             Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
@@ -369,7 +370,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             UserId: envelope.Actor.UserId,
             UserName: envelope.Actor.UserName,
             TableName: "products",
-            OperationCode: 3, // DELETE
+            Operation: OperationCode.Delete,
             EntityId: productId.ToString(),
             TxId: deleteAuditLog.TransactionId,
             Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
@@ -430,7 +431,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             UserId: "admin",
             UserName: "System Admin",
             TableName: "customers",
-            OperationCode: 1,
+            Operation: OperationCode.Create,
             EntityId: customer.Id.ToString(),
             TxId: log.TransactionId,
             Payload: Convert.ToBase64String(auditRecord.ToByteArray()));

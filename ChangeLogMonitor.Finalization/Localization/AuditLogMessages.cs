@@ -1,3 +1,5 @@
+using ChangeLogMonitor.Core.Enums;
+
 namespace ChangeLogMonitor.Finalization.Localization;
 
 public static class AuditLogMessages
@@ -24,12 +26,13 @@ public static class AuditLogMessages
         public const string CollectionItemRemoved = "Удалён элемент \"{0}\".";
         public const string CollectionItemUpdated = "Изменён элемент \"{0}\".";
 
-        public const string OperationCreate = "CREATE";
-        public const string OperationUpdate = "UPDATE";
-        public const string OperationDelete = "DELETE";
-        public const string OperationSoftDelete = "SOFT_DELETE";
-        public const string OperationBulkUpdate = "BULK_UPDATE";
-        public const string OperationBulkDelete = "BULK_DELETE";
+        // Используем константы из OperationNames для избежания дублирования
+        public const string OperationCreate = OperationNames.Create;
+        public const string OperationUpdate = OperationNames.Update;
+        public const string OperationDelete = OperationNames.Delete;
+        public const string OperationSoftDelete = OperationNames.SoftDelete;
+        public const string OperationBulkUpdate = OperationNames.BulkUpdate;
+        public const string OperationBulkDelete = OperationNames.BulkDelete;
 
         public const string UnknownUser = "Неизвестный пользователь";
         public const string UnknownEntity = "Запись";

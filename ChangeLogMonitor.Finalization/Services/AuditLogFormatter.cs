@@ -1,5 +1,6 @@
 using Audit.V1;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
 using Microsoft.Extensions.Logging;
@@ -36,8 +37,8 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
 
         var entityTitle = GetEntityTitle(auditRecord, record.TableName, _configurationService, _logger);
         var userTitle = GetUserTitle(auditRecord, record.UserId, record.UserName);
-        var operationName = GetOperationName(record.OperationCode);
-        var summary = BuildSummary(record.OperationCode, entityTitle, formattedTime, userTitle);
+        var operationName = record.Operation.ToDisplayName();
+        var summary = BuildSummary(record.Operation, entityTitle, formattedTime, userTitle);
         var details = BuildDetails(auditRecord);
 
         return new FormattedDiffResponse(
@@ -104,30 +105,16 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
             : userId;
     }
 
-    private static string GetOperationName(byte operationCode)
+    private static string BuildSummary(OperationCode operation, string entityTitle, string formattedTime, string userTitle)
     {
-        return operationCode switch
+        return operation switch
         {
-            1 => AuditLogMessages.Ru.OperationCreate,
-            2 => AuditLogMessages.Ru.OperationUpdate,
-            3 => AuditLogMessages.Ru.OperationDelete,
-            4 => AuditLogMessages.Ru.OperationSoftDelete,
-            5 => AuditLogMessages.Ru.OperationBulkUpdate,
-            6 => AuditLogMessages.Ru.OperationBulkDelete,
-            _ => "UNKNOWN"
-        };
-    }
-
-    private static string BuildSummary(byte operationCode, string entityTitle, string formattedTime, string userTitle)
-    {
-        return operationCode switch
-        {
-            1 => string.Format(AuditLogMessages.Ru.CreateSummary, entityTitle, formattedTime, userTitle),
-            2 => string.Format(AuditLogMessages.Ru.UpdateSummary, entityTitle, formattedTime, userTitle),
-            3 => string.Format(AuditLogMessages.Ru.DeleteSummary, entityTitle, formattedTime, userTitle),
-            4 => string.Format(AuditLogMessages.Ru.SoftDeleteSummary, entityTitle, formattedTime, userTitle),
-            5 => string.Format(AuditLogMessages.Ru.BulkUpdateSummary, entityTitle, formattedTime, userTitle),
-            6 => string.Format(AuditLogMessages.Ru.BulkDeleteSummary, entityTitle, formattedTime, userTitle),
+            OperationCode.Create => string.Format(AuditLogMessages.Ru.CreateSummary, entityTitle, formattedTime, userTitle),
+            OperationCode.Update => string.Format(AuditLogMessages.Ru.UpdateSummary, entityTitle, formattedTime, userTitle),
+            OperationCode.Delete => string.Format(AuditLogMessages.Ru.DeleteSummary, entityTitle, formattedTime, userTitle),
+            OperationCode.SoftDelete => string.Format(AuditLogMessages.Ru.SoftDeleteSummary, entityTitle, formattedTime, userTitle),
+            OperationCode.BulkUpdate => string.Format(AuditLogMessages.Ru.BulkUpdateSummary, entityTitle, formattedTime, userTitle),
+            OperationCode.BulkDelete => string.Format(AuditLogMessages.Ru.BulkDeleteSummary, entityTitle, formattedTime, userTitle),
             _ => $"Операция над записью \"{entityTitle}\". ({formattedTime}, {userTitle})"
         };
     }

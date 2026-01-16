@@ -138,7 +138,7 @@ public static class DebugEndpoints
                         userId = record.UserId,
                         userName = record.UserName,
                         tableName = record.TableName,
-                        operationCode = record.OperationCode,
+                        operationCode = (byte)record.Operation,
                         entityId = record.EntityId,
                         txId = record.TxId,
                         payloadBase64 = record.Payload,

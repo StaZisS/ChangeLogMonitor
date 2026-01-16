@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Options;
 using ClickHouse.Client.ADO;
@@ -128,7 +129,7 @@ SETTINGS index_granularity = 8192;";
             command.Parameters.Add(CreateParameter(command, $"uid{index}", record.UserId ?? string.Empty));
             command.Parameters.Add(CreateParameter(command, $"uname{index}", record.UserName ?? string.Empty));
             command.Parameters.Add(CreateParameter(command, $"tbl{index}", record.TableName ?? string.Empty));
-            command.Parameters.Add(CreateParameter(command, $"op{index}", record.OperationCode));
+            command.Parameters.Add(CreateParameter(command, $"op{index}", (byte)record.Operation));
             command.Parameters.Add(CreateParameter(command, $"eid{index}", record.EntityId ?? string.Empty));
             command.Parameters.Add(CreateParameter(command, $"tx{index}", record.TxId ?? string.Empty));
             command.Parameters.Add(CreateParameter(command, $"payload{index}", record.Payload ?? string.Empty));
@@ -311,7 +312,8 @@ SETTINGS index_granularity = 8192;";
             var userId = reader.GetFieldValue<string>(2);
             var userName = reader.GetFieldValue<string>(3);
             var tableName = reader.GetFieldValue<string>(4);
-            var operation = Convert.ToByte(reader.GetValue(5), CultureInfo.InvariantCulture);
+            var operationByte = Convert.ToByte(reader.GetValue(5), CultureInfo.InvariantCulture);
+            var operation = (OperationCode)operationByte;
             var entityId = reader.GetFieldValue<string>(6);
             var txId = reader.GetFieldValue<string>(7);
             var payload = reader.GetFieldValue<string>(8);
@@ -358,7 +360,7 @@ SETTINGS index_granularity = 8192;";
     private static ulong GenerateLogId(AuditLogRecord record)
     {
         var time = new DateTimeOffset(record.ChangeTimeUtc).ToUnixTimeMilliseconds();
-        var suffix = (ulong)string.GetHashCode($"{record.TxId}:{record.EntityId}:{record.OperationCode}");
+        var suffix = (ulong)string.GetHashCode($"{record.TxId}:{record.EntityId}:{(byte)record.Operation}");
         return ((ulong)time << 16) ^ suffix;
     }
 }

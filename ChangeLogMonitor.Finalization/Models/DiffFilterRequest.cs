@@ -1,10 +1,12 @@
+using ChangeLogMonitor.Core.Enums;
+
 namespace ChangeLogMonitor.Finalization.Models;
 
 public sealed record DiffFilterRequest(
     string? TableName,
     DateTime? FromTime,
     DateTime? ToTime,
-    int? Operation,
+    OperationCode? Operation,
     string? UserId,
     string? EntityId,
     string? TransactionId)

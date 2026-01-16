@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Core.Interfaces;
 using ChangeLogMonitor.Core.Models;
 using ChangeLogMonitor.Finalization.Localization;
@@ -89,11 +90,12 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         string timezone,
         CancellationToken cancellationToken)
     {
+        var operationCode = filter.Operation.HasValue ? (OperationCode?)filter.Operation.Value : null;
         var filterRequest = new DiffFilterRequest(
             filter.TableName,
             filter.FromTime,
             filter.ToTime,
-            filter.Operation,
+            operationCode,
             filter.UserId,
             filter.EntityId,
             filter.TransactionId);
@@ -183,27 +185,18 @@ internal sealed class AuditLogViewService : IAuditLogViewService
     {
         return operation.ToUpperInvariant() switch
         {
-            "CREATE" => "badge-create",
-            "UPDATE" => "badge-update",
-            "DELETE" or "SOFT_DELETE" => "badge-delete",
-            "BULK_UPDATE" => "badge-update",
-            "BULK_DELETE" => "badge-delete",
+            OperationNames.Create => "badge-create",
+            OperationNames.Update => "badge-update",
+            OperationNames.Delete or OperationNames.SoftDelete => "badge-delete",
+            OperationNames.BulkUpdate => "badge-update",
+            OperationNames.BulkDelete => "badge-delete",
             _ => "bg-secondary"
         };
     }
 
     private static int GetOperationCode(string operation)
     {
-        return operation.ToUpperInvariant() switch
-        {
-            "CREATE" => 1,
-            "UPDATE" => 2,
-            "DELETE" => 3,
-            "SOFT_DELETE" => 4,
-            "BULK_UPDATE" => 5,
-            "BULK_DELETE" => 6,
-            _ => 0
-        };
+        return (int)OperationCodeExtensions.FromDisplayName(operation);
     }
 
     private static List<T> DeserializeList<T>(JsonElement element)
