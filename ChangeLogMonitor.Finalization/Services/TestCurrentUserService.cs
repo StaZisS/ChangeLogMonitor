@@ -16,28 +16,17 @@ public class TestCurrentUserService : ICurrentUserService
         _userId = userId;
         _isAuthenticated = isAuthenticated && userId != null;
     }
-
-    /// <inheritdoc />
+    
     public string? GetUserId() => _userId;
-
-    /// <inheritdoc />
+    
     public bool IsAuthenticated => _isAuthenticated;
-
-    /// <summary>
-    /// Creates a service for admin user
-    /// </summary>
+    
     public static TestCurrentUserService Admin(string userId = "admin-user-id") =>
         new(userId);
-
-    /// <summary>
-    /// Creates a service for regular user
-    /// </summary>
+    
     public static TestCurrentUserService RegularUser(string userId = "regular-user-id") =>
         new(userId);
 
-    /// <summary>
-    /// Creates a service for anonymous user
-    /// </summary>
     public static TestCurrentUserService Anonymous() =>
         new(null, false);
 }

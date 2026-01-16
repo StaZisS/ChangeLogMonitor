@@ -9,6 +9,4 @@ public sealed class AppSettings
     [Required] public KafkaSettings Kafka { get; init; } = new();
 
     [Required] public ProcessingSettings Processing { get; init; } = new();
-
-    [Required] public HttpSettings Http { get; init; } = new();
 }

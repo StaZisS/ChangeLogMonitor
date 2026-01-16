@@ -29,8 +29,7 @@ public static class ServiceCollectionExtensions
             var settings = sp.GetRequiredService<IOptions<AppSettings>>().Value;
             var path = settings.Policy?.ConfigPath ?? "changelog-config.yaml";
             var fullPath = Path.IsPathRooted(path) ? path : Path.Combine(AppContext.BaseDirectory, path);
-
-            // Validate config file exists
+            
             if (!File.Exists(fullPath))
             {
                 throw new InvalidOperationException(
@@ -46,10 +45,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAggregateFlattener, AggregateFlattener>();
         services.AddSingleton<IAuditLogRepository, ClickHouseAuditLogRepository>();
         services.AddSingleton<IAuditLogFormatter, AuditLogFormatter>();
-
-        // Access Control Services
+        
         services.AddSingleton<IAccessControlService, AccessControlService>();
-        // Note: ICurrentUserService and IHttpContextAccessor are registered in Api module
 
         services.AddScoped<IDiffService, DiffService>();
         services.AddHostedService<AggregateIngestService>();

@@ -31,10 +31,7 @@ public class AuditConfigurationService : IAuditConfigurationService
         _mapper = new AuditPolicyMapper();
         _validator = new YamlAuditPolicyValidator();
     }
-
-    /// <summary>
-    ///     Загружает политику аудита с валидацией и кешированием
-    /// </summary>
+    
     public AuditPolicy GetPolicy(bool forceReload = false)
     {
         lock (_lock)
@@ -49,10 +46,8 @@ public class AuditConfigurationService : IAuditConfigurationService
 
             try
             {
-                // 1. Загружаем YAML
                 var yamlRoot = _provider.Load();
-
-                // 2. Валидируем
+                
                 var validationResult = _validator.Validate(yamlRoot.AuditPolicy);
                 if (!validationResult.IsValid)
                 {
@@ -61,8 +56,7 @@ public class AuditConfigurationService : IAuditConfigurationService
                 }
 
                 _logger?.LogDebug("Audit policy validation succeeded");
-
-                // 3. Маппим в доменную модель
+                
                 _cachedPolicy = _mapper.MapToDomain(yamlRoot.AuditPolicy);
                 _lastLoadTime = DateTime.UtcNow;
 
@@ -92,10 +86,7 @@ public class AuditConfigurationService : IAuditConfigurationService
             }
         }
     }
-
-    /// <summary>
-    ///     Асинхронная загрузка политики
-    /// </summary>
+    
     public async Task<AuditPolicy> GetPolicyAsync(bool forceReload = false,
         CancellationToken cancellationToken = default)
     {
@@ -109,10 +100,8 @@ public class AuditConfigurationService : IAuditConfigurationService
 
         try
         {
-            // 1. Загружаем YAML
             var yamlRoot = await _provider.LoadAsync(cancellationToken);
-
-            // 2. Валидируем
+            
             var validationResult = await _validator.ValidateAsync(yamlRoot.AuditPolicy, cancellationToken);
             if (!validationResult.IsValid)
             {
@@ -121,8 +110,7 @@ public class AuditConfigurationService : IAuditConfigurationService
             }
 
             _logger?.LogDebug("Audit policy validation succeeded");
-
-            // 3. Маппим в доменную модель
+            
             lock (_lock)
             {
                 _cachedPolicy = _mapper.MapToDomain(yamlRoot.AuditPolicy);
@@ -154,10 +142,7 @@ public class AuditConfigurationService : IAuditConfigurationService
             throw new InvalidOperationException("Failed to load audit policy configuration", ex);
         }
     }
-
-    /// <summary>
-    ///     Получает политику для конкретной сущности
-    /// </summary>
+    
     public EntityPolicy? GetEntityPolicy(string entityName, bool forceReload = false)
     {
         var policy = GetPolicy(forceReload);
@@ -167,28 +152,20 @@ public class AuditConfigurationService : IAuditConfigurationService
         _logger?.LogWarning("Entity policy not found for: {EntityName}", entityName);
         return null;
     }
-
-    /// <summary>
-    ///     Проверяет, включено ли логирование для сущности
-    /// </summary>
+    
     public bool IsEntityEnabled(string entityName, bool forceReload = false)
     {
         var policy = GetPolicy(forceReload);
-
-        // В режиме whitelist - проверяем наличие сущности в списке
+        
         if (policy.Mode == AuditMode.Whitelist)
             return policy.Entities.ContainsKey(entityName) &&
                    policy.Entities[entityName].Enabled;
-
-        // В режиме blacklist - проверяем что сущность НЕ отключена
+        
         if (policy.Entities.TryGetValue(entityName, out var entityPolicy)) return entityPolicy.Enabled;
 
-        return true; // В blacklist mode по умолчанию все включено
+        return true;
     }
-
-    /// <summary>
-    ///     Сбрасывает кеш и перезагружает конфигурацию
-    /// </summary>
+    
     public void ReloadConfiguration()
     {
         lock (_lock)
@@ -200,10 +177,7 @@ public class AuditConfigurationService : IAuditConfigurationService
 
         GetPolicy(true);
     }
-
-    /// <summary>
-    ///     Возвращает информацию о текущей загруженной конфигурации
-    /// </summary>
+    
     public ConfigurationInfo GetConfigurationInfo()
     {
         lock (_lock)
@@ -220,9 +194,6 @@ public class AuditConfigurationService : IAuditConfigurationService
     }
 }
 
-/// <summary>
-///     Интерфейс сервиса конфигурации аудита
-/// </summary>
 public interface IAuditConfigurationService
 {
     AuditPolicy GetPolicy(bool forceReload = false);
@@ -233,9 +204,6 @@ public interface IAuditConfigurationService
     ConfigurationInfo GetConfigurationInfo();
 }
 
-/// <summary>
-///     Информация о загруженной конфигурации
-/// </summary>
 public class ConfigurationInfo
 {
     public bool IsLoaded { get; set; }

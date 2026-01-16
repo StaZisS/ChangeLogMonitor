@@ -6,7 +6,6 @@ namespace ChangeLogMonitor.Interceptor.Services;
 
 /// <summary>
 ///     Сервис для извлечения метаданных enum из сущностей EF Core.
-///     Собирает только те enum значения, которые реально встретились в транзакции.
 /// </summary>
 public sealed class EnumMetadataExtractor
 {
@@ -17,14 +16,6 @@ public sealed class EnumMetadataExtractor
         _labelProvider = labelProvider ?? throw new ArgumentNullException(nameof(labelProvider));
     }
 
-    /// <summary>
-    ///     Извлекает снепшоты enum из списка изменённых сущностей
-    /// </summary>
-    /// <param name="entries">Записи ChangeTracker с изменёнными сущностями</param>
-    /// <returns>
-    ///     Словарь: имя типа enum → (код → лейбл).
-    ///     Содержит только значения, реально встретившиеся в транзакции.
-    /// </returns>
     public Dictionary<string, Dictionary<string, string>> ExtractEnumSnapshots(IEnumerable<EntityEntry> entries)
     {
         var result = new Dictionary<string, Dictionary<string, string>>();
@@ -52,8 +43,7 @@ public sealed class EnumMetadataExtractor
 
             if (!underlyingType.IsEnum)
                 continue;
-
-            // Собираем значения из CurrentValue и OriginalValue
+            
             CollectEnumValue(underlyingType, property.CurrentValue, result, processedEnums);
 
             if (entry.State == EntityState.Modified || entry.State == EntityState.Deleted)
@@ -74,8 +64,7 @@ public sealed class EnumMetadataExtractor
 
         var numericValue = Convert.ToInt64(value);
         var key = (enumType, numericValue);
-
-        // Пропускаем уже обработанные значения
+        
         if (!processedEnums.Add(key))
             return;
 

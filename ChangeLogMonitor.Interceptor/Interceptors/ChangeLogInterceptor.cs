@@ -58,8 +58,6 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to capture audit metadata during SaveChanges");
-                // В зависимости от требований можно либо пробросить исключение, либо проигнорировать
-                // throw;
             }
 
         return base.SavingChanges(eventData, result);
@@ -78,8 +76,6 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to capture audit metadata during SaveChangesAsync");
-                // В зависимости от требований можно либо пробросить исключение, либо проигнорировать
-                // throw;
             }
 
         return await base.SavingChangesAsync(eventData, result, cancellationToken);
@@ -113,19 +109,12 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         RollbackIfStarted(eventData.Context);
         return base.SaveChangesFailedAsync(eventData, cancellationToken);
     }
-
-    /// <summary>
-    ///     Проверяет, нужно ли аудировать данный контекст
-    /// </summary>
+    
     private bool ShouldAudit(DbContext context)
     {
-        // Не аудируем сам AuditDbContext, чтобы избежать бесконечной рекурсии
         return context is not AuditDbContext;
     }
-
-    /// <summary>
-    ///     Захватывает изменения и записывает метаданные в audit_log (синхронная версия)
-    /// </summary>
+    
     private void CaptureChanges(DbContext context)
     {
         EnsureSchema();
@@ -138,23 +127,20 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         }
 
         var transactionId = GenerateTransactionId();
-
-        // Извлекаем enum снепшоты из изменённых сущностей
+        
         var enumSnapshots = _enumExtractor.ExtractEnumSnapshots(entries);
         if (enumSnapshots.Count > 0)
             _logger?.LogDebug(
                 "Extracted {EnumCount} enum types with {TotalValues} values",
                 enumSnapshots.Count,
                 enumSnapshots.Values.Sum(v => v.Count));
-
-        // Извлекаем снепшоты ссылочных полей (FK)
+        
         var referenceSnapshots = _referenceExtractor.ExtractReferenceSnapshots(context, entries);
         if (referenceSnapshots.Count > 0)
             _logger?.LogDebug(
                 "Extracted {RefCount} reference snapshots",
                 referenceSnapshots.Count);
-
-        // Извлекаем дельты коллекций (M2M)
+        
         var collectionDeltas = _collectionExtractor.ExtractCollectionDeltas(context, entries);
         if (collectionDeltas.Count > 0)
             _logger?.LogDebug(
@@ -170,10 +156,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
             transactionId,
             entries.Count);
     }
-
-    /// <summary>
-    ///     Захватывает изменения и записывает метаданные в audit_log (асинхронная версия)
-    /// </summary>
+    
     private async Task CaptureChangesAsync(DbContext context, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken);
@@ -186,23 +169,20 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         }
 
         var transactionId = GenerateTransactionId();
-
-        // Извлекаем enum снепшоты из изменённых сущностей
+        
         var enumSnapshots = _enumExtractor.ExtractEnumSnapshots(entries);
         if (enumSnapshots.Count > 0)
             _logger?.LogDebug(
                 "Extracted {EnumCount} enum types with {TotalValues} values",
                 enumSnapshots.Count,
                 enumSnapshots.Values.Sum(v => v.Count));
-
-        // Извлекаем снепшоты ссылочных полей (FK)
+        
         var referenceSnapshots = _referenceExtractor.ExtractReferenceSnapshots(context, entries);
         if (referenceSnapshots.Count > 0)
             _logger?.LogDebug(
                 "Extracted {RefCount} reference snapshots",
                 referenceSnapshots.Count);
-
-        // Извлекаем дельты коллекций (M2M)
+        
         var collectionDeltas = _collectionExtractor.ExtractCollectionDeltas(context, entries);
         if (collectionDeltas.Count > 0)
             _logger?.LogDebug(
@@ -219,10 +199,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
             entries.Count);
     }
 
-
-    /// <summary>
-    ///     Получает отслеживаемые записи, которые нужно аудировать
-    /// </summary>
+    
     private List<EntityEntry> GetTrackedEntries(DbContext context)
     {
         var entries = context.ChangeTracker.Entries()
@@ -230,16 +207,13 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                         e.State == EntityState.Modified ||
                         e.State == EntityState.Deleted)
             .ToList();
-
-        // Фильтруем по конфигурации
+        
         var auditableEntries = new List<EntityEntry>();
 
         foreach (var entry in entries)
         {
-            // Используем имя таблицы из БД, а не имя класса C#
             var tableName = GetTableName(context, entry);
-
-            // Проверяем включено ли логирование для этой сущности
+            
             if (_configService.IsEntityEnabled(tableName))
             {
                 auditableEntries.Add(entry);
@@ -258,23 +232,15 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
 
         return auditableEntries;
     }
-
-    /// <summary>
-    ///     Получает имя таблицы в БД для сущности
-    /// </summary>
+    
     private static string GetTableName(DbContext context, EntityEntry entry)
     {
         var entityType = context.Model.FindEntityType(entry.Entity.GetType());
         return entityType?.GetTableName() ?? entry.Entity.GetType().Name;
     }
-
-    /// <summary>
-    ///     Генерирует уникальный ID транзакции
-    /// </summary>
+    
     private string GenerateTransactionId()
     {
-        // Используем Guid для уникальности
-        // Можно также добавить timestamp для удобства сортировки
         return $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}";
     }
 
@@ -298,8 +264,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                 _schemaReady = true;
                 return;
             }
-
-            // Если миграций нет, считаем схему готовой
+            
             var pending = await _auditDbContext.Database.GetPendingMigrationsAsync(cancellationToken);
             if (!pending.Any())
             {

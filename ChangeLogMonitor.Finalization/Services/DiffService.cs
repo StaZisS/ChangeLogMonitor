@@ -25,15 +25,11 @@ internal sealed class DiffService : IDiffService
         _accessControl = accessControl;
         _currentUser = currentUser;
     }
-
-    /// <summary>
-    ///     Применяет фильтры контроля доступа к запросу
-    /// </summary>
+    
     private DiffFilterRequest ApplyAccessControl(DiffFilterRequest? baseFilter, string? specificTableName = null)
     {
         var userId = _currentUser.GetUserId();
-
-        // Создаем базовый фильтр если не передан
+        
         var filter = baseFilter ?? new DiffFilterRequest(null, null, null, null, null, null, null);
 
         if (!_accessControl.IsEnabled)
@@ -41,18 +37,15 @@ internal sealed class DiffService : IDiffService
 
         var roles = _accessControl.GetUserRoles(userId);
         var allowedEntities = _accessControl.GetAllowedEntities(roles);
-
-        // Если нет разрешенных сущностей - запрещаем доступ
+        
         if (allowedEntities.Count == 0)
             return filter with { AllowedTableNames = new[] { "__DENIED__" } };
-
-        // Если запрашивается конкретная таблица - проверяем доступ
+        
         var tableName = specificTableName ?? filter.TableName;
         if (!string.IsNullOrWhiteSpace(tableName))
         {
             if (!allowedEntities.Contains(tableName))
             {
-                // Доступ запрещен - вернуть фильтр который ничего не найдет
                 return filter with { AllowedTableNames = new[] { "__DENIED__" } };
             }
 
@@ -61,17 +54,13 @@ internal sealed class DiffService : IDiffService
                 TableName = tableName
             };
         }
-
-        // Общий запрос - ограничиваем разрешенными таблицами
+        
         return filter with
         {
             AllowedTableNames = allowedEntities.ToList()
         };
     }
-
-    /// <summary>
-    ///     Проверяет доступ к сущности и выбрасывает исключение если доступ запрещен
-    /// </summary>
+    
     private void EnsureEntityAccess(string tableName)
     {
         if (!_accessControl.IsEnabled)
@@ -90,10 +79,8 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        // Применяем фильтр контроля доступа
         var filter = ApplyAccessControl(null);
 
-        // Используем GetFilteredWithCursorAsync вместо GetAllWithCursorAsync для применения фильтра
         var cursor = DecodeCursor(paginationToken);
         var records = await _repository.GetFilteredWithCursorAsync(filter, cursor, limit + 1, cancellationToken);
 
@@ -120,15 +107,12 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        // Проверяем доступ к сущности
         EnsureEntityAccess(tableName);
-
-        // Применяем фильтр контроля доступа
+        
         var filter = ApplyAccessControl(
             new DiffFilterRequest(tableName, null, null, null, null, entityId, null),
             tableName);
-
-        // Если доступ запрещен через filter - возвращаем пустой список
+        
         if (filter.AllowedTableNames?.Contains("__DENIED__") == true)
             return Array.Empty<DiffResponse>();
 
@@ -141,7 +125,6 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        // Применяем фильтр контроля доступа
         var filter = ApplyAccessControl(
             new DiffFilterRequest(null, null, null, null, null, null, transactionId));
 
@@ -155,7 +138,6 @@ internal sealed class DiffService : IDiffService
         int limit,
         CancellationToken cancellationToken)
     {
-        // Применяем фильтр контроля доступа
         var securedFilter = ApplyAccessControl(filter, filter.TableName);
 
         var cursor = DecodeCursor(paginationToken);
@@ -184,7 +166,6 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
-        // Применяем фильтр контроля доступа
         var filter = ApplyAccessControl(null);
 
         var tz = string.IsNullOrWhiteSpace(timezone) ? AuditLogMessages.DefaultTimezone : timezone;
@@ -216,15 +197,12 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
-        // Проверяем доступ к сущности
         EnsureEntityAccess(tableName);
-
-        // Применяем фильтр контроля доступа
+        
         var filter = ApplyAccessControl(
             new DiffFilterRequest(tableName, null, null, null, null, entityId, null),
             tableName);
-
-        // Если доступ запрещен через filter - возвращаем пустой список
+        
         if (filter.AllowedTableNames?.Contains("__DENIED__") == true)
             return Array.Empty<FormattedDiffResponse>();
 
@@ -239,7 +217,6 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
-        // Применяем фильтр контроля доступа
         var filter = ApplyAccessControl(
             new DiffFilterRequest(null, null, null, null, null, null, transactionId));
 
@@ -255,7 +232,6 @@ internal sealed class DiffService : IDiffService
         string timezone,
         CancellationToken cancellationToken)
     {
-        // Применяем фильтр контроля доступа
         var securedFilter = ApplyAccessControl(filter, filter.TableName);
 
         var tz = string.IsNullOrWhiteSpace(timezone) ? AuditLogMessages.DefaultTimezone : timezone;

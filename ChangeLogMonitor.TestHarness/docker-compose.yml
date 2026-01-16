@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   kafka:
-    image: bitnami/kafka:3.9.0
+    image: bitnamilegacy/kafka:4.0.0-debian-12-r10
     container_name: changelog-kafka
     restart: unless-stopped
     ports:

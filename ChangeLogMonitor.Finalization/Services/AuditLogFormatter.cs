@@ -62,7 +62,6 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
         }
         catch
         {
-            // Fallback to default timezone
             try
             {
                 return TimeZoneInfo.FindSystemTimeZoneById(AuditLogMessages.DefaultTimezone);
@@ -76,36 +75,30 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
 
     private static string GetEntityTitle(AuditRecord? auditRecord, string tableName, IAuditConfigurationService configurationService, ILogger? logger)
     {
-        // 1. Сначала проверяем EntityTitle из protobuf (может быть установлен динамически)
         if (auditRecord != null && !string.IsNullOrWhiteSpace(auditRecord.EntityTitle))
         {
             logger?.LogDebug("Using EntityTitle from protobuf: {EntityTitle}", auditRecord.EntityTitle);
             return auditRecord.EntityTitle;
         }
-
-        // 2. Затем проверяем displayName из конфигурации
+        
         var entityPolicy = configurationService.GetEntityPolicy(tableName);
         logger?.LogDebug("GetEntityPolicy for '{TableName}': policy={PolicyFound}, displayName='{DisplayName}'",
             tableName, entityPolicy != null, entityPolicy?.DisplayName);
 
         if (entityPolicy != null && !string.IsNullOrWhiteSpace(entityPolicy.DisplayName))
             return entityPolicy.DisplayName;
-
-        // 3. Fallback на техническое имя таблицы
+        
         return tableName;
     }
 
     private static string GetUserTitle(AuditRecord? auditRecord, string userId, string userName)
     {
-        // Prefer userName from record
         if (!string.IsNullOrWhiteSpace(userName))
             return userName;
-
-        // Then try UserTitle from protobuf
+        
         if (auditRecord != null && !string.IsNullOrWhiteSpace(auditRecord.UserTitle))
             return auditRecord.UserTitle;
-
-        // Fallback to userId
+        
         return string.IsNullOrWhiteSpace(userId)
             ? AuditLogMessages.Ru.UnknownUser
             : userId;
@@ -145,16 +138,14 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
 
         if (auditRecord == null)
             return details;
-
-        // Process field changes
+        
         foreach (var fieldChange in auditRecord.FieldChanges)
         {
             var detail = FormatFieldChange(fieldChange);
             if (!string.IsNullOrEmpty(detail))
                 details.Add(detail);
         }
-
-        // Process collection changes
+        
         foreach (var collectionChange in auditRecord.CollectionChanges)
         {
             var collectionDetails = FormatCollectionChange(collectionChange);
@@ -169,11 +160,9 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
         var fieldName = !string.IsNullOrWhiteSpace(fieldChange.FieldTitle)
             ? fieldChange.FieldTitle
             : fieldChange.FieldName;
-
-        // Handle sensitive modes
+        
         if (fieldChange.SensitiveMode == SensitiveMode.Encrypted)
         {
-            // Encrypted - cannot show values
             return string.Format(AuditLogMessages.Ru.FieldChangedMasked, fieldName);
         }
 
@@ -189,8 +178,7 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
 
         var oldValue = GetDisplayValue(fieldChange.OldValue, fieldChange.ValueKind);
         var newValue = GetDisplayValue(fieldChange.NewValue, fieldChange.ValueKind);
-
-        // For Hashed/Masked - show the transformed values (hash or masked)
+        
         var valuePrefix = fieldChange.SensitiveMode switch
         {
             SensitiveMode.Hashed => "[SHA256] ",

@@ -12,8 +12,7 @@ namespace ChangeLogMonitor.Core.Services;
 public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
 {
     private readonly ConcurrentDictionary<Type, IReadOnlyDictionary<string, string>> _cache = new();
-
-    /// <inheritdoc />
+    
     public string? GetLabel(Type enumType, object value)
     {
         if (enumType == null) throw new ArgumentNullException(nameof(enumType));
@@ -27,8 +26,7 @@ public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
 
         return labels.TryGetValue(key, out var label) ? label : null;
     }
-
-    /// <inheritdoc />
+    
     public IReadOnlyDictionary<string, string> GetAllLabels(Type enumType)
     {
         if (enumType == null) throw new ArgumentNullException(nameof(enumType));
@@ -49,8 +47,7 @@ public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
             if (value == null) continue;
 
             var code = Convert.ToInt64(value).ToString();
-
-            // Пытаемся получить лейбл из атрибута
+            
             var attribute = field.GetCustomAttribute<AuditEnumLabelAttribute>();
             var label = attribute?.Label ?? field.Name;
 

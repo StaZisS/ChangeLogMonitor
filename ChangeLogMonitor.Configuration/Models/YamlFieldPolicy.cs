@@ -2,9 +2,6 @@ using YamlDotNet.Serialization;
 
 namespace ChangeLogMonitor.Configuration.Models;
 
-/// <summary>
-///     Политика для поля (YAML) - поддерживает короткий и длинный синтаксис
-/// </summary>
 public class YamlFieldPolicy
 {
     [YamlMember(Alias = "action")] public string? Action { get; set; }

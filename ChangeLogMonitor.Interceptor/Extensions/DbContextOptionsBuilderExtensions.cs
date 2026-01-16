@@ -3,9 +3,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChangeLogMonitor.Interceptor.Extensions;
 
-/// <summary>
-///     Extension методы для DbContextOptionsBuilder
-/// </summary>
 public static class DbContextOptionsBuilderExtensions
 {
     /// <summary>

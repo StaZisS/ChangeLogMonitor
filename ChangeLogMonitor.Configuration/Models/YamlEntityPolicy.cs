@@ -2,9 +2,6 @@ using YamlDotNet.Serialization;
 
 namespace ChangeLogMonitor.Configuration.Models;
 
-/// <summary>
-///     Политика для сущности (YAML)
-/// </summary>
 public class YamlEntityPolicy
 {
     [YamlMember(Alias = "enabled")] public bool? Enabled { get; set; }

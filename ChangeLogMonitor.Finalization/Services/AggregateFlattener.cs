@@ -69,8 +69,7 @@ public sealed class AggregateFlattener(
         var collectionDeltas = ExtractCollectionDeltas(normalizedMeta);
         var normalizationVersion = ResolveNormalizationVersion();
         var records = new List<AuditLogRecord>(aggregate.Events.Count);
-
-        // Track which (entityType, entityId) combinations have records
+        
         var processedEntities = new HashSet<(string entityType, string entityId)>();
 
         for (var i = 0; i < aggregate.Events.Count; i++)
@@ -111,9 +110,7 @@ public sealed class AggregateFlattener(
                 aggregate.TxId,
                 payload));
         }
-
-        // Create synthetic records for collection changes on parent entities
-        // that weren't directly modified in this transaction
+        
         var syntheticRecords = BuildSyntheticCollectionRecords(
             aggregate,
             collectionDeltas,
@@ -155,15 +152,13 @@ public sealed class AggregateFlattener(
             RawPayloadJson = aggregateEvent.Payload.GetRawText(),
             NormalizationVersion = normalizationVersion
         };
-
-        // Apply policy-based field changes
+        
         var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots, referenceSnapshots);
         foreach (var fc in fieldChanges)
         {
             record.FieldChanges.Add(fc);
         }
-
-        // Add collection changes for this entity
+        
         var entityCollectionDeltas = collectionDeltas
             .Where(d => d.EntityType.Equals(tableName, StringComparison.OrdinalIgnoreCase) &&
                         d.EntityId == entityId)
@@ -174,7 +169,7 @@ public sealed class AggregateFlattener(
             var collectionChange = new Audit.V1.CollectionChange
             {
                 FieldName = delta.FieldName,
-                FieldTitle = delta.FieldName // TODO: could resolve from policy
+                FieldTitle = delta.FieldName
             };
 
             foreach (var added in delta.Added)
@@ -207,11 +202,7 @@ public sealed class AggregateFlattener(
 
         return record;
     }
-
-    /// <summary>
-    ///     Создаёт синтетические записи аудита для родительских сущностей,
-    ///     чьи коллекции изменились, но сами сущности не были напрямую модифицированы
-    /// </summary>
+    
     private List<AuditLogRecord> BuildSyntheticCollectionRecords(
         TxAggregate aggregate,
         IReadOnlyList<CollectionDeltaInfo> collectionDeltas,
@@ -234,8 +225,7 @@ public sealed class AggregateFlattener(
         {
             var (entityType, entityId) = group.Key;
             var changeTime = DateTime.UtcNow;
-
-            // Build synthetic AuditRecord for collection changes
+            
             var record = new AuditRecord
             {
                 Id = $"{aggregate.TxId}-coll-{ordinal}",
@@ -250,8 +240,7 @@ public sealed class AggregateFlattener(
                 RawPayloadJson = "{}",
                 NormalizationVersion = normalizationVersion
             };
-
-            // Add all collection changes for this entity
+            
             foreach (var delta in group)
             {
                 var collectionChange = new Audit.V1.CollectionChange
@@ -298,7 +287,7 @@ public sealed class AggregateFlattener(
                     userId,
                     userName,
                     entityType,
-                    2, // UPDATE operation
+                    2,
                     entityId,
                     aggregate.TxId,
                     payload));
@@ -331,8 +320,7 @@ public sealed class AggregateFlattener(
 
         if (!shouldIncludeFields)
             yield break;
-
-        // Parse payload structure (Debezium format: { "before": {...}, "after": {...} } or flat structure)
+        
         JsonElement? before = null;
         JsonElement? after = null;
 
@@ -343,8 +331,7 @@ public sealed class AggregateFlattener(
 
             if (TryGetPropertyCaseInsensitive(payload, "after", out var afterEl))
                 after = afterEl.ValueKind != JsonValueKind.Null ? afterEl : null;
-
-            // If no before/after structure, treat payload as the current state
+            
             if (before == null && after == null)
             {
                 after = payload;
@@ -367,7 +354,6 @@ public sealed class AggregateFlattener(
         }
         else if (operation == 2) // update
         {
-            // For update, show delta (changed fields only)
             if (before?.ValueKind == JsonValueKind.Object && after?.ValueKind == JsonValueKind.Object)
             {
                 var beforeProps = before.Value.EnumerateObject().ToDictionary(p => p.Name, p => p.Value);
@@ -376,8 +362,7 @@ public sealed class AggregateFlattener(
                 foreach (var afterProp in afterProps)
                 {
                     var beforeValue = beforeProps.TryGetValue(afterProp.Key, out var bv) ? bv : (JsonElement?)null;
-
-                    // Skip if values are equal
+                    
                     var oldStr = beforeValue.HasValue ? ExtractScalar(beforeValue.Value) : string.Empty;
                     var newStr = ExtractScalar(afterProp.Value);
                     if (oldStr == newStr)
@@ -390,7 +375,6 @@ public sealed class AggregateFlattener(
             }
             else if (after?.ValueKind == JsonValueKind.Object)
             {
-                // No before data, show all after values
                 foreach (var prop in after.Value.EnumerateObject())
                 {
                     var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, referenceSnapshots, tableName);
@@ -401,7 +385,6 @@ public sealed class AggregateFlattener(
         }
         else if (operation == 3) // delete
         {
-            // For delete, show fields from "before" as old values
             if (before?.ValueKind == JsonValueKind.Object)
             {
                 foreach (var prop in before.Value.EnumerateObject())
@@ -424,29 +407,23 @@ public sealed class AggregateFlattener(
         IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots,
         string tableName)
     {
-        // Skip system fields
         if (IsSystemField(fieldName))
             return null;
-
-        // Check global field exclusions
+        
         if (globalPolicy?.GlobalFieldExclusions?.Contains(fieldName, StringComparer.OrdinalIgnoreCase) == true)
             return null;
-
-        // Get field policy
+        
         var fieldPolicy = entityPolicy?.Fields?.TryGetValue(fieldName, out var fp) == true ? fp : null;
-
-        // Check if field is excluded
+        
         if (fieldPolicy?.Action == ChangeLogMonitor.Core.Enums.FieldAction.Exclude)
             return null;
 
         var oldStr = oldValue.HasValue ? ExtractScalar(oldValue.Value) : null;
         var newStr = newValue.HasValue ? ExtractScalar(newValue.Value) : null;
-
-        // Skip if both values are empty
+        
         if (string.IsNullOrEmpty(oldStr) && string.IsNullOrEmpty(newStr))
             return null;
-
-        // Determine sensitive mode and transform values
+        
         var sensitiveMode = SensitiveMode.None;
         string? processedOld = oldStr;
         string? processedNew = newStr;
@@ -469,28 +446,23 @@ public sealed class AggregateFlattener(
 
                 case ChangeLogMonitor.Core.Enums.FieldAction.Encrypt:
                     sensitiveMode = SensitiveMode.Encrypted;
-                    // For encrypted fields, we just mark them as encrypted
-                    // Actual encryption would require key management infrastructure
                     processedOld = oldStr != null ? "[ENCRYPTED]" : null;
                     processedNew = newStr != null ? "[ENCRYPTED]" : null;
                     break;
             }
         }
-
-        // Determine field kind and resolve labels/titles
+        
         var valueKind = ValueKind.Scalar;
         var enumType = fieldPolicy?.View?.EnumType;
         IReadOnlyDictionary<string, string>? enumLabels = null;
         ReferenceSnapshotInfo? referenceInfo = null;
-
-        // Check if field has reference snapshot (FK field)
+        
         var refKey = (tableName, fieldName);
         if (referenceSnapshots.TryGetValue(refKey, out var refSnapshot))
         {
             referenceInfo = refSnapshot;
             valueKind = ValueKind.Reference;
         }
-        // Check if field is configured as enum or if we have snapshots for this field
         else if (fieldPolicy?.View?.Format == ChangeLogMonitor.Core.Enums.FieldType.Enum && !string.IsNullOrEmpty(enumType))
         {
             enumSnapshots.TryGetValue(enumType, out enumLabels);
@@ -498,8 +470,6 @@ public sealed class AggregateFlattener(
         }
         else if (enumSnapshots.Count > 0)
         {
-            // Try to auto-detect enum by field name matching enum type name
-            // e.g., field "Status" might match enum type "Status" or "OrderStatus"
             foreach (var (typeName, labels) in enumSnapshots)
             {
                 if (typeName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
@@ -511,8 +481,7 @@ public sealed class AggregateFlattener(
                 }
             }
         }
-
-        // Build FieldValue with enum/reference support
+        
         FieldValue? oldFieldValue = null;
         FieldValue? newFieldValue = null;
 
@@ -529,7 +498,6 @@ public sealed class AggregateFlattener(
             else if (valueKind == ValueKind.Reference && referenceInfo != null)
             {
                 oldFieldValue.ReferenceKey = oldStr ?? string.Empty;
-                // Look up title from reference snapshots if key matches
                 oldFieldValue.ReferenceTitle = referenceInfo.KeyTitles.TryGetValue(oldStr ?? string.Empty, out var oldRefTitle)
                     ? oldRefTitle
                     : oldStr ?? string.Empty;
@@ -549,7 +517,6 @@ public sealed class AggregateFlattener(
             else if (valueKind == ValueKind.Reference && referenceInfo != null)
             {
                 newFieldValue.ReferenceKey = newStr ?? string.Empty;
-                // Look up title from reference snapshots if key matches
                 newFieldValue.ReferenceTitle = referenceInfo.KeyTitles.TryGetValue(newStr ?? string.Empty, out var newRefTitle)
                     ? newRefTitle
                     : newStr ?? string.Empty;
@@ -575,8 +542,7 @@ public sealed class AggregateFlattener(
         var maskChar = settings?.MaskChar ?? '*';
         var keepLeft = settings?.KeepLeft ?? 0;
         var keepRight = settings?.KeepRight ?? 0;
-
-        // Apply preset if specified
+        
         if (!string.IsNullOrEmpty(settings?.Preset) &&
             globalPolicy?.MaskPresets?.TryGetValue(settings.Preset, out var preset) == true)
         {
@@ -601,8 +567,7 @@ public sealed class AggregateFlattener(
             return value;
 
         var algo = settings?.Algo ?? "SHA-256";
-
-        // Apply preset if specified
+        
         if (!string.IsNullOrEmpty(settings?.Preset) &&
             globalPolicy?.HashPresets?.TryGetValue(settings.Preset, out var preset) == true)
         {
@@ -673,7 +638,6 @@ public sealed class AggregateFlattener(
 
     private static bool IsSystemField(string fieldName)
     {
-        // Skip common system/internal fields
         return fieldName.StartsWith("__", StringComparison.Ordinal) ||
                fieldName.Equals("lsn", StringComparison.OrdinalIgnoreCase) ||
                fieldName.Equals("txId", StringComparison.OrdinalIgnoreCase) ||
@@ -767,10 +731,7 @@ public sealed class AggregateFlattener(
 
         return (string.Empty, string.Empty);
     }
-
-    /// <summary>
-    ///     Извлекает enum снепшоты из метаданных транзакции (protobuf payload)
-    /// </summary>
+    
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ExtractEnumSnapshots(JsonElement? meta)
     {
         var emptyResult = new Dictionary<string, IReadOnlyDictionary<string, string>>();
@@ -779,8 +740,7 @@ public sealed class AggregateFlattener(
             return emptyResult;
 
         var root = meta.Value;
-
-        // Try to extract from protobuf payload
+        
         if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
             payloadElement.ValueKind == JsonValueKind.String)
         {
@@ -935,10 +895,7 @@ public sealed class AggregateFlattener(
 
         return value.Substring(0, maxLength) + "...";
     }
-
-    /// <summary>
-    ///     Извлекает reference снепшоты из метаданных транзакции (protobuf payload)
-    /// </summary>
+    
     private static IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> ExtractReferenceSnapshots(JsonElement? meta)
     {
         var emptyResult = new Dictionary<(string, string), ReferenceSnapshotInfo>();
@@ -947,8 +904,7 @@ public sealed class AggregateFlattener(
             return emptyResult;
 
         var root = meta.Value;
-
-        // Try to extract from protobuf payload
+        
         if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
             payloadElement.ValueKind == JsonValueKind.String)
         {
@@ -989,9 +945,6 @@ public sealed class AggregateFlattener(
         return emptyResult;
     }
 
-    /// <summary>
-    ///     Извлекает дельты коллекций из метаданных транзакции (protobuf payload)
-    /// </summary>
     private static IReadOnlyList<CollectionDeltaInfo> ExtractCollectionDeltas(JsonElement? meta)
     {
         var emptyResult = Array.Empty<CollectionDeltaInfo>();
@@ -1000,8 +953,7 @@ public sealed class AggregateFlattener(
             return emptyResult;
 
         var root = meta.Value;
-
-        // Try to extract from protobuf payload
+        
         if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
             payloadElement.ValueKind == JsonValueKind.String)
         {
@@ -1045,23 +997,14 @@ public sealed class AggregateFlattener(
     }
 }
 
-/// <summary>
-///     Информация о снепшоте ссылочного поля
-/// </summary>
 internal sealed record ReferenceSnapshotInfo(
     string EntityType,
     string FieldName,
     string RelatedEntityType,
     Dictionary<string, string> KeyTitles);
 
-/// <summary>
-///     Элемент коллекции
-/// </summary>
 internal sealed record CollectionItemInfo(string Key, string Title);
 
-/// <summary>
-///     Информация о дельте коллекции
-/// </summary>
 internal sealed record CollectionDeltaInfo(
     string EntityType,
     string EntityId,

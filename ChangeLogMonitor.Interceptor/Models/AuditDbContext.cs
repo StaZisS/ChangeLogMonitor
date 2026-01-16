@@ -2,9 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChangeLogMonitor.Interceptor.Models;
 
-/// <summary>
-///     DbContext для работы с таблицей audit_log
-/// </summary>
 public class AuditDbContext : DbContext
 {
     public AuditDbContext(DbContextOptions<AuditDbContext> options) : base(options)

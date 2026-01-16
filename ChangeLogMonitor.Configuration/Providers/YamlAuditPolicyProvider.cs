@@ -5,9 +5,6 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace ChangeLogMonitor.Configuration.Providers;
 
-/// <summary>
-///     Провайдер для чтения и десериализации YAML файла политики аудита
-/// </summary>
 public class YamlAuditPolicyProvider : IAuditPolicyProvider
 {
     private readonly string _configFilePath;
@@ -22,10 +19,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             .IgnoreUnmatchedProperties()
             .Build();
     }
-
-    /// <summary>
-    ///     Загружает YAML файл и возвращает десериализованную модель
-    /// </summary>
+    
     public YamlAuditPolicyRoot Load()
     {
         if (!File.Exists(_configFilePath))
@@ -39,8 +33,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
 
             if (root?.AuditPolicy == null)
                 throw new InvalidOperationException("Invalid YAML structure: 'auditPolicy' root element not found");
-
-            // Нормализуем короткий синтаксис полей в длинный
+            
             NormalizeFieldPolicies(root.AuditPolicy);
 
             return root;
@@ -51,9 +44,6 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
         }
     }
 
-    /// <summary>
-    ///     Асинхронная загрузка
-    /// </summary>
     public async Task<YamlAuditPolicyRoot> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(_configFilePath))
@@ -67,8 +57,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
 
             if (root?.AuditPolicy == null)
                 throw new InvalidOperationException("Invalid YAML structure: 'auditPolicy' root element not found");
-
-            // Нормализуем короткий синтаксис полей в длинный
+            
             NormalizeFieldPolicies(root.AuditPolicy);
 
             return root;
@@ -78,11 +67,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             throw new InvalidOperationException($"Failed to parse YAML file: {ex.Message}", ex);
         }
     }
-
-    /// <summary>
-    ///     Нормализует короткий синтаксис полей в длинный
-    ///     Например: Password: exclude -> Password: { action: exclude }
-    /// </summary>
+    
     private void NormalizeFieldPolicies(YamlAuditPolicy policy)
     {
         if (policy.Entities == null) return;
@@ -96,7 +81,6 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             foreach (var (fieldName, fieldValue) in entity.Fields)
                 if (fieldValue is string action)
                 {
-                    // Короткий синтаксис: просто строка действия
                     normalizedFields[fieldName] = new YamlFieldPolicy
                     {
                         Action = action
@@ -104,23 +88,18 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
                 }
                 else if (fieldValue is Dictionary<object, object> dict)
                 {
-                    // Длинный синтаксис: объект с настройками
                     var fieldPolicy = ConvertToFieldPolicy(dict);
                     normalizedFields[fieldName] = fieldPolicy;
                 }
                 else
                 {
-                    // Уже YamlFieldPolicy или неизвестный тип
                     normalizedFields[fieldName] = fieldValue;
                 }
 
             entity.Fields = normalizedFields;
         }
     }
-
-    /// <summary>
-    ///     Конвертирует Dictionary в YamlFieldPolicy
-    /// </summary>
+    
     private YamlFieldPolicy ConvertToFieldPolicy(Dictionary<object, object> dict)
     {
         var policy = new YamlFieldPolicy();
@@ -213,9 +192,6 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
     }
 }
 
-/// <summary>
-///     Интерфейс провайдера политики аудита
-/// </summary>
 public interface IAuditPolicyProvider
 {
     YamlAuditPolicyRoot Load();

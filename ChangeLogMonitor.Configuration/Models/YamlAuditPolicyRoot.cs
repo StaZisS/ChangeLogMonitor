@@ -2,17 +2,11 @@ using YamlDotNet.Serialization;
 
 namespace ChangeLogMonitor.Configuration.Models;
 
-/// <summary>
-///     Корневая YAML модель для десериализации changelog-config.yaml
-/// </summary>
 public class YamlAuditPolicyRoot
 {
     [YamlMember(Alias = "auditPolicy")] public YamlAuditPolicy AuditPolicy { get; set; } = new();
 }
 
-/// <summary>
-///     Главная политика аудита (YAML)
-/// </summary>
 public class YamlAuditPolicy
 {
     [YamlMember(Alias = "version")] public string? Version { get; set; }
@@ -53,9 +47,6 @@ public class YamlAuditPolicy
     public YamlAccessControl? AccessControl { get; set; }
 }
 
-/// <summary>
-///     Пресеты для методов (mask, hash, encrypt)
-/// </summary>
 public class YamlMethodPresets
 {
     [YamlMember(Alias = "mask")] public Dictionary<string, YamlMaskPreset>? Mask { get; set; }

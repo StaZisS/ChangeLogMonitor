@@ -486,3 +486,7 @@ dotnet ef database update \
    - Нажать + в нижней части и добавить File path pattern: changelog-config*.yaml                                                                                                                                                                                                                               
  4. Apply → OK 
 ```
+
+## UI
+
+localhost:5000/AuditLog

@@ -42,7 +42,6 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Yield to allow the host to continue starting (HTTP server, other services)
         await Task.Yield();
 
         var (topology, config) = _topologyFactory.Build();
@@ -56,7 +55,6 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
         {
             _isRunning = true;
             await stream.StartAsync(stoppingToken);
-            // Keep the background service alive until cancellation; StartAsync returns immediately
             await Task.Delay(Timeout.Infinite, stoppingToken);
         }
         catch (OperationCanceledException)
@@ -77,7 +75,6 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
             }
             catch (ObjectDisposedException)
             {
-                // Streamiz may dispose internal CancellationTokenSource before we call Dispose()
             }
             _stream = null;
             _isRunning = false;

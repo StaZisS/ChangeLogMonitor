@@ -2,9 +2,6 @@ using YamlDotNet.Serialization;
 
 namespace ChangeLogMonitor.Configuration.Models;
 
-/// <summary>
-///     Настройки контроля доступа (YAML)
-/// </summary>
 public class YamlAccessControl
 {
     [YamlMember(Alias = "enabled")] public bool Enabled { get; set; } = false;
@@ -23,9 +20,6 @@ public class YamlAccessControl
     [YamlMember(Alias = "anonymousRoles")] public List<string>? AnonymousRoles { get; set; }
 }
 
-/// <summary>
-///     Определение роли (YAML)
-/// </summary>
 public class YamlRoleDefinition
 {
     [YamlMember(Alias = "description")] public string? Description { get; set; }
@@ -33,17 +27,11 @@ public class YamlRoleDefinition
     [YamlMember(Alias = "allowAll")] public bool AllowAll { get; set; } = false;
 }
 
-/// <summary>
-///     Маппинг ролей для пользователя (YAML)
-/// </summary>
 public class YamlUserRoles
 {
     [YamlMember(Alias = "roles")] public List<string> Roles { get; set; } = new();
 }
 
-/// <summary>
-///     Настройки доступа к сущности (YAML)
-/// </summary>
 public class YamlEntityAccess
 {
     [YamlMember(Alias = "allowedRoles")] public List<string>? AllowedRoles { get; set; }

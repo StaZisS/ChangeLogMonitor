@@ -14,36 +14,17 @@ public class AuditMetadataSerializer
     {
         _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
     }
-
-    /// <summary>
-    ///     Создает и сериализует AuditMetaEnvelope
-    /// </summary>
-    /// <param name="transactionId">ID транзакции</param>
-    /// <returns>Сериализованный protobuf как массив байт</returns>
+    
     public byte[] Serialize(string transactionId)
     {
         return Serialize(transactionId, null);
     }
-
-    /// <summary>
-    ///     Создает и сериализует AuditMetaEnvelope с enum снепшотами
-    /// </summary>
-    /// <param name="transactionId">ID транзакции</param>
-    /// <param name="enumSnapshots">Снепшоты enum значений: имя типа → (код → лейбл)</param>
-    /// <returns>Сериализованный protobuf как массив байт</returns>
+    
     public byte[] Serialize(string transactionId, Dictionary<string, Dictionary<string, string>>? enumSnapshots)
     {
         return Serialize(transactionId, enumSnapshots, null, null);
     }
 
-    /// <summary>
-    ///     Создает и сериализует AuditMetaEnvelope со всеми метаданными
-    /// </summary>
-    /// <param name="transactionId">ID транзакции</param>
-    /// <param name="enumSnapshots">Снепшоты enum значений</param>
-    /// <param name="referenceSnapshots">Снепшоты ссылочных полей (FK)</param>
-    /// <param name="collectionDeltas">Дельты коллекций</param>
-    /// <returns>Сериализованный protobuf как массив байт</returns>
     public byte[] Serialize(
         string transactionId,
         Dictionary<string, Dictionary<string, string>>? enumSnapshots,
@@ -61,7 +42,6 @@ public class AuditMetadataSerializer
             }
         };
 
-        // Добавляем контекст запроса (если доступен)
         var requestId = _metadataProvider.GetRequestId();
         var serviceName = _metadataProvider.GetServiceName();
         var clientIp = _metadataProvider.GetClientIp();
@@ -83,8 +63,7 @@ public class AuditMetadataSerializer
             if (userAgent != null)
                 envelope.Request.UserAgent = userAgent;
         }
-
-        // Добавляем подсказки (если есть)
+        
         var hints = _metadataProvider.GetHints();
         if (hints != null && hints.Count > 0)
             foreach (var hint in hints)
@@ -93,8 +72,7 @@ public class AuditMetadataSerializer
                     Key = hint.Key,
                     Value = hint.Value
                 });
-
-        // Добавляем enum снепшоты (если есть)
+        
         if (enumSnapshots != null && enumSnapshots.Count > 0)
             foreach (var (enumType, pairs) in enumSnapshots)
             {
@@ -112,8 +90,7 @@ public class AuditMetadataSerializer
 
                 envelope.EnumSnapshots.Add(snapshot);
             }
-
-        // Добавляем снепшоты ссылочных полей (если есть)
+        
         if (referenceSnapshots != null && referenceSnapshots.Count > 0)
             foreach (var refData in referenceSnapshots)
                 envelope.ReferenceSnapshots.Add(new ReferenceSnapshot
@@ -124,8 +101,7 @@ public class AuditMetadataSerializer
                     Key = refData.Key,
                     Title = refData.Title
                 });
-
-        // Добавляем дельты коллекций (если есть)
+        
         if (collectionDeltas != null && collectionDeltas.Count > 0)
             foreach (var delta in collectionDeltas)
             {
@@ -156,16 +132,7 @@ public class AuditMetadataSerializer
 
         return envelope.ToByteArray();
     }
-
-    /// <summary>
-    ///     Создает и сериализует AuditMetaEnvelope для bulk/raw операции
-    /// </summary>
-    /// <param name="transactionId">ID транзакции</param>
-    /// <param name="targetEntity">Целевая сущность/таблица</param>
-    /// <param name="affectedCount">Количество затронутых строк</param>
-    /// <param name="additionalHints">Дополнительные hints (опционально)</param>
-    /// <param name="enumSnapshots">Снепшоты enum значений (опционально)</param>
-    /// <returns>Сериализованный protobuf как массив байт</returns>
+    
     public byte[] SerializeBulkOperation(
         string transactionId,
         string targetEntity,
@@ -189,8 +156,7 @@ public class AuditMetadataSerializer
                 Target = targetEntity
             }
         };
-
-        // Добавляем контекст запроса (если доступен)
+        
         var requestId = _metadataProvider.GetRequestId();
         var serviceName = _metadataProvider.GetServiceName();
         var clientIp = _metadataProvider.GetClientIp();
@@ -212,8 +178,7 @@ public class AuditMetadataSerializer
             if (userAgent != null)
                 envelope.Request.UserAgent = userAgent;
         }
-
-        // Добавляем подсказки от провайдера
+        
         var providerHints = _metadataProvider.GetHints();
         if (providerHints != null && providerHints.Count > 0)
             foreach (var hint in providerHints)
@@ -222,8 +187,7 @@ public class AuditMetadataSerializer
                     Key = hint.Key,
                     Value = hint.Value
                 });
-
-        // Добавляем дополнительные hints (перезаписывают провайдерные)
+        
         if (additionalHints != null && additionalHints.Count > 0)
             foreach (var hint in additionalHints)
                 envelope.Hints.Add(new Hint
@@ -231,8 +195,7 @@ public class AuditMetadataSerializer
                     Key = hint.Key,
                     Value = hint.Value
                 });
-
-        // Добавляем enum снепшоты (если есть)
+        
         if (enumSnapshots != null && enumSnapshots.Count > 0)
             foreach (var (enumType, pairs) in enumSnapshots)
             {
@@ -254,9 +217,6 @@ public class AuditMetadataSerializer
         return envelope.ToByteArray();
     }
 
-    /// <summary>
-    ///     Десериализует AuditMetaEnvelope из байт
-    /// </summary>
     public AuditMetaEnvelope Deserialize(byte[] data)
     {
         return AuditMetaEnvelope.Parser.ParseFrom(data);

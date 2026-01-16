@@ -23,8 +23,7 @@ public class RawAuditService : IRawAuditService
         _metadataSerializer = metadataSerializer ?? throw new ArgumentNullException(nameof(metadataSerializer));
         _logger = logger;
     }
-
-    /// <inheritdoc />
+    
     public async Task RecordRawOperationAsync(
         DbContext context,
         string targetEntity,
@@ -50,8 +49,7 @@ public class RawAuditService : IRawAuditService
             targetEntity,
             affectedCount);
     }
-
-    /// <inheritdoc />
+    
     public void RecordRawOperation(
         DbContext context,
         string targetEntity,
@@ -76,8 +74,7 @@ public class RawAuditService : IRawAuditService
             targetEntity,
             affectedCount);
     }
-
-    /// <inheritdoc />
+    
     public async Task RecordRawOperationFromScopeAsync(
         DbContext context,
         int affectedCount,
@@ -96,8 +93,7 @@ public class RawAuditService : IRawAuditService
 
         await RecordRawOperationAsync(context, targetEntity, affectedCount, reason, hints, null, cancellationToken);
     }
-
-    /// <inheritdoc />
+    
     public void RecordRawOperationFromScope(
         DbContext context,
         int affectedCount)
@@ -123,23 +119,19 @@ public class RawAuditService : IRawAuditService
 
     private static Dictionary<string, string>? MergeHints(string? reason, Dictionary<string, string>? hints)
     {
-        // Собираем hints из AuditScope если есть
         var scopeHints = AuditScope.Current?.GetAllHints();
         var scopeReason = AuditScope.Current?.GetEffectiveReason();
 
         var allHints = new Dictionary<string, string>();
-
-        // Добавляем hints из scope
+        
         if (scopeHints != null)
             foreach (var hint in scopeHints)
                 allHints[hint.Key] = hint.Value;
-
-        // Добавляем переданные hints (перезаписывают scope)
+        
         if (hints != null)
             foreach (var hint in hints)
                 allHints[hint.Key] = hint.Value;
-
-        // Добавляем reason как hint если задан
+        
         var effectiveReason = reason ?? scopeReason;
         if (!string.IsNullOrWhiteSpace(effectiveReason))
             allHints["_reason"] = effectiveReason;

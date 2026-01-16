@@ -49,24 +49,21 @@ SETTINGS index_granularity = 8192;";
         if (!_settings.EnsureSchema) return;
 
         await using var connection = await OpenAsync(cancellationToken);
-
-        // Create table if not exists
+        
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = string.Format(CultureInfo.InvariantCulture, CreateTableTemplate, _quotedTableName);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
         _logger.LogInformation("Ensured ClickHouse table {Table}", _tableName);
-
-        // Run migrations
+        
         await MigrateSchemaAsync(connection, cancellationToken);
     }
 
     private async Task MigrateSchemaAsync(ClickHouseConnection connection, CancellationToken cancellationToken)
     {
         var existingColumns = await GetExistingColumnsAsync(connection, cancellationToken);
-
-        // Migration: Add user_name column if missing
+        
         if (!existingColumns.Contains("user_name", StringComparer.OrdinalIgnoreCase))
         {
             await AddColumnAsync(connection, "user_name", "String", "user_id", cancellationToken);
@@ -272,8 +269,7 @@ SETTINGS index_granularity = 8192;";
             whereConditions.Add("tx_id = {txId:String}");
             command.Parameters.Add(CreateParameter(command, "txId", filter.TransactionId.Trim()));
         }
-
-        // Access Control: фильтрация по разрешенным таблицам
+        
         if (filter.AllowedTableNames is { Count: > 0 })
         {
             var tableParams = new List<string>();
@@ -361,7 +357,6 @@ SETTINGS index_granularity = 8192;";
 
     private static ulong GenerateLogId(AuditLogRecord record)
     {
-        // грубый монотонный surrogate: combine change time ms + hash of tx/entity
         var time = new DateTimeOffset(record.ChangeTimeUtc).ToUnixTimeMilliseconds();
         var suffix = (ulong)string.GetHashCode($"{record.TxId}:{record.EntityId}:{record.OperationCode}");
         return ((ulong)time << 16) ^ suffix;

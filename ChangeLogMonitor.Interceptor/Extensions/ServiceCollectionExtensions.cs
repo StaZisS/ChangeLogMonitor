@@ -10,9 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ChangeLogMonitor.Interceptor.Extensions;
 
-/// <summary>
-///     Extension методы для регистрации ChangeLog Interceptor в DI контейнере
-/// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
@@ -33,53 +30,42 @@ public static class ServiceCollectionExtensions
         bool applyMigrations = true,
         Func<IServiceProvider, IEnumLabelProvider>? enumLabelProviderFactory = null)
     {
-        // Регистрируем AuditDbContext
         services.AddDbContext<AuditDbContext>(options =>
         {
             options.UseNpgsql(auditDbConnectionString,
                 b => { b.MigrationsAssembly(typeof(AuditDbContext).Assembly.FullName); });
         });
-
-        // Регистрируем конфигурацию
+        
         var configPath = ResolveConfigPath(configFilePath);
         ValidateConfigFile(configPath);
         services.AddSingleton<IAuditPolicyProvider>(sp => new YamlAuditPolicyProvider(configPath));
         services.AddSingleton<IAuditConfigurationService, AuditConfigurationService>();
-
-        // Регистрируем провайдер метаданных
+        
         if (metadataProviderFactory != null)
             services.AddScoped(metadataProviderFactory);
         else
             services.AddScoped<IAuditMetadataProvider, DefaultAuditMetadataProvider>();
-
-        // Регистрируем провайдер лейблов enum
+        
         if (enumLabelProviderFactory != null)
             services.AddSingleton(enumLabelProviderFactory);
         else
             services.AddSingleton<IEnumLabelProvider, AttributeEnumLabelProvider>();
-
-        // Регистрируем экстракторы метаданных
+        
         services.AddSingleton<EnumMetadataExtractor>();
         services.AddScoped<ReferenceMetadataExtractor>();
         services.AddScoped<CollectionDeltaExtractor>();
-
-        // Регистрируем сериализатор
+        
         services.AddScoped<AuditMetadataSerializer>();
-
-        // Регистрируем сервис для raw SQL операций
+        
         services.AddScoped<IRawAuditService, RawAuditService>();
-
-        // Регистрируем интерцептор
+        
         services.AddScoped<ChangeLogInterceptor>();
 
         if (applyMigrations) services.AddHostedService<AuditDbMigrationHostedService>();
 
         return services;
     }
-
-    /// <summary>
-    ///     Добавляет ChangeLog Interceptor к DbContextOptionsBuilder
-    /// </summary>
+    
     public static DbContextOptionsBuilder AddChangeLogInterceptor(
         this DbContextOptionsBuilder optionsBuilder,
         IServiceProvider serviceProvider)
@@ -87,31 +73,22 @@ public static class ServiceCollectionExtensions
         var interceptor = serviceProvider.GetRequiredService<ChangeLogInterceptor>();
         return optionsBuilder.AddInterceptors(interceptor);
     }
-
-    /// <summary>
-    ///     Определяет путь к файлу конфигурации, поддерживая абсолютные и относительные пути
-    /// </summary>
+    
     private static string ResolveConfigPath(string? configFilePath)
     {
         if (string.IsNullOrWhiteSpace(configFilePath))
         {
             return Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
         }
-
-        // Если путь абсолютный - используем как есть
+        
         if (Path.IsPathRooted(configFilePath))
         {
             return configFilePath;
         }
-
-        // Относительный путь - относительно BaseDirectory
+        
         return Path.Combine(AppContext.BaseDirectory, configFilePath);
     }
-
-    /// <summary>
-    ///     Проверяет существование и доступность файла конфигурации
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Файл не существует или недоступен</exception>
+    
     private static void ValidateConfigFile(string filePath)
     {
         if (!File.Exists(filePath))
@@ -120,8 +97,7 @@ public static class ServiceCollectionExtensions
                 $"Файл конфигурации аудита не найден: '{filePath}'. " +
                 $"Создайте файл changelog-config.yaml или укажите правильный путь.");
         }
-
-        // Проверяем доступность файла на чтение
+        
         try
         {
             using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);

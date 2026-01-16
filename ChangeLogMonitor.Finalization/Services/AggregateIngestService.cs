@@ -27,7 +27,6 @@ public sealed class AggregateIngestService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Yield to allow the host to continue starting (HTTP server, other services)
         await Task.Yield();
 
         var config = new ConsumerConfig

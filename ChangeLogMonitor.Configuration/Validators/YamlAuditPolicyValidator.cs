@@ -3,9 +3,6 @@ using FluentValidation;
 
 namespace ChangeLogMonitor.Configuration.Validators;
 
-/// <summary>
-///     Валидатор для главной политики аудита
-/// </summary>
 public class YamlAuditPolicyValidator : AbstractValidator<YamlAuditPolicy>
 {
     private static readonly string[] ValidModes = { "whitelist", "blacklist" };
@@ -75,9 +72,6 @@ public class YamlAuditPolicyValidator : AbstractValidator<YamlAuditPolicy>
     }
 }
 
-/// <summary>
-///     Валидатор для политики сущности
-/// </summary>
 public class YamlEntityPolicyValidator : AbstractValidator<YamlEntityPolicy>
 {
     private static readonly string[] ValidCreateBehaviors = { "eventOnly", "allFields", "nonDefaultFields" };
@@ -127,9 +121,6 @@ public class YamlEntityPolicyValidator : AbstractValidator<YamlEntityPolicy>
     }
 }
 
-/// <summary>
-///     Валидатор для политики полей
-/// </summary>
 public class YamlFieldPolicyValidator : AbstractValidator<YamlFieldPolicy>
 {
     private static readonly string[] ValidActions = { "include", "exclude", "mask", "hash", "encrypt" };
@@ -172,9 +163,6 @@ public class YamlFieldPolicyValidator : AbstractValidator<YamlFieldPolicy>
     }
 }
 
-/// <summary>
-///     Валидатор для политики ссылок
-/// </summary>
 public class YamlReferencePolicyValidator : AbstractValidator<YamlReferencePolicy>
 {
     public YamlReferencePolicyValidator()
@@ -194,9 +182,6 @@ public class YamlReferencePolicyValidator : AbstractValidator<YamlReferencePolic
     }
 }
 
-/// <summary>
-///     Валидатор для политики коллекций
-/// </summary>
 public class YamlCollectionPolicyValidator : AbstractValidator<YamlCollectionPolicy>
 {
     public YamlCollectionPolicyValidator()
