@@ -49,8 +49,7 @@ public static class ServiceCollectionExtensions
 
         // Access Control Services
         services.AddSingleton<IAccessControlService, AccessControlService>();
-        services.AddHttpContextAccessor();
-        services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>();
+        // Note: ICurrentUserService and IHttpContextAccessor are registered in Api module
 
         services.AddScoped<IDiffService, DiffService>();
         services.AddHostedService<AggregateIngestService>();

@@ -2,8 +2,8 @@
 
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,10 +12,10 @@
 
     <ItemGroup>
         <ProjectReference Include="..\ChangeLogMonitor.Core\ChangeLogMonitor.Core.csproj"/>
-        <ProjectReference Include="..\ChangeLogMonitor.Interceptor\ChangeLogMonitor.Interceptor.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.Configuration\ChangeLogMonitor.Configuration.csproj"/>
+        <ProjectReference Include="..\ChangeLogMonitor.DataAggregator\ChangeLogMonitor.DataAggregator.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.Finalization\ChangeLogMonitor.Finalization.csproj"/>
-        <ProjectReference Include="..\ChangeLogMonitor.Api\ChangeLogMonitor.Api.csproj"/>
+        <ProjectReference Include="..\ChangeLogMonitor.Protos\ChangeLogMonitor.Protos.csproj"/>
     </ItemGroup>
 
 </Project>

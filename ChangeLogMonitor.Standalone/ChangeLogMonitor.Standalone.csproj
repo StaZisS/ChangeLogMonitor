@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\ChangeLogMonitor.Api\ChangeLogMonitor.Api.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.UI\ChangeLogMonitor.UI.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.DataAggregator\ChangeLogMonitor.DataAggregator.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.Finalization\ChangeLogMonitor.Finalization.csproj"/>

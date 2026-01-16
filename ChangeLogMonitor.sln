@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.DataAggreg
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.UI", "ChangeLogMonitor.UI\ChangeLogMonitor.UI.csproj", "{A1B2C3D4-E5F6-7890-ABCD-555555555555}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.Api", "ChangeLogMonitor.Api\ChangeLogMonitor.Api.csproj", "{A1B2C3D4-E5F6-7890-ABCD-666666666666}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.Standalone", "ChangeLogMonitor.Standalone\ChangeLogMonitor.Standalone.csproj", "{A1B2C3D4-E5F6-7890-ABCD-777777777777}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.Embedded", "ChangeLogMonitor.Embedded\ChangeLogMonitor.Embedded.csproj", "{A1B2C3D4-E5F6-7890-ABCD-888888888888}"
@@ -59,6 +61,10 @@ Global
 		{A1B2C3D4-E5F6-7890-ABCD-555555555555}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-555555555555}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-555555555555}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-666666666666}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-666666666666}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-666666666666}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-666666666666}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-777777777777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-777777777777}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-777777777777}.Release|Any CPU.ActiveCfg = Release|Any CPU

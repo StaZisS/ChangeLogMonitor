@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ChangeLogMonitor.Api.Extensions;
 using ChangeLogMonitor.DataAggregator.Extensions;
-using ChangeLogMonitor.DataAggregator.Services;
 using ChangeLogMonitor.Finalization.Extensions;
 using ChangeLogMonitor.UI.Extensions;
 
@@ -23,6 +23,9 @@ builder.Services.AddDataAggregator(builder.Configuration);
 
 // Register Finalization services (Kafka consumer -> ClickHouse storage)
 builder.Services.AddFinalization(builder.Configuration, builder.Environment.ContentRootPath);
+
+// Register API services (HTTP endpoints, CurrentUserService)
+builder.Services.AddChangeLogMonitorApi();
 
 // Register UI services
 builder.Services.AddAuditLogUI();
@@ -49,31 +52,8 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
-// Combined health endpoint
-app.MapGet("/healthz", (ITxAggregatorHealth aggregatorHealth) =>
-{
-    var aggregatorSnapshot = aggregatorHealth.GetSnapshot();
-    return Results.Json(new
-    {
-        status = "ok",
-        service = "standalone",
-        aggregator = new
-        {
-            status = aggregatorHealth.State,
-            running = aggregatorHealth.IsRunning,
-            ready = aggregatorHealth.IsReady,
-            metrics = aggregatorSnapshot
-        },
-        finalizer = new
-        {
-            status = "ok"
-        }
-    });
-}).WithName("CombinedHealth").WithTags("Health");
-
-// Map module endpoints
-app.MapDataAggregatorEndpoints();
-app.MapFinalizationEndpoints();
+// Map API endpoints (Health, Diffs, Debug)
+app.MapChangeLogMonitorApi();
 
 // Map Razor Pages and Controllers
 app.MapRazorPages();
