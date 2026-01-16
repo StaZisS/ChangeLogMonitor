@@ -1,6 +1,6 @@
-using ChangeLogMonitor.TestHarness.Domain;
+using TestProject.Domain;
 
-namespace ChangeLogMonitor.TestHarness.Contracts;
+namespace TestProject.Contracts;
 
 public sealed record CreateOrderRequest(string Description, decimal Amount, OrderStatus Status = OrderStatus.New);
 

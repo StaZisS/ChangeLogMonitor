@@ -1,7 +1,7 @@
-using ChangeLogMonitor.TestHarness.Domain;
+using TestProject.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChangeLogMonitor.TestHarness.Data;
+namespace TestProject.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {

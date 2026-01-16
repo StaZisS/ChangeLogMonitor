@@ -1,8 +1,8 @@
-using ChangeLogMonitor.TestHarness.Domain;
-using ChangeLogMonitor.TestHarness.Infrastructure;
+using TestProject.Domain;
+using TestProject.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChangeLogMonitor.TestHarness.Data;
+namespace TestProject.Data;
 
 public static class DatabaseInitializer
 {

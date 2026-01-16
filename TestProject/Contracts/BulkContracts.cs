@@ -1,6 +1,6 @@
-using ChangeLogMonitor.TestHarness.Domain;
+using TestProject.Domain;
 
-namespace ChangeLogMonitor.TestHarness.Contracts;
+namespace TestProject.Contracts;
 
 /// <summary>
 ///     Запрос на массовое обновление статуса заказов

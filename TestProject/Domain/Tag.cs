@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ChangeLogMonitor.TestHarness.Domain;
+namespace TestProject.Domain;
 
 public class Tag
 {

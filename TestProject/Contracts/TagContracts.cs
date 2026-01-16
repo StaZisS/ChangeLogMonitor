@@ -1,4 +1,4 @@
-namespace ChangeLogMonitor.TestHarness.Contracts;
+namespace TestProject.Contracts;
 
 public sealed record CreateTagRequest(string Name, string? Color);
 

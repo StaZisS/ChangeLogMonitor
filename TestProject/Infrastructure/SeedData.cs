@@ -1,4 +1,4 @@
-namespace ChangeLogMonitor.TestHarness.Infrastructure;
+namespace TestProject.Infrastructure;
 
 internal static class SeedData
 {

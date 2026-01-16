@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using ChangeLogMonitor.Core.Attributes;
 
-namespace ChangeLogMonitor.TestHarness.Domain;
+namespace TestProject.Domain;
 
 /// <summary>
 ///     Статус заказа

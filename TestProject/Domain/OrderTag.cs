@@ -1,4 +1,4 @@
-namespace ChangeLogMonitor.TestHarness.Domain;
+namespace TestProject.Domain;
 
 public class OrderTag
 {

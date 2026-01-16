@@ -2,11 +2,11 @@ using System.Security.Claims;
 using System.Text;
 using ChangeLogMonitor.Interceptor.Extensions;
 using ChangeLogMonitor.Interceptor.Services;
-using ChangeLogMonitor.TestHarness.Auth;
-using ChangeLogMonitor.TestHarness.Contracts;
-using ChangeLogMonitor.TestHarness.Data;
-using ChangeLogMonitor.TestHarness.Domain;
-using ChangeLogMonitor.TestHarness.Infrastructure;
+using TestProject.Auth;
+using TestProject.Contracts;
+using TestProject.Data;
+using TestProject.Domain;
+using TestProject.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -14,7 +14,7 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("TestHarnessDb") ?? "Data Source=test-harness.db";
+var connectionString = builder.Configuration.GetConnectionString("TestProjectDb") ?? "Data Source=test-harness.db";
 var auditConnectionString = builder.Configuration.GetConnectionString("AuditDb") ?? connectionString;
 var usePostgres = connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase);
 
@@ -39,6 +39,8 @@ if (usePostgres)
 else
 {
     builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+    // Register null IRawAuditService for SQLite (audit not available)
+    builder.Services.AddSingleton<IRawAuditService>(sp => null!);
 }
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -756,7 +758,7 @@ app.MapGet("/debug/audit-logs", async Task<IResult> (
         CancellationToken cancellationToken) =>
     {
         var connString = configuration.GetConnectionString("AuditDb")
-                         ?? configuration.GetConnectionString("TestHarnessDb");
+                         ?? configuration.GetConnectionString("TestProjectDb");
 
         if (string.IsNullOrWhiteSpace(connString) || !connString.Contains("Host=", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { message = "PostgreSQL connection string not configured." });

@@ -1,11 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using ChangeLogMonitor.TestHarness.Domain;
+using TestProject.Domain;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace ChangeLogMonitor.TestHarness.Auth;
+namespace TestProject.Auth;
 
 public sealed class TokenService(IOptions<JwtOptions> options)
 {

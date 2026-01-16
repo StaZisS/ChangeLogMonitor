@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using ChangeLogMonitor.Interceptor.Services;
 
-namespace ChangeLogMonitor.TestHarness.Infrastructure;
+namespace TestProject.Infrastructure;
 
 /// <summary>
 ///     Провайдер метаданных аудита, извлекающий данные из HttpContext (JWT)
@@ -45,7 +45,7 @@ public class HttpContextAuditMetadataProvider : IAuditMetadataProvider
 
     public string? GetServiceName()
     {
-        return "TestHarness";
+        return "TestProject";
     }
 
     public string? GetClientIp()

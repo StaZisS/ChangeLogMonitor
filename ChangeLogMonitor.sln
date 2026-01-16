@@ -25,7 +25,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.Configurat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.Protos", "ChangeLogMonitor.Protos\ChangeLogMonitor.Protos.csproj", "{A8D608EF-8AB5-4F2E-B542-DAC0179A712D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.TestHarness", "ChangeLogMonitor.TestHarness\ChangeLogMonitor.TestHarness.csproj", "{728C972B-1CAC-4503-8E5B-15E8CAF410DF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestProject", "TestProject\TestProject.csproj", "{728C972B-1CAC-4503-8E5B-15E8CAF410DF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChangeLogMonitor.DataAggregator.Tests", "ChangeLogMonitor.DataAggregator.Tests\ChangeLogMonitor.DataAggregator.Tests.csproj", "{C6230BD9-12A9-4761-963C-7ECCFE6031CC}"
 EndProject

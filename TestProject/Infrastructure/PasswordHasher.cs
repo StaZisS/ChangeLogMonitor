@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace ChangeLogMonitor.TestHarness.Infrastructure;
+namespace TestProject.Infrastructure;
 
 internal static class PasswordHasher
 {
