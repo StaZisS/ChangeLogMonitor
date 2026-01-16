@@ -1,4 +1,5 @@
 using ChangeLogMonitor.Configuration.Services;
+using ChangeLogMonitor.Core.Interfaces;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
 using ChangeLogMonitor.Finalization.Services;
@@ -347,6 +348,84 @@ public static class WebApplicationExtensions
                 return Results.Ok(results);
             })
             .WithName("GetAuditLogsDebug")
+            .WithTags("Debug");
+
+        app.MapGet("/debug/access-control", (
+                [FromServices] IAccessControlService accessControl,
+                [FromServices] ICurrentUserService currentUser,
+                [FromServices] IAuditConfigurationService configService) =>
+            {
+                try
+                {
+                    var userId = currentUser.GetUserId();
+                    var isAuthenticated = currentUser.IsAuthenticated;
+                    var isEnabled = accessControl.IsEnabled;
+                    var roles = accessControl.GetUserRoles(userId);
+                    var allowedEntities = accessControl.GetAllowedEntities(roles);
+                    var hasFullAccess = accessControl.HasFullAccess(userId);
+                    var unauthorizedBehavior = accessControl.GetUnauthorizedBehavior();
+
+                    var policy = configService.GetPolicy();
+                    var accessControlConfig = policy.AccessControl;
+
+                    // Симуляция того что делает DiffService.ApplyAccessControl
+                    DiffFilterRequest? simulatedFilter = null;
+                    if (isEnabled)
+                    {
+                        simulatedFilter = new DiffFilterRequest(null, null, null, null, null, null, null)
+                        {
+                            AllowedTableNames = allowedEntities.ToList()
+                        };
+                    }
+
+                    return Results.Ok(new
+                    {
+                        currentUser = new
+                        {
+                            userId,
+                            isAuthenticated
+                        },
+                        accessControl = new
+                        {
+                            isEnabled,
+                            unauthorizedBehavior = unauthorizedBehavior.ToString(),
+                            hasFullAccess,
+                            userRoles = roles,
+                            allowedEntities,
+                            simulatedFilterAllowedTableNames = simulatedFilter?.AllowedTableNames
+                        },
+                        config = new
+                        {
+                            enabled = accessControlConfig.Enabled,
+                            allowAnonymous = accessControlConfig.AllowAnonymous,
+                            anonymousRoles = accessControlConfig.AnonymousRoles,
+                            defaultRoles = accessControlConfig.DefaultRoles,
+                            definedRoles = accessControlConfig.Roles.ToDictionary(
+                                r => r.Key,
+                                r => new { description = r.Value.Description, allowAll = r.Value.AllowAll }),
+                            usersMapping = accessControlConfig.Users.ToDictionary(
+                                u => u.Key,
+                                u => u.Value.Roles)
+                        },
+                        entitiesAccess = policy.Entities.ToDictionary(
+                            e => e.Key,
+                            e => new
+                            {
+                                enabled = e.Value.Enabled,
+                                allowedRoles = e.Value.Access.AllowedRoles
+                            })
+                    });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Ok(new
+                    {
+                        error = ex.Message,
+                        stackTrace = ex.StackTrace
+                    });
+                }
+            })
+            .WithName("GetAccessControlDebug")
             .WithTags("Debug");
     }
 }

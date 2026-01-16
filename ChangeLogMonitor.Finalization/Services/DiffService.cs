@@ -42,6 +42,10 @@ internal sealed class DiffService : IDiffService
         var roles = _accessControl.GetUserRoles(userId);
         var allowedEntities = _accessControl.GetAllowedEntities(roles);
 
+        // Если нет разрешенных сущностей - запрещаем доступ
+        if (allowedEntities.Count == 0)
+            return filter with { AllowedTableNames = new[] { "__DENIED__" } };
+
         // Если запрашивается конкретная таблица - проверяем доступ
         var tableName = specificTableName ?? filter.TableName;
         if (!string.IsNullOrWhiteSpace(tableName))

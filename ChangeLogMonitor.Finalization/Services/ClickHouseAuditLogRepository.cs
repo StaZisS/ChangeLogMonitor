@@ -280,7 +280,7 @@ SETTINGS index_granularity = 8192;";
             for (var i = 0; i < filter.AllowedTableNames.Count; i++)
             {
                 var paramName = $"allowedTable{i}";
-                tableParams.Add($"{{${paramName}:String}}");
+                tableParams.Add($"{{{paramName}:String}}");
                 command.Parameters.Add(CreateParameter(command, paramName, filter.AllowedTableNames[i]));
             }
 
