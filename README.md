@@ -1,104 +1,58 @@
 # ChangeLogMonitor
 
-Приложение для аудита изменений данных в базе данных на основе Debezium CDC.
+Модульная система аудита изменений данных на основе Debezium CDC.
 
-## Описание проекта
+## Возможности
 
-ChangeLogMonitor - это модульная система аудита, которая позволяет отслеживать и визуализировать все изменения данных в базе данных. Система построена на основе Change Data Capture (CDC) с использованием Debezium и может работать как встроенно в основное приложение, так и как отдельный сервис.
+- Отслеживание всех изменений в базе данных (Create/Update/Delete)
+- Маскирование, хеширование, шифрование чувствительных данных
+- Денормализация ссылок (FK) и отслеживание дельт коллекций
+- Гибкая YAML-конфигурация политики аудита
+- Два режима развертывания: встроенный и standalone
 
 ## Архитектура
 
-Проект разделен на модули для обеспечения гибкости развертывания:
+```
+Application → Interceptor → audit_log → Debezium → Kafka → DataAggregator → ClickHouse → UI
+```
 
-### Основные модули
+## Быстрый старт
 
-- **ChangeLogMonitor.Core** - Базовые интерфейсы, модели и абстракции
-- **ChangeLogMonitor.Interceptor** - EF Core интерцептор для перехвата изменений в транзакциях
-- **ChangeLogMonitor.Configuration** - Работа с YAML конфигурацией (настройка логирования, маскирования полей)
-- **ChangeLogMonitor.DataAggregator** - Агрегация данных из Kafka/Debezium и соединение с метаданными
-- **ChangeLogMonitor.Finalization** - ClickHouse sink + REST API для отдачи дифов
-- **ChangeLogMonitor.UI** - Razor Pages UI для отображения журнала изменений
+```bash
+# 1. Скопировать конфигурацию
+cp changelog-config.example.yaml changelog-config.yaml
+cp appsettings.example.json appsettings.json
 
-### Режимы развертывания
+# 2. Запустить
+dotnet run --project ChangeLogMonitor.Standalone
+```
 
-- **ChangeLogMonitor.Standalone** - Отдельное приложение для развертывания системы аудита как standalone сервиса
-- **ChangeLogMonitor.Embedded** - Библиотека для встраивания функциональности аудита в существующее приложение
+## Модули
 
-## Принцип работы
+| Модуль | Описание |
+|--------|----------|
+| Core | Базовые модели и интерфейсы |
+| Configuration | YAML политика аудита |
+| Interceptor | EF Core интерцептор |
+| DataAggregator | Kafka агрегация |
+| Finalization | ClickHouse sink + API |
+| UI | Razor Pages интерфейс |
+| Embedded | Библиотека для встраивания |
+| Standalone | Отдельный сервис |
 
-1. **Захват изменений**: При завершении транзакции EF Core интерцептор записывает изменения в:
-   - Таблицы с данными изменений
-   - Таблицу с метаданными (кто, когда, контекст операции)
+## Документация
 
-2. **CDC через Debezium**: Debezium отслеживает изменения в базе данных и отправляет события в Kafka
-
-3. **Агрегация данных**: DataAggregator модуль:
-   - Получает CDC события из Kafka
-   - Соединяет данные изменений с метаданными
-   - Подготавливает полную информацию для отображения
-
-4. **Визуализация**: UI показывает пользователям:
-   - Журнал всех изменений
-   - Детали изменений (до/после)
-   - Метаданные (кто изменил, когда, контекст)
-   - Возможности фильтрации и поиска
-
-## Конфигурация
-
-Конфигурация разделена на два файла:
-
-### 1. changelog-config.yaml
-Настройки аудита (что логировать):
-- Какие таблицы/сущности логировать
-- Какие поля маскировать (для защиты чувствительных данных)
-- Правила фильтрации
-- Настройки хранения данных
-- Метаданные для сбора
-
-**Пример:** скопируйте `changelog-config.example.yaml` в `changelog-config.yaml` и настройте под ваши нужды.
-
-### 2. appsettings.json
-Инфраструктурные настройки (как подключаться):
-- Строки подключения к базам данных (основная и для аудита)
-- Настройки Kafka (bootstrap servers, топики, consumer group)
-- Настройки Debezium (connector, database credentials)
-- Настройки хранилища аудита
-- Уровни логирования .NET
-
-**Пример:** скопируйте `appsettings.example.json` в `appsettings.json` и настройте подключения.
+- **[DOCUMENTATION.md](DOCUMENTATION.md)** - полная документация
+- **[CONFIGURATION.md](CONFIGURATION.md)** - справочник конфигурации
+- **[CLAUDE.md](CLAUDE.md)** - инструкции для Claude Code
 
 ## Требования
 
-- .NET 8.0
-- Entity Framework Core
-- Kafka
-- Debezium
-- PostgreSQL/SQL Server/MySQL (зависит от вашей БД)
+- .NET 9.0
+- Kafka + Debezium
+- ClickHouse
+- PostgreSQL/SQL Server/MySQL
 
-## Структура проекта
+## Лицензия
 
-```
-ChangeLogMonitor/
-├── ChangeLogMonitor.Core/              # Базовые абстракции
-├── ChangeLogMonitor.Interceptor/       # EF Core интерцептор
-├── ChangeLogMonitor.Configuration/     # YAML конфигурация
-├── ChangeLogMonitor.DataAggregator/    # Kafka consumer и агрегация
-├── ChangeLogMonitor.Finalization/      # ClickHouse sink + API
-├── ChangeLogMonitor.UI/                # Razor Pages UI
-├── ChangeLogMonitor.Standalone/        # Standalone приложение
-├── ChangeLogMonitor.Embedded/          # Библиотека для встраивания
-├── ChangeLogMonitor.sln                # Solution файл
-├── README.md                           # Документация
-├── changelog-config.example.yaml       # Пример конфигурации аудита
-└── appsettings.example.json            # Пример инфраструктурных настроек
-```
-
-## Следующие шаги
-
-1. Реализовать модели данных в Core
-2. Настроить интерцептор EF Core
-3. Создать провайдер YAML конфигурации
-4. Реализовать Kafka consumer для Debezium
-5. Реализовать финализацию в ClickHouse + API
-6. Создать UI для отображения журнала
-7. Подготовить примеры конфигурации
+MIT

@@ -1,14 +1,14 @@
 # ChangeLogMonitor.Standalone
 
-Standalone приложение для развертывания ChangeLogMonitor как отдельного сервиса.
+Standalone приложение для развертывания как отдельного сервиса.
 
-## Назначение
+**Включает:** UI, Finalization, DataAggregator
 
-Точка входа для запуска ChangeLogMonitor как отдельного приложения:
+**Не включает:** Interceptor
 
-- Включает UI
-- Включает финализатор (ClickHouse sink + API)
-- Включает DataAggregator для работы с Kafka/Debezium
-- Не включает интерцептор (работает только с данными из Debezium)
+**Запуск:**
+```bash
+dotnet run --project ChangeLogMonitor.Standalone
+```
 
-Используется когда нужно развернуть систему аудита отдельно от основного приложения.
+Подробная документация: [DOCUMENTATION.md](../DOCUMENTATION.md#changelogmonitorstandalone)

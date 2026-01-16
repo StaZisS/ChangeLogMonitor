@@ -99,13 +99,19 @@ Each module has:
 
 ## Target Framework
 
-All projects target `.NET 8.0` with `nullable` reference types enabled.
+All projects target `.NET 9.0` with `nullable` reference types enabled.
 
 ## Key Technologies
 
-- **Entity Framework Core** - for interceptor and database access
+- **Entity Framework Core 9** - for interceptor and database access
 - **Kafka** - message broker for CDC events
 - **Debezium** - CDC connector
+- **ClickHouse** - audit log storage
 - **Razor Pages** - for UI
-- **YAML** - for audit configuration (use YamlDotNet or similar)
+- **YAML** - for audit configuration (YamlDotNet)
 - **PostgreSQL/SQL Server/MySQL** - supported databases
+
+## Documentation
+
+- **DOCUMENTATION.md** - full project documentation (all modules)
+- **CONFIGURATION.md** - configuration reference (YAML and JSON)
