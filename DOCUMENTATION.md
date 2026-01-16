@@ -471,23 +471,18 @@ dotnet ef database update \
 
 ---
 
-## Структура проекта
+## Помощь в конфигурации
+
+Для помощи в синтаксисе созданы подсказки в rider
+
+Для активации необходимо
 
 ```
-ChangeLogMonitor/
-├── ChangeLogMonitor.Core/              # Базовые абстракции
-├── ChangeLogMonitor.Configuration/     # YAML конфигурация
-├── ChangeLogMonitor.Interceptor/       # EF Core интерцептор
-├── ChangeLogMonitor.DataAggregator/    # Kafka агрегация
-├── ChangeLogMonitor.Finalization/      # ClickHouse sink + API
-├── ChangeLogMonitor.UI/                # Razor Pages UI
-├── ChangeLogMonitor.Standalone/        # Standalone приложение
-├── ChangeLogMonitor.Embedded/          # Библиотека для встраивания
-├── ChangeLogMonitor.Protos/            # Protobuf схемы
-├── ChangeLogMonitor.TestHarness/       # Тестовый стенд
-├── ChangeLogMonitor.*.Tests/           # Тестовые проекты
-├── changelog-config.example.yaml       # Пример конфигурации аудита
-├── appsettings.example.json            # Пример инфраструктурных настроек
-├── CONFIGURATION.md                    # Документация по конфигурации
-└── DOCUMENTATION.md                    # Эта документация
+ 1. Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings                                                                                                                                                                                                                                 
+ 2. Нажать +                                                                                                                                                                                                                                                                                                    
+ 3. Заполнить:                                                                                                                                                                                                                                                                                                  
+   - Name: ChangeLogMonitor Config                                                                                                                                                                                                                                                                              
+   - Schema file or URL: выбрать changelog-config.schema.yaml                                                                                                                                                                                                                                                   
+   - Нажать + в нижней части и добавить File path pattern: changelog-config*.yaml                                                                                                                                                                                                                               
+ 4. Apply → OK 
 ```

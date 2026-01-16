@@ -1,0 +1,713 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://github.com/your-repo/changelog-config.schema.yaml
+title: ChangeLogMonitor Configuration
+description: Schema for changelog-config.yaml audit policy configuration
+type: object
+
+properties:
+  auditPolicy:
+    $ref: "#/$defs/auditPolicy"
+
+required:
+  - auditPolicy
+
+$defs:
+  auditPolicy:
+    type: object
+    description: Main audit policy configuration
+    properties:
+      version:
+        type: string
+        description: Configuration version
+        default: "1.0"
+      mode:
+        type: string
+        enum: [whitelist, blacklist]
+        description: "Audit mode: whitelist (only specified entities) or blacklist (all except specified)"
+      onCreate:
+        $ref: "#/$defs/createBehavior"
+        description: Default behavior on entity creation
+      onUpdate:
+        $ref: "#/$defs/updateBehavior"
+        description: Default behavior on entity update
+      onDelete:
+        $ref: "#/$defs/deleteBehavior"
+        description: Default behavior on entity deletion
+      globalFieldExclusions:
+        type: array
+        items:
+          type: string
+        description: "Fields excluded from logging globally (e.g., RowVersion, ConcurrencyToken)"
+      methodPresets:
+        $ref: "#/$defs/methodPresets"
+      referencePresets:
+        type: object
+        description: Named presets for FK reference display
+        additionalProperties:
+          $ref: "#/$defs/referencePreset"
+      collectionPresets:
+        type: object
+        description: Named presets for collection change display
+        additionalProperties:
+          $ref: "#/$defs/collectionPreset"
+      referenceDefaults:
+        $ref: "#/$defs/referenceDefaults"
+      collectionDefaults:
+        $ref: "#/$defs/collectionDefaults"
+      entities:
+        type: object
+        description: Entity-specific audit policies
+        additionalProperties:
+          $ref: "#/$defs/entityPolicy"
+      defaultCulture:
+        type: string
+        description: "Default culture for formatting (e.g., ru-RU, en-US)"
+        default: en-US
+      defaultTimeZone:
+        type: string
+        description: "Default timezone (e.g., Asia/Almaty, UTC)"
+        default: UTC
+      accessControl:
+        $ref: "#/$defs/accessControl"
+    additionalProperties: false
+
+  createBehavior:
+    type: string
+    enum: [eventOnly, allFields, nonDefaultFields]
+    description: "eventOnly - log only the event; allFields - log all field values; nonDefaultFields - log only non-default values"
+
+  updateBehavior:
+    type: string
+    enum: [delta, fullSnapshot]
+    description: "delta - log only changed fields; fullSnapshot - log all fields"
+
+  deleteBehavior:
+    type: string
+    enum: [eventOnly, allFields]
+    description: "eventOnly - log only the event; allFields - log all field values before deletion"
+
+  methodPresets:
+    type: object
+    description: Presets for field transformation methods
+    properties:
+      mask:
+        type: object
+        description: "Masking presets (e.g., for email, phone)"
+        additionalProperties:
+          $ref: "#/$defs/maskPreset"
+      hash:
+        type: object
+        description: "Hashing presets (e.g., SHA-256 with salt)"
+        additionalProperties:
+          $ref: "#/$defs/hashPreset"
+      encrypt:
+        type: object
+        description: "Encryption presets (e.g., AES-256-GCM)"
+        additionalProperties:
+          $ref: "#/$defs/encryptPreset"
+    additionalProperties: false
+
+  maskPreset:
+    type: object
+    description: Masking preset configuration
+    properties:
+      char:
+        type: string
+        description: Character used for masking
+        default: "*"
+      keepLeft:
+        type: integer
+        description: Number of characters to keep visible on the left
+        minimum: 0
+      keepRight:
+        type: integer
+        description: Number of characters to keep visible on the right
+        minimum: 0
+      preserveDomain:
+        type: boolean
+        description: "For emails: keep domain visible (e.g., ***@example.com)"
+      preserveFormat:
+        type: boolean
+        description: "Preserve original formatting (spaces, dashes, etc.)"
+    additionalProperties: false
+
+  hashPreset:
+    type: object
+    description: Hashing preset configuration
+    properties:
+      algo:
+        type: string
+        enum: [SHA-256, SHA-384, SHA-512, BLAKE2b, BLAKE3]
+        description: Hash algorithm
+      salt:
+        $ref: "#/$defs/saltSettings"
+      pepperRef:
+        type: string
+        description: "Reference to pepper secret (e.g., env:AUDIT_PEPPER, kms:alias/pepper)"
+      encoding:
+        type: string
+        enum: [base64, hex]
+        description: Output encoding format
+      storeRaw:
+        type: boolean
+        description: Store raw (unhashed) value
+        default: false
+      storeHash:
+        type: boolean
+        description: Store hashed value
+        default: true
+      equalityToken:
+        type: boolean
+        description: Generate token for equality comparison
+    additionalProperties: false
+
+  saltSettings:
+    type: object
+    description: Salt configuration for hashing
+    properties:
+      strategy:
+        type: string
+        enum: [per-record, per-field, global]
+        description: Salt generation strategy
+      ref:
+        type: string
+        description: "Reference to salt value (e.g., kms:alias/audit-salt)"
+    additionalProperties: false
+
+  encryptPreset:
+    type: object
+    description: Encryption preset configuration
+    properties:
+      algo:
+        type: string
+        enum: [AES-256-GCM, AES-256-CBC, ChaCha20-Poly1305]
+        description: Encryption algorithm
+      keyRef:
+        type: string
+        description: "Reference to encryption key (e.g., kms:alias/audit-log)"
+      aad:
+        type: array
+        items:
+          type: string
+        description: Additional authenticated data fields
+      iv:
+        $ref: "#/$defs/ivSettings"
+      encoding:
+        type: string
+        enum: [base64, hex]
+        description: Output encoding format
+      storeRaw:
+        type: boolean
+        description: Store raw (unencrypted) value
+        default: false
+    additionalProperties: false
+
+  ivSettings:
+    type: object
+    description: Initialization vector configuration
+    properties:
+      strategy:
+        type: string
+        enum: [random, counter, derived]
+        description: IV generation strategy
+      store:
+        type: boolean
+        description: Store IV with encrypted value
+      length:
+        type: integer
+        description: IV length in bytes
+        minimum: 8
+        maximum: 32
+    additionalProperties: false
+
+  referencePreset:
+    type: object
+    description: Preset for FK reference display
+    properties:
+      showKey:
+        type: boolean
+        description: Show foreign key value
+      showName:
+        type: boolean
+        description: Show resolved entity name
+      viewTemplate:
+        type: string
+        description: "Display template (use {key}, {name}, {maskedName} placeholders)"
+      nameMaskPreset:
+        type: string
+        description: Mask preset to apply to resolved name
+    additionalProperties: false
+
+  collectionPreset:
+    type: object
+    description: Preset for collection change display
+    properties:
+      logDeltas:
+        type: boolean
+        description: Log added/removed items
+      showKeys:
+        type: boolean
+        description: Show item keys
+      showNames:
+        type: boolean
+        description: Show item names
+      itemViewTemplate:
+        type: string
+        description: "Display template for items (use {key}, {name} placeholders)"
+      collapseToCounters:
+        type: boolean
+        description: Show only counts instead of item details
+    additionalProperties: false
+
+  referenceDefaults:
+    type: object
+    description: Default settings for FK references
+    properties:
+      showKey:
+        type: boolean
+        description: Show foreign key value by default
+      showName:
+        type: boolean
+        description: Show resolved entity name by default
+      viewTemplate:
+        type: string
+        description: Default display template
+      nameResolve:
+        $ref: "#/$defs/nameResolveSettings"
+    additionalProperties: false
+
+  nameResolveSettings:
+    type: object
+    description: Name resolution settings
+    properties:
+      stage:
+        type: string
+        enum: [capture, normalization, display]
+        description: When to resolve the name
+      fallback:
+        type: string
+        description: Fallback template if resolution fails
+      maxLen:
+        type: integer
+        description: Maximum length for resolved name
+        minimum: 1
+    additionalProperties: false
+
+  collectionDefaults:
+    type: object
+    description: Default settings for collections
+    properties:
+      logDeltas:
+        type: boolean
+        description: Log added/removed items by default
+      showKeys:
+        type: boolean
+        description: Show item keys by default
+      showNames:
+        type: boolean
+        description: Show item names by default
+      itemViewTemplate:
+        type: string
+        description: Default display template for items
+      limits:
+        $ref: "#/$defs/collectionLimits"
+    additionalProperties: false
+
+  collectionLimits:
+    type: object
+    description: Limits for collection logging
+    properties:
+      addedMax:
+        type: integer
+        description: Maximum number of added items to log
+        minimum: 0
+      removedMax:
+        type: integer
+        description: Maximum number of removed items to log
+        minimum: 0
+    additionalProperties: false
+
+  entityPolicy:
+    type: object
+    description: Audit policy for a specific entity
+    properties:
+      enabled:
+        type: boolean
+        description: Enable/disable auditing for this entity
+      displayName:
+        type: string
+        description: Human-readable name for the entity
+      onCreate:
+        $ref: "#/$defs/createBehavior"
+      onUpdate:
+        $ref: "#/$defs/updateBehavior"
+      onDelete:
+        $ref: "#/$defs/deleteBehavior"
+      fields:
+        type: object
+        description: Field-specific policies
+        additionalProperties:
+          oneOf:
+            - type: string
+              enum: [include, exclude]
+              description: "Short syntax: include or exclude the field"
+            - $ref: "#/$defs/fieldPolicy"
+      references:
+        type: object
+        description: FK reference policies
+        additionalProperties:
+          $ref: "#/$defs/referencePolicy"
+      collections:
+        type: object
+        description: Collection change policies
+        additionalProperties:
+          $ref: "#/$defs/collectionPolicy"
+      access:
+        $ref: "#/$defs/entityAccess"
+    additionalProperties: false
+
+  fieldPolicy:
+    type: object
+    description: Detailed field policy configuration
+    properties:
+      action:
+        type: string
+        enum: [include, exclude, mask, hash, encrypt]
+        description: Action to perform on this field
+      view:
+        $ref: "#/$defs/viewSettings"
+      mask:
+        $ref: "#/$defs/maskSettings"
+      hash:
+        $ref: "#/$defs/hashSettings"
+      encrypt:
+        $ref: "#/$defs/encryptSettings"
+    additionalProperties: false
+
+  viewSettings:
+    type: object
+    description: Display formatting settings
+    properties:
+      format:
+        type: string
+        enum: [date, datetime, time, money, percent, number, enum, json, custom]
+        description: Format type
+      pattern:
+        type: string
+        description: "Format pattern (e.g., dd.MM.yyyy)"
+      culture:
+        type: string
+        description: "Culture for formatting (e.g., ru-RU)"
+      enumType:
+        type: string
+        description: Enum type name for enum format
+      enumLabel:
+        type: boolean
+        description: Use enum label instead of value
+      refName:
+        type: boolean
+        description: Show referenced entity name
+    additionalProperties: false
+
+  maskSettings:
+    type: object
+    description: Masking settings for a field
+    properties:
+      preset:
+        type: string
+        description: Reference to a mask preset
+      char:
+        type: string
+        description: Character used for masking
+      keepLeft:
+        type: integer
+        description: Characters to keep on the left
+        minimum: 0
+      keepRight:
+        type: integer
+        description: Characters to keep on the right
+        minimum: 0
+      preserveDomain:
+        type: boolean
+        description: Preserve email domain
+      preserveFormat:
+        type: boolean
+        description: Preserve original formatting
+      regex:
+        type: string
+        description: Regex pattern for custom masking
+      replace:
+        type: string
+        description: Replacement string for regex
+    additionalProperties: false
+
+  hashSettings:
+    type: object
+    description: Hashing settings for a field
+    properties:
+      preset:
+        type: string
+        description: Reference to a hash preset
+      algo:
+        type: string
+        enum: [SHA-256, SHA-384, SHA-512, BLAKE2b, BLAKE3]
+        description: Hash algorithm
+      salt:
+        $ref: "#/$defs/saltSettings"
+      pepperRef:
+        type: string
+        description: Reference to pepper secret
+      encoding:
+        type: string
+        enum: [base64, hex]
+      storeRaw:
+        type: boolean
+      storeHash:
+        type: boolean
+      equalityToken:
+        type: boolean
+    additionalProperties: false
+
+  encryptSettings:
+    type: object
+    description: Encryption settings for a field
+    properties:
+      preset:
+        type: string
+        description: Reference to an encrypt preset
+      algo:
+        type: string
+        enum: [AES-256-GCM, AES-256-CBC, ChaCha20-Poly1305]
+      keyRef:
+        type: string
+        description: Reference to encryption key
+      aad:
+        type: array
+        items:
+          type: string
+      iv:
+        $ref: "#/$defs/ivSettings"
+      encoding:
+        type: string
+        enum: [base64, hex]
+      storeRaw:
+        type: boolean
+      rotate:
+        $ref: "#/$defs/rotateSettings"
+    additionalProperties: false
+
+  rotateSettings:
+    type: object
+    description: Key rotation settings
+    properties:
+      enabled:
+        type: boolean
+      policy:
+        type: string
+        description: Rotation policy name
+    additionalProperties: false
+
+  referencePolicy:
+    type: object
+    description: Policy for a FK reference field
+    properties:
+      preset:
+        type: string
+        description: Reference to a reference preset
+      showKey:
+        type: boolean
+      showName:
+        type: boolean
+      viewTemplate:
+        type: string
+      nameSelector:
+        type: string
+        description: "Path to name property (e.g., Department.Name)"
+      nameResolve:
+        $ref: "#/$defs/nameResolveSettings"
+      nameMaskPreset:
+        type: string
+      key:
+        $ref: "#/$defs/keySensitivitySettings"
+      nullTransitions:
+        type: string
+        enum: [log, ignore]
+        description: How to handle null transitions
+      changedAs:
+        type: string
+        description: Log as different field name
+    additionalProperties: false
+
+  keySensitivitySettings:
+    type: object
+    description: Sensitivity settings for FK key
+    properties:
+      treatAsSensitive:
+        type: boolean
+      maskPreset:
+        type: string
+      hashPreset:
+        type: string
+    additionalProperties: false
+
+  collectionPolicy:
+    type: object
+    description: Policy for a collection property
+    properties:
+      preset:
+        type: string
+        description: Reference to a collection preset
+      logDeltas:
+        type: boolean
+      showKeys:
+        type: boolean
+      showNames:
+        type: boolean
+      itemKeySelector:
+        type: string
+        description: Path to item key property
+      itemNameSelector:
+        type: string
+        description: Path to item name property
+      itemViewTemplate:
+        type: string
+      deltaView:
+        $ref: "#/$defs/deltaViewSettings"
+      limits:
+        $ref: "#/$defs/collectionLimits"
+      countOnlyWhenLarge:
+        $ref: "#/$defs/countOnlySettings"
+      trackReordering:
+        type: boolean
+        description: Track item reordering
+      includeOnCreate:
+        type: string
+        enum: [full, count, none]
+      includeOnDelete:
+        type: string
+        enum: [full, count, none]
+      membershipKeysSensitive:
+        type: boolean
+      m2m:
+        $ref: "#/$defs/m2mSettings"
+    additionalProperties: false
+
+  deltaViewSettings:
+    type: object
+    description: Display settings for delta changes
+    properties:
+      addedPrefix:
+        type: string
+        description: Prefix for added items
+      removedPrefix:
+        type: string
+        description: Prefix for removed items
+      joiner:
+        type: string
+        description: String to join multiple items
+      collapseToCounters:
+        type: boolean
+    additionalProperties: false
+
+  countOnlySettings:
+    type: object
+    description: Settings for count-only mode
+    properties:
+      enabled:
+        type: boolean
+      threshold:
+        type: integer
+        description: Switch to count-only above this threshold
+        minimum: 1
+    additionalProperties: false
+
+  m2mSettings:
+    type: object
+    description: Many-to-many relationship settings
+    properties:
+      joinEntity:
+        type: string
+        description: Name of the join entity
+      joinFields:
+        type: array
+        items:
+          type: string
+        description: Fields in the join table to track
+      treatJoinCudAsMembership:
+        type: boolean
+        description: Treat join table CUD as membership changes
+    additionalProperties: false
+
+  entityAccess:
+    type: object
+    description: Access control for entity audit logs
+    properties:
+      allowedRoles:
+        type: array
+        items:
+          type: string
+        description: Roles allowed to view this entity's audit logs
+    additionalProperties: false
+
+  accessControl:
+    type: object
+    description: Global access control settings
+    properties:
+      enabled:
+        type: boolean
+        description: Enable access control
+        default: false
+      unauthorizedBehavior:
+        type: string
+        enum: [deny, filter]
+        description: "deny - return 403; filter - return empty results"
+      roles:
+        type: object
+        description: Role definitions
+        additionalProperties:
+          $ref: "#/$defs/roleDefinition"
+      users:
+        type: object
+        description: User to role mappings
+        additionalProperties:
+          $ref: "#/$defs/userRoles"
+      defaultRoles:
+        type: array
+        items:
+          type: string
+        description: Default roles for unmapped users
+      allowAnonymous:
+        type: boolean
+        description: Allow access without authentication
+        default: false
+      anonymousRoles:
+        type: array
+        items:
+          type: string
+        description: Roles for anonymous users
+    additionalProperties: false
+
+  roleDefinition:
+    type: object
+    description: Role definition
+    properties:
+      description:
+        type: string
+      allowAll:
+        type: boolean
+        description: Bypass all access checks
+        default: false
+    additionalProperties: false
+
+  userRoles:
+    type: object
+    description: User role assignment
+    properties:
+      roles:
+        type: array
+        items:
+          type: string
+        description: Roles assigned to this user
+    required:
+      - roles
+    additionalProperties: false

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=./changelog-config.schema.yaml
 # Пример конфигурации политики аудита для ChangeLogMonitor
 # Скопируйте этот файл в changelog-config.yaml и настройте под свои нужды
 
