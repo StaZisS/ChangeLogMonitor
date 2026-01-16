@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Core.Interfaces;
 using ChangeLogMonitor.Core.Models;
 using ChangeLogMonitor.Finalization.Localization;
@@ -18,15 +19,18 @@ internal sealed class AuditLogViewService : IAuditLogViewService
     private readonly IDiffService _diffService;
     private readonly IAccessControlService _accessControl;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAuditConfigurationService _configurationService;
 
     public AuditLogViewService(
         IDiffService diffService,
         IAccessControlService accessControl,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IAuditConfigurationService configurationService)
     {
         _diffService = diffService;
         _accessControl = accessControl;
         _currentUser = currentUser;
+        _configurationService = configurationService;
     }
 
     /// <inheritdoc />
@@ -41,6 +45,41 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         var userId = _currentUser.GetUserId();
         var roles = _accessControl.GetUserRoles(userId);
         return _accessControl.GetAllowedEntities(roles);
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<EntityInfo> GetAvailableEntities()
+    {
+        var policy = _configurationService.GetPolicy();
+        var entities = policy.Entities;
+
+        // Если контроль доступа включен - фильтруем по разрешённым сущностям
+        if (_accessControl.IsEnabled)
+        {
+            var allowedEntities = GetAllowedEntities();
+            var allowedSet = new HashSet<string>(allowedEntities, StringComparer.OrdinalIgnoreCase);
+
+            return entities
+                .Where(e => e.Value.Enabled && allowedSet.Contains(e.Key))
+                .Select(e => new EntityInfo
+                {
+                    Name = e.Key,
+                    DisplayName = e.Value.DisplayName ?? e.Key
+                })
+                .OrderBy(e => e.DisplayName)
+                .ToList();
+        }
+
+        // Без контроля доступа - возвращаем все включенные сущности
+        return entities
+            .Where(e => e.Value.Enabled)
+            .Select(e => new EntityInfo
+            {
+                Name = e.Key,
+                DisplayName = e.Value.DisplayName ?? e.Key
+            })
+            .OrderBy(e => e.DisplayName)
+            .ToList();
     }
 
     public async Task<AuditLogListViewModel> GetLogsAsync(

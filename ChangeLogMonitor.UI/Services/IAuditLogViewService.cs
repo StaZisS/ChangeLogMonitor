@@ -22,4 +22,10 @@ public interface IAuditLogViewService
     ///     Проверяет, включен ли контроль доступа
     /// </summary>
     bool IsAccessControlEnabled { get; }
+
+    /// <summary>
+    ///     Получает список всех настроенных сущностей с их display names.
+    ///     Если включен контроль доступа - возвращает только доступные пользователю сущности.
+    /// </summary>
+    IReadOnlyList<EntityInfo> GetAvailableEntities();
 }

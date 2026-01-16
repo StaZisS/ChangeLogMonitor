@@ -12,6 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\ChangeLogMonitor.Configuration\ChangeLogMonitor.Configuration.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.Core\ChangeLogMonitor.Core.csproj"/>
         <ProjectReference Include="..\ChangeLogMonitor.Finalization\ChangeLogMonitor.Finalization.csproj"/>
     </ItemGroup>

@@ -43,8 +43,23 @@
                             </div>
                         </td>
                         <td>
-                            <input type="text" class="form-control form-control-sm" name="tableName"
-                                   value="@Model.TableName" placeholder="Таблица..."/>
+                            @if (Model.AvailableEntities.Count > 0)
+                            {
+                                <select class="form-select form-select-sm" name="tableName">
+                                    <option value="">Все</option>
+                                    @foreach (var entity in Model.AvailableEntities)
+                                    {
+                                        <option value="@entity.Name" selected="@(Model.TableName == entity.Name)">
+                                            @entity.DisplayName
+                                        </option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                <input type="text" class="form-control form-control-sm" name="tableName"
+                                       value="@Model.TableName" placeholder="Таблица..."/>
+                            }
                         </td>
                         <td>
                             <select class="form-select form-select-sm" name="operation">

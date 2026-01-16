@@ -46,20 +46,14 @@ public class IndexModel : PageModel
     public AuditLogListViewModel ViewModel { get; set; } = new();
 
     /// <summary>
-    ///     Список сущностей, доступных текущему пользователю (для dropdown фильтра)
+    ///     Список сущностей, доступных для запроса (для dropdown фильтра)
     /// </summary>
-    public IReadOnlyList<string> AllowedEntities { get; set; } = Array.Empty<string>();
-
-    /// <summary>
-    ///     Включен ли контроль доступа
-    /// </summary>
-    public bool IsAccessControlEnabled { get; set; }
+    public IReadOnlyList<EntityInfo> AvailableEntities { get; set; } = Array.Empty<EntityInfo>();
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        // Загружаем информацию о контроле доступа
-        IsAccessControlEnabled = _viewService.IsAccessControlEnabled;
-        AllowedEntities = _viewService.GetAllowedEntities();
+        // Загружаем информацию о доступных сущностях
+        AvailableEntities = _viewService.GetAvailableEntities();
 
         var filter = new AuditLogFilterViewModel
         {
