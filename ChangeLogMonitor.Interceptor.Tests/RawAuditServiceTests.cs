@@ -69,7 +69,7 @@ public class RawAuditServiceTests : IntegrationTestBase
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         var affected = await context.Database.ExecuteSqlRawAsync(
-            "UPDATE users SET is_active = false WHERE id = {0}",
+            "UPDATE users SET \"IsActive\" = false WHERE \"Id\" = {0}",
             user.Id);
 
         await rawAuditService.RecordRawOperationAsync(
@@ -233,7 +233,7 @@ public class RawAuditServiceTests : IntegrationTestBase
         var affected = await context.ExecuteSqlRawWithAuditAsync(
             rawAuditService,
             targetEntity: "users",
-            sql: "UPDATE users SET is_active = false WHERE id = {0}",
+            sql: "UPDATE users SET \"IsActive\" = false WHERE \"Id\" = {0}",
             parameters: new object[] { user.Id },
             reason: "Deactivate user via extension");
 
@@ -278,7 +278,7 @@ public class RawAuditServiceTests : IntegrationTestBase
         var affected = await context.ExecuteSqlInterpolatedWithAuditAsync(
             rawAuditService,
             targetEntity: "users",
-            sql: $"UPDATE users SET is_active = false WHERE id = {userId}",
+            sql: $"UPDATE users SET \"IsActive\" = false WHERE \"Id\" = {userId}",
             reason: "Interpolated update");
 
         await transaction.CommitAsync();
@@ -310,7 +310,7 @@ public class RawAuditServiceTests : IntegrationTestBase
 
             var affected = await context.ExecuteSqlRawWithScopeAuditAsync(
                 rawAuditService,
-                sql: "UPDATE users SET is_active = true WHERE 1=0");
+                sql: "UPDATE users SET \"IsActive\" = true WHERE 1=0");
 
             await transaction.CommitAsync();
         }
