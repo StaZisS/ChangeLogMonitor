@@ -1,8 +1,5 @@
 namespace ChangeLogMonitor.Integration.Tests.TestEntities;
 
-/// <summary>
-///     Позиция заказа для тестирования
-/// </summary>
 public class OrderItem
 {
     public int Id { get; set; }

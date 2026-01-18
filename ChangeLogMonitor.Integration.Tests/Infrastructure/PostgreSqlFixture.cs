@@ -4,11 +4,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Integration.Tests.Infrastructure;
 
-/// <summary>
-///     Fixture для PostgreSQL контейнера.
-///     Создаёт один контейнер для всех тестов в коллекции
-///     и создает схему БД один раз перед всеми тестами.
-/// </summary>
 public class PostgreSqlFixture : IAsyncLifetime
 {
     private readonly SemaphoreSlim _schemaReadySemaphore = new(0, 1);

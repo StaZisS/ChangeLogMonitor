@@ -41,10 +41,7 @@ public sealed class EnumMetadataExtractor
         var result = new EnumExtractionResult();
         var processedEnums = new HashSet<(Type enumType, long value)>();
 
-        foreach (var entry in entries)
-        {
-            ExtractFromEntry(entry, result, processedEnums);
-        }
+        foreach (var entry in entries) ExtractFromEntry(entry, result, processedEnums);
 
         return result;
     }
@@ -83,9 +80,7 @@ public sealed class EnumMetadataExtractor
             CollectEnumValue(underlyingType, property.CurrentValue, result.Snapshots, processedEnums);
 
             if (entry.State == EntityState.Modified || entry.State == EntityState.Deleted)
-            {
                 CollectEnumValue(underlyingType, property.OriginalValue, result.Snapshots, processedEnums);
-            }
         }
     }
 
@@ -100,7 +95,7 @@ public sealed class EnumMetadataExtractor
 
         var numericValue = Convert.ToInt64(value);
         var key = (enumType, numericValue);
-        
+
         if (!processedEnums.Add(key))
             return;
 

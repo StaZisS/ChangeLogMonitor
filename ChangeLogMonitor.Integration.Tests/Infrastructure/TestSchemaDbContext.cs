@@ -4,9 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChangeLogMonitor.Integration.Tests.Infrastructure;
 
-/// <summary>
-///     DbContext для создания схемы БД, включает все тестовые сущности и audit_log
-/// </summary>
 public class TestSchemaDbContext : DbContext
 {
     public TestSchemaDbContext(DbContextOptions<TestSchemaDbContext> options) : base(options)
@@ -23,7 +20,6 @@ public class TestSchemaDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Customer
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.ToTable("customers");
@@ -37,7 +33,6 @@ public class TestSchemaDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
         });
 
-        // Product
         modelBuilder.Entity<Product>(entity =>
         {
             entity.ToTable("products");
@@ -50,7 +45,6 @@ public class TestSchemaDbContext : DbContext
             entity.Property(e => e.IsAvailable).HasColumnName("is_available");
         });
 
-        // Order
         modelBuilder.Entity<Order>(entity =>
         {
             entity.ToTable("orders");
@@ -68,7 +62,6 @@ public class TestSchemaDbContext : DbContext
                 .HasForeignKey(e => e.CustomerId);
         });
 
-        // OrderItem
         modelBuilder.Entity<OrderItem>(entity =>
         {
             entity.ToTable("order_items");
@@ -88,7 +81,6 @@ public class TestSchemaDbContext : DbContext
                 .HasForeignKey(e => e.ProductId);
         });
 
-        // AuditLog (from Interceptor)
         modelBuilder.Entity<AuditLog>(entity =>
         {
             entity.ToTable("audit_log");

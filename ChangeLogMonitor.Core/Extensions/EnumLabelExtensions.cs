@@ -3,7 +3,7 @@ using ChangeLogMonitor.Core.Services;
 namespace ChangeLogMonitor.Core.Extensions;
 
 /// <summary>
-///     Extension методы для получения лейблов enum из атрибутов <see cref="Attributes.AuditEnumLabelAttribute"/>.
+///     Extension методы для получения лейблов enum из атрибутов <see cref="Attributes.AuditEnumLabelAttribute" />.
 /// </summary>
 public static class EnumLabelExtensions
 {
@@ -11,7 +11,7 @@ public static class EnumLabelExtensions
 
     /// <summary>
     ///     Возвращает человекочитаемый лейбл для значения enum.
-    ///     Если атрибут <see cref="Attributes.AuditEnumLabelAttribute"/> не найден, возвращает имя значения.
+    ///     Если атрибут <see cref="Attributes.AuditEnumLabelAttribute" /> не найден, возвращает имя значения.
     /// </summary>
     public static string GetLabel<TEnum>(this TEnum value) where TEnum : struct, Enum
     {
@@ -49,7 +49,7 @@ public static class EnumLabelExtensions
 
         return new Dictionary<string, Dictionary<string, string>>
         {
-            [typeof(TEnum).Name] = new Dictionary<string, string>(labels)
+            [typeof(TEnum).Name] = new(labels)
         };
     }
 }

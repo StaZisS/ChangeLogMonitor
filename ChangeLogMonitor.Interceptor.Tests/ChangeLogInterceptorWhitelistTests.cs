@@ -5,9 +5,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Interceptor.Tests;
 
-/// <summary>
-///     Интеграционные тесты для ChangeLogInterceptor в режиме whitelist
-/// </summary>
 [Collection("IntegrationTests")]
 public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
 {
@@ -20,7 +17,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
     [Fact]
     public async Task Should_CreateAuditLog_When_AuditableEntityIsCreated()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -31,11 +27,9 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogCount = await GetAuditLogCountAsync();
         auditLogCount.Should().Be(1, "one User entity was created and User is in whitelist");
 
@@ -50,7 +44,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
     [Fact]
     public async Task Should_CreateAuditLog_When_AuditableEntityIsUpdated()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -63,14 +56,12 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        await CleanAuditLogAsync(); // Очищаем audit_log после создания
+        await CleanAuditLogAsync();
 
-        // Act - обновляем пользователя
         user.Name = "Jane Smith";
         user.Email = "jane.smith@example.com";
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogCount = await GetAuditLogCountAsync();
         auditLogCount.Should().Be(1, "one User entity was updated and User is in whitelist");
     }
@@ -78,7 +69,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
     [Fact]
     public async Task Should_CreateAuditLog_When_AuditableEntityIsDeleted()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -91,13 +81,11 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        await CleanAuditLogAsync(); // Очищаем audit_log после создания
+        await CleanAuditLogAsync();
 
-        // Act - удаляем пользователя
         context.Users.Remove(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogCount = await GetAuditLogCountAsync();
         auditLogCount.Should().Be(1, "one User entity was deleted and User is in whitelist");
     }
@@ -105,7 +93,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
     [Fact]
     public async Task Should_NotCreateAuditLog_When_NonAuditableEntityIsCreated()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var sessionCache = new SessionCache
@@ -115,11 +102,9 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
             ExpiresAt = DateTime.UtcNow.AddHours(1)
         };
 
-        // Act
         context.SessionCaches.Add(sessionCache);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogCount = await GetAuditLogCountAsync();
         auditLogCount.Should().Be(0, "SessionCache is NOT in whitelist, so should not be audited");
     }
@@ -127,7 +112,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
     [Fact]
     public async Task Should_CreateAuditLog_ForEachAuditableEntity_When_MultipleEntitiesAreCreated()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -138,7 +122,7 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
         context.Users.Add(user);
-        await context.SaveChangesAsync(); // Сохраняем user, чтобы получить Id
+        await context.SaveChangesAsync();
 
         var order = new Order
         {
@@ -148,9 +132,8 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
             OrderDate = DateTime.UtcNow
         };
         context.Orders.Add(order);
-        await context.SaveChangesAsync(); // Сохраняем order
+        await context.SaveChangesAsync();
 
-        // Assert
         var auditLogCount = await GetAuditLogCountAsync();
         auditLogCount.Should().Be(2, "both User and Order are in whitelist");
     }
@@ -158,7 +141,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
     [Fact]
     public async Task Should_CreateOnlyOneAuditLog_When_MultipleAuditableEntitiesInSingleTransaction()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -177,12 +159,10 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
             OrderDate = DateTime.UtcNow
         };
 
-        // Act - добавляем обе сущности в одной транзакции
         context.Users.Add(user);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogCount = await GetAuditLogCountAsync();
         auditLogCount.Should().Be(1, "one transaction captured metadata for multiple entities");
 
@@ -193,8 +173,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
     [Fact]
     public async Task Should_CreateSeparateAuditLogs_When_EntitiesSavedInSeparateTransactions()
     {
-        // Arrange
-        // Act - первая транзакция
         await using (var context1 = CreateAppDbContext(WhitelistConfigPath))
         {
             var user1 = new User
@@ -208,7 +186,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
             await context1.SaveChangesAsync();
         }
 
-        // Act - вторая транзакция
         await using (var context2 = CreateAppDbContext(WhitelistConfigPath))
         {
             var user2 = new User
@@ -222,7 +199,6 @@ public class ChangeLogInterceptorWhitelistTests : IntegrationTestBase
             await context2.SaveChangesAsync();
         }
 
-        // Assert
         var auditLogCount = await GetAuditLogCountAsync();
         auditLogCount.Should().Be(2, "two separate transactions should create two audit logs");
 

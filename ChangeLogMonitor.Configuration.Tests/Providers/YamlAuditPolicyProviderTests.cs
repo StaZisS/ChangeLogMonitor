@@ -24,7 +24,6 @@ public class YamlAuditPolicyProviderTests : IDisposable
     [Fact]
     public void Load_ValidYaml_ShouldDeserializeCorrectly()
     {
-        // Arrange
         var yamlContent = @"
 auditPolicy:
   version: ""1.0""
@@ -47,10 +46,8 @@ auditPolicy:
         File.WriteAllText(_testConfigPath, yamlContent);
         var provider = new YamlAuditPolicyProvider(_testConfigPath);
 
-        // Act
         var result = provider.Load();
 
-        // Assert
         result.Should().NotBeNull();
         result.AuditPolicy.Should().NotBeNull();
         result.AuditPolicy.Version.Should().Be("1.0");
@@ -63,7 +60,6 @@ auditPolicy:
     [Fact]
     public void Load_ShortFieldSyntax_ShouldNormalizeToLongSyntax()
     {
-        // Arrange
         var yamlContent = @"
 auditPolicy:
   version: ""1.0""
@@ -80,23 +76,19 @@ auditPolicy:
         File.WriteAllText(_testConfigPath, yamlContent);
         var provider = new YamlAuditPolicyProvider(_testConfigPath);
 
-        // Act
         var result = provider.Load();
 
-        // Assert
         var userEntity = result.AuditPolicy.Entities!["User"];
         userEntity.Fields.Should().ContainKey("Password");
         userEntity.Fields.Should().ContainKey("Email");
         userEntity.Fields.Should().ContainKey("FirstName");
 
-        // Проверяем, что короткий синтаксис был нормализован
         userEntity.Fields!["Password"].Should().NotBeNull();
     }
 
     [Fact]
     public void Load_ComplexYaml_ShouldDeserializeAllSections()
     {
-        // Arrange
         var yamlContent = @"
 auditPolicy:
   version: ""1.0""
@@ -160,10 +152,8 @@ auditPolicy:
         File.WriteAllText(_testConfigPath, yamlContent);
         var provider = new YamlAuditPolicyProvider(_testConfigPath);
 
-        // Act
         var result = provider.Load();
 
-        // Assert
         result.AuditPolicy.MethodPresets.Should().NotBeNull();
         result.AuditPolicy.MethodPresets!.Mask.Should().ContainKey("email");
 
@@ -182,14 +172,11 @@ auditPolicy:
     [Fact]
     public void Load_FileNotFound_ShouldThrowFileNotFoundException()
     {
-        // Arrange
         var nonExistentPath = Path.Combine(_testDirectory, "nonexistent.yaml");
         var provider = new YamlAuditPolicyProvider(nonExistentPath);
 
-        // Act
         var act = () => provider.Load();
 
-        // Assert
         act.Should().Throw<FileNotFoundException>()
             .WithMessage($"*{nonExistentPath}*");
     }
@@ -197,7 +184,6 @@ auditPolicy:
     [Fact]
     public void Load_MalformedYaml_ShouldThrowInvalidOperationException()
     {
-        // Arrange
         var yamlContent = @"
 auditPolicy:
   version: 1.0
@@ -206,10 +192,8 @@ auditPolicy:
         File.WriteAllText(_testConfigPath, yamlContent);
         var provider = new YamlAuditPolicyProvider(_testConfigPath);
 
-        // Act
         var act = () => provider.Load();
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Failed to parse YAML*");
     }
@@ -217,7 +201,6 @@ auditPolicy:
     [Fact]
     public async Task LoadAsync_ValidYaml_ShouldDeserializeCorrectly()
     {
-        // Arrange
         var yamlContent = @"
 auditPolicy:
   version: ""1.0""
@@ -230,10 +213,8 @@ auditPolicy:
         File.WriteAllText(_testConfigPath, yamlContent);
         var provider = new YamlAuditPolicyProvider(_testConfigPath);
 
-        // Act
         var result = await provider.LoadAsync();
 
-        // Assert
         result.Should().NotBeNull();
         result.AuditPolicy.Should().NotBeNull();
         result.AuditPolicy.Version.Should().Be("1.0");
@@ -242,7 +223,6 @@ auditPolicy:
     [Fact]
     public void Load_LongFieldSyntaxWithSettings_ShouldDeserializeCorrectly()
     {
-        // Arrange
         var yamlContent = @"
 auditPolicy:
   version: ""1.0""
@@ -283,32 +263,24 @@ auditPolicy:
         File.WriteAllText(_testConfigPath, yamlContent);
         var provider = new YamlAuditPolicyProvider(_testConfigPath);
 
-        // Act
         var result = provider.Load();
 
-        // Assert
         var userFields = result.AuditPolicy.Entities!["User"].Fields!;
 
-        // Проверяем Email (mask)
         userFields.Should().ContainKey("Email");
 
-        // Проверяем SSN (hash)
         userFields.Should().ContainKey("SSN");
 
-        // Проверяем CreditCard (encrypt)
         userFields.Should().ContainKey("CreditCard");
 
-        // Проверяем BirthDate (include с view)
         userFields.Should().ContainKey("BirthDate");
     }
 
     [Fact]
     public void Load_NullConstructor_ShouldThrowArgumentNullException()
     {
-        // Act
         var act = () => new YamlAuditPolicyProvider(null!);
 
-        // Assert
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("configFilePath");
     }

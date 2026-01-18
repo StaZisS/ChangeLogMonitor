@@ -14,10 +14,6 @@ public class ChangeLogInterceptorTransactionTests : IntegrationTestBase
     {
     }
 
-    /// <summary>
-    ///     Гарантирует, что интерцептор не открывает отдельные транзакции: одна бизнес-операция -> одна запись audit_log.
-    ///     Если интерцептор вызовет свой SaveChanges, Debezium увидит два transaction.id.
-    /// </summary>
     [Fact]
     public async Task Should_WriteAuditLogInSameTransaction()
     {

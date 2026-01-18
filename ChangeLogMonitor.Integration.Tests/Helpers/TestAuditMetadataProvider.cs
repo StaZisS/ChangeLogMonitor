@@ -2,9 +2,6 @@ using ChangeLogMonitor.Interceptor.Services;
 
 namespace ChangeLogMonitor.Integration.Tests.Helpers;
 
-/// <summary>
-///     Тестовая реализация IAuditMetadataProvider с настраиваемыми значениями
-/// </summary>
 public class TestAuditMetadataProvider : IAuditMetadataProvider
 {
     public string UserId { get; set; } = "test-user-id";
@@ -15,13 +12,40 @@ public class TestAuditMetadataProvider : IAuditMetadataProvider
     public string? UserAgent { get; set; } = "TestRunner/1.0";
     public Dictionary<string, string> Hints { get; set; } = new();
 
-    public string GetUserId() => UserId;
-    public string GetUserName() => UserName;
-    public string? GetRequestId() => RequestId;
-    public string? GetServiceName() => ServiceName;
-    public string? GetClientIp() => ClientIp;
-    public string? GetUserAgent() => UserAgent;
-    public Dictionary<string, string>? GetHints() => Hints;
+    public string GetUserId()
+    {
+        return UserId;
+    }
+
+    public string GetUserName()
+    {
+        return UserName;
+    }
+
+    public string? GetRequestId()
+    {
+        return RequestId;
+    }
+
+    public string? GetServiceName()
+    {
+        return ServiceName;
+    }
+
+    public string? GetClientIp()
+    {
+        return ClientIp;
+    }
+
+    public string? GetUserAgent()
+    {
+        return UserAgent;
+    }
+
+    public Dictionary<string, string>? GetHints()
+    {
+        return Hints;
+    }
 
     public void Reset()
     {

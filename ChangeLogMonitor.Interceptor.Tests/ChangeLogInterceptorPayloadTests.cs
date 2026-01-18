@@ -6,9 +6,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Interceptor.Tests;
 
-/// <summary>
-///     Интеграционные тесты для проверки содержимого protobuf payload
-/// </summary>
 [Collection("IntegrationTests")]
 public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
 {
@@ -21,7 +18,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_ContainCorrectUserInfo_InPayload()
     {
-        // Arrange
         MetadataProvider.UserId = "user-123";
         MetadataProvider.UserName = "John Smith";
 
@@ -35,11 +31,9 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(1);
 
@@ -54,7 +48,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_ContainTransactionId_InPayload()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -65,11 +58,9 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var auditLog = auditLogs.First();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLog.Payload);
@@ -82,7 +73,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_ContainCreatedAtTimestamp_InPayload()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var beforeSave = DateTimeOffset.UtcNow;
@@ -95,13 +85,11 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
         var afterSave = DateTimeOffset.UtcNow;
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 
@@ -112,7 +100,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_ContainRequestContext_WhenProvided()
     {
-        // Arrange
         MetadataProvider.RequestId = "req-test-789";
         MetadataProvider.ServiceName = "TestService";
         MetadataProvider.ClientIp = "192.168.1.100";
@@ -128,11 +115,9 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 
@@ -146,7 +131,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_ContainHints_WhenProvided()
     {
-        // Arrange
         MetadataProvider.Hints = new Dictionary<string, string>
         {
             { "action", "user-registration" },
@@ -164,11 +148,9 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 
@@ -181,7 +163,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_NotContainRequestContext_WhenNotProvided()
     {
-        // Arrange
         MetadataProvider.RequestId = null;
         MetadataProvider.ServiceName = null;
         MetadataProvider.ClientIp = null;
@@ -197,23 +178,18 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 
-        // В protobuf optional поля могут быть null или отсутствовать
-        // Проверяем что Request либо null, либо все поля пустые
         if (envelope.Request != null) envelope.Request.RequestId.Should().BeNullOrEmpty();
     }
 
     [Fact]
     public async Task Should_NotContainHints_WhenNotProvided()
     {
-        // Arrange
         MetadataProvider.Hints = null;
 
         await using var context = CreateAppDbContext(WhitelistConfigPath);
@@ -226,11 +202,9 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 
@@ -240,7 +214,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_HaveSameTransactionId_ForMultipleEntitiesInSameTransaction()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -259,12 +232,10 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             OrderDate = DateTime.UtcNow
         };
 
-        // Act - сохраняем обе сущности в одной транзакции
         context.Users.Add(user);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(1, "one transaction should create one audit log");
 
@@ -275,7 +246,6 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
     [Fact]
     public async Task Should_BeDeserializable_FromPayload()
     {
-        // Arrange
         await using var context = CreateAppDbContext(WhitelistConfigPath);
 
         var user = new User
@@ -286,11 +256,9 @@ public class ChangeLogInterceptorPayloadTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // Act
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Assert - проверяем что protobuf можно десериализовать без ошибок
         var auditLogs = await GetAllAuditLogsAsync();
         var payload = auditLogs[0].Payload;
 

@@ -8,12 +8,12 @@ using Microsoft.Extensions.Logging;
 namespace ChangeLogMonitor.Embedded.Extensions;
 
 /// <summary>
-/// Extension methods for configuring ChangeLogMonitor in embedded mode.
+///     Extension methods for configuring ChangeLogMonitor in embedded mode.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds ChangeLogMonitor services for embedded mode.
+    ///     Adds ChangeLogMonitor services for embedded mode.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Action to configure options.</param>
@@ -37,11 +37,9 @@ public static class ServiceCollectionExtensions
                 : Path.Combine(AppContext.BaseDirectory, opts.ConfigFilePath);
 
             if (!File.Exists(fullPath))
-            {
                 throw new InvalidOperationException(
                     $"Audit configuration file not found: '{fullPath}'. " +
                     $"Ensure changelog-config.yaml exists.");
-            }
 
             return new AuditConfigurationService(
                 new YamlAuditPolicyProvider(fullPath),
@@ -49,10 +47,7 @@ public static class ServiceCollectionExtensions
         });
 
         // Register API services if enabled
-        if (options.EnableApi)
-        {
-            services.AddChangeLogMonitorApi();
-        }
+        if (options.EnableApi) services.AddChangeLogMonitorApi();
 
         return services;
     }

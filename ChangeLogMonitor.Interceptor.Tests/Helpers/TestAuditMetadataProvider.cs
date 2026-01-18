@@ -2,9 +2,6 @@ using ChangeLogMonitor.Interceptor.Services;
 
 namespace ChangeLogMonitor.Interceptor.Tests.Helpers;
 
-/// <summary>
-///     Тестовый провайдер метаданных с фиксированными значениями
-/// </summary>
 public class TestAuditMetadataProvider : IAuditMetadataProvider
 {
     public string UserId { get; set; } = "test-user-123";
@@ -50,9 +47,6 @@ public class TestAuditMetadataProvider : IAuditMetadataProvider
         return Hints;
     }
 
-    /// <summary>
-    ///     Сбрасывает все значения к значениям по умолчанию
-    /// </summary>
     public void Reset()
     {
         UserId = "test-user-123";

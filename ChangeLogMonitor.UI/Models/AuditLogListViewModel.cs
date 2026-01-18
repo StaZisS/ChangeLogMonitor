@@ -24,7 +24,7 @@ public class AuditLogItemViewModel
     public string UserId { get; set; } = string.Empty;
     public string UserTitle { get; set; } = string.Empty;
     public string PayloadJson { get; set; } = string.Empty;
-    
+
     public string Summary { get; set; } = string.Empty;
     public List<string> Details { get; set; } = new();
 }

@@ -1,8 +1,6 @@
 using Auditmeta.Raw;
 using ChangeLogMonitor.Interceptor.Extensions;
-using ChangeLogMonitor.Interceptor.Models;
 using ChangeLogMonitor.Interceptor.Services;
-using ChangeLogMonitor.Interceptor.Tests.Helpers;
 using ChangeLogMonitor.Interceptor.Tests.Infrastructure;
 using ChangeLogMonitor.Interceptor.Tests.TestEntities;
 using FluentAssertions;
@@ -12,9 +10,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Interceptor.Tests;
 
-/// <summary>
-///     Интеграционные тесты для RawAuditService
-/// </summary>
 [Collection("IntegrationTests")]
 public class RawAuditServiceTests : IntegrationTestBase
 {
@@ -44,14 +39,12 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task RecordRawOperationAsync_ShouldCreateAuditLog()
     {
-        // Arrange
         MetadataProvider.UserId = "raw-user-123";
         MetadataProvider.UserName = "Raw Test User";
 
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Сначала создаём пользователя обычным способом
         var user = new User
         {
             Name = "Test",
@@ -62,10 +55,8 @@ public class RawAuditServiceTests : IntegrationTestBase
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Очищаем audit log перед raw операцией
         await CleanAuditLogAsync();
 
-        // Act - выполняем raw SQL и записываем аудит
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         var affected = await context.Database.ExecuteSqlRawAsync(
@@ -74,13 +65,12 @@ public class RawAuditServiceTests : IntegrationTestBase
 
         await rawAuditService.RecordRawOperationAsync(
             context,
-            targetEntity: "users",
-            affectedCount: affected,
-            reason: "Bulk deactivation");
+            "users",
+            affected,
+            "Bulk deactivation");
 
         await transaction.CommitAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(1);
 
@@ -97,7 +87,6 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task RecordRawOperation_ShouldIncludeHints()
     {
-        // Arrange
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
@@ -107,19 +96,17 @@ public class RawAuditServiceTests : IntegrationTestBase
             { "source", "migration-script" }
         };
 
-        // Act
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         await rawAuditService.RecordRawOperationAsync(
             context,
-            targetEntity: "orders",
-            affectedCount: 10,
-            reason: "Cleanup old orders",
-            hints: hints);
+            "orders",
+            10,
+            "Cleanup old orders",
+            hints);
 
         await transaction.CommitAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 
@@ -131,14 +118,12 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task RecordRawOperationFromScopeAsync_ShouldUseAuditScopeData()
     {
-        // Arrange
         MetadataProvider.UserId = "scope-user";
         MetadataProvider.UserName = "Scope User";
 
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Act
         using (AuditScope.Begin()
                    .SetTargetEntity("session_caches")
                    .SetReason("Cleanup expired sessions")
@@ -147,14 +132,13 @@ public class RawAuditServiceTests : IntegrationTestBase
             await using var transaction = await context.Database.BeginTransactionAsync();
 
             var affected = await context.Database.ExecuteSqlRawAsync(
-                "DELETE FROM session_caches WHERE 1=0"); // ничего не удаляет, просто тест
+                "DELETE FROM session_caches WHERE 1=0");
 
             await rawAuditService.RecordRawOperationFromScopeAsync(context, affected);
 
             await transaction.CommitAsync();
         }
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(1);
 
@@ -167,18 +151,15 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task RecordRawOperationFromScopeAsync_ShouldThrowWithoutScope()
     {
-        // Arrange
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Act
-        Func<Task> act = async () =>
+        var act = async () =>
         {
             await using var transaction = await context.Database.BeginTransactionAsync();
             await rawAuditService.RecordRawOperationFromScopeAsync(context, 5);
         };
 
-        // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*No active AuditScope*");
     }
@@ -186,21 +167,18 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task RecordRawOperationFromScopeAsync_ShouldThrowWithoutTargetEntity()
     {
-        // Arrange
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Act
-        Func<Task> act = async () =>
+        var act = async () =>
         {
-            using (AuditScope.Begin().SetReason("Test")) // без SetTargetEntity
+            using (AuditScope.Begin().SetReason("Test"))
             {
                 await using var transaction = await context.Database.BeginTransactionAsync();
                 await rawAuditService.RecordRawOperationFromScopeAsync(context, 5);
             }
         };
 
-        // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*TargetEntity is not set*");
     }
@@ -208,14 +186,12 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task ExecuteSqlRawWithAuditAsync_ShouldExecuteAndRecordAudit()
     {
-        // Arrange
         MetadataProvider.UserId = "extension-user";
         MetadataProvider.UserName = "Extension User";
 
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Создаём тестовые данные
         var user = new User
         {
             Name = "To Update",
@@ -227,19 +203,17 @@ public class RawAuditServiceTests : IntegrationTestBase
         await context.SaveChangesAsync();
         await CleanAuditLogAsync();
 
-        // Act
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         var affected = await context.ExecuteSqlRawWithAuditAsync(
             rawAuditService,
-            targetEntity: "users",
-            sql: "UPDATE users SET \"IsActive\" = false WHERE \"Id\" = {0}",
-            parameters: new object[] { user.Id },
-            reason: "Deactivate user via extension");
+            "users",
+            "UPDATE users SET \"IsActive\" = false WHERE \"Id\" = {0}",
+            new object[] { user.Id },
+            "Deactivate user via extension");
 
         await transaction.CommitAsync();
 
-        // Assert
         affected.Should().Be(1);
 
         var auditLogs = await GetAllAuditLogsAsync();
@@ -254,11 +228,9 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task ExecuteSqlInterpolatedWithAuditAsync_ShouldExecuteAndRecordAudit()
     {
-        // Arrange
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Создаём тестовые данные
         var user = new User
         {
             Name = "Interpolated Test",
@@ -272,18 +244,16 @@ public class RawAuditServiceTests : IntegrationTestBase
 
         var userId = user.Id;
 
-        // Act
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         var affected = await context.ExecuteSqlInterpolatedWithAuditAsync(
             rawAuditService,
-            targetEntity: "users",
-            sql: $"UPDATE users SET \"IsActive\" = false WHERE \"Id\" = {userId}",
-            reason: "Interpolated update");
+            "users",
+            $"UPDATE users SET \"IsActive\" = false WHERE \"Id\" = {userId}",
+            "Interpolated update");
 
         await transaction.CommitAsync();
 
-        // Assert
         affected.Should().Be(1);
 
         var auditLogs = await GetAllAuditLogsAsync();
@@ -296,11 +266,9 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task ExecuteSqlRawWithScopeAuditAsync_ShouldUseAuditScope()
     {
-        // Arrange
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Act
         using (AuditScope.Begin()
                    .SetTargetEntity("users")
                    .SetReason("Scope-based update")
@@ -310,12 +278,11 @@ public class RawAuditServiceTests : IntegrationTestBase
 
             var affected = await context.ExecuteSqlRawWithScopeAuditAsync(
                 rawAuditService,
-                sql: "UPDATE users SET \"IsActive\" = true WHERE 1=0");
+                "UPDATE users SET \"IsActive\" = true WHERE 1=0");
 
             await transaction.CommitAsync();
         }
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(1);
 
@@ -328,18 +295,16 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task NestedScopes_ShouldInheritAndOverrideCorrectly()
     {
-        // Arrange
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Act
         using (AuditScope.Begin()
                    .SetTargetEntity("outer_table")
                    .AddHint("level", "outer"))
         {
             using (AuditScope.Begin()
-                       .SetTargetEntity("inner_table") // override
-                       .AddHint("level", "inner")) // override
+                       .SetTargetEntity("inner_table")
+                       .AddHint("level", "inner"))
             {
                 await using var transaction = await context.Database.BeginTransactionAsync();
 
@@ -349,7 +314,6 @@ public class RawAuditServiceTests : IntegrationTestBase
             }
         }
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 
@@ -360,7 +324,6 @@ public class RawAuditServiceTests : IntegrationTestBase
     [Fact]
     public async Task RequestContext_ShouldBeIncludedInBulkOperation()
     {
-        // Arrange
         MetadataProvider.RequestId = "bulk-req-123";
         MetadataProvider.ServiceName = "BulkService";
         MetadataProvider.ClientIp = "10.0.0.1";
@@ -369,17 +332,15 @@ public class RawAuditServiceTests : IntegrationTestBase
         await using var context = CreateAppDbContextWithoutInterceptor();
         var rawAuditService = CreateRawAuditService();
 
-        // Act
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         await rawAuditService.RecordRawOperationAsync(
             context,
-            targetEntity: "orders",
-            affectedCount: 100);
+            "orders",
+            100);
 
         await transaction.CommitAsync();
 
-        // Assert
         var auditLogs = await GetAllAuditLogsAsync();
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLogs[0].Payload);
 

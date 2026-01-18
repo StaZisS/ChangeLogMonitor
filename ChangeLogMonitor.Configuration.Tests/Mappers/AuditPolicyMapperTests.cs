@@ -18,7 +18,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_BasicPolicy_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.5",
@@ -31,10 +30,8 @@ public class AuditPolicyMapperTests
             DefaultTimeZone = "Asia/Almaty"
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.Should().NotBeNull();
         domain.Version.Should().Be("1.5");
         domain.Mode.Should().Be(AuditMode.Whitelist);
@@ -53,17 +50,14 @@ public class AuditPolicyMapperTests
     [InlineData("Blacklist", AuditMode.Blacklist)]
     public void MapToDomain_AuditMode_ShouldParseCorrectly(string yamlMode, AuditMode expectedMode)
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
             Mode = yamlMode
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.Mode.Should().Be(expectedMode);
     }
 
@@ -71,27 +65,23 @@ public class AuditPolicyMapperTests
     [InlineData("eventOnly", CreateBehavior.EventOnly)]
     [InlineData("allFields", CreateBehavior.AllFields)]
     [InlineData("nonDefaultFields", CreateBehavior.NonDefaultFields)]
-    [InlineData("eventonly", CreateBehavior.EventOnly)] // lowercase
+    [InlineData("eventonly", CreateBehavior.EventOnly)]
     public void MapToDomain_CreateBehavior_ShouldParseCorrectly(string yamlValue, CreateBehavior expected)
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
             OnCreate = yamlValue
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.OnCreate.Should().Be(expected);
     }
 
     [Fact]
     public void MapToDomain_FieldPolicyWithAction_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -118,10 +108,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.Entities.Should().ContainKey("User");
         var userEntity = domain.Entities["User"];
         userEntity.Fields.Should().ContainKey("Email");
@@ -137,7 +125,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_FieldPolicyWithView_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -161,10 +148,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var orderEntity = domain.Entities["Order"];
         var amountField = orderEntity.Fields["TotalAmount"];
         amountField.Action.Should().Be(FieldAction.Include);
@@ -176,7 +161,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_ReferencePolicy_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -204,10 +188,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var userEntity = domain.Entities["User"];
         userEntity.References.Should().ContainKey("DepartmentId");
         var deptRef = userEntity.References["DepartmentId"];
@@ -224,7 +206,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_CollectionPolicy_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -259,10 +240,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var userEntity = domain.Entities["User"];
         userEntity.Collections.Should().ContainKey("Roles");
         var rolesCollection = userEntity.Collections["Roles"];
@@ -282,7 +261,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_MaskPresets_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -302,10 +280,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.MaskPresets.Should().ContainKey("email");
         var emailPreset = domain.MaskPresets["email"];
         emailPreset.MaskChar.Should().Be('*');
@@ -318,7 +294,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_HashPresets_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -344,10 +319,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.HashPresets.Should().ContainKey("sha256_salted");
         var hashPreset = domain.HashPresets["sha256_salted"];
         hashPreset.Algo.Should().Be("SHA-256");
@@ -364,7 +337,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_ReferenceDefaults_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -382,10 +354,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.ReferenceDefaults.ShowKey.Should().BeFalse();
         domain.ReferenceDefaults.ShowName.Should().BeTrue();
         domain.ReferenceDefaults.ViewTemplate.Should().Be("{name}");
@@ -397,7 +367,6 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_CollectionDefaults_ShouldMapCorrectly()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -415,10 +384,8 @@ public class AuditPolicyMapperTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.CollectionDefaults.LogDeltas.Should().BeFalse();
         domain.CollectionDefaults.ShowKeys.Should().BeFalse();
         domain.CollectionDefaults.ShowNames.Should().BeTrue();
@@ -430,23 +397,19 @@ public class AuditPolicyMapperTests
     [Fact]
     public void MapToDomain_DefaultValues_ShouldBeAppliedWhenMissing()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0"
-            // Все остальные поля null
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         domain.Version.Should().Be("1.0");
-        domain.Mode.Should().Be(AuditMode.Whitelist); // Дефолт
-        domain.OnCreate.Should().Be(CreateBehavior.EventOnly); // Дефолт
-        domain.OnUpdate.Should().Be(UpdateBehavior.Delta); // Дефолт
-        domain.OnDelete.Should().Be(DeleteBehavior.EventOnly); // Дефолт
-        domain.DefaultCulture.Should().Be("ru-RU"); // Дефолт
-        domain.DefaultTimeZone.Should().Be("Asia/Almaty"); // Дефолт
+        domain.Mode.Should().Be(AuditMode.Whitelist);
+        domain.OnCreate.Should().Be(CreateBehavior.EventOnly);
+        domain.OnUpdate.Should().Be(UpdateBehavior.Delta);
+        domain.OnDelete.Should().Be(DeleteBehavior.EventOnly);
+        domain.DefaultCulture.Should().Be("ru-RU");
+        domain.DefaultTimeZone.Should().Be("Asia/Almaty");
     }
 }

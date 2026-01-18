@@ -35,37 +35,37 @@ public static class ServiceCollectionExtensions
             options.UseNpgsql(auditDbConnectionString,
                 b => { b.MigrationsAssembly(typeof(AuditDbContext).Assembly.FullName); });
         });
-        
+
         var configPath = ResolveConfigPath(configFilePath);
         ValidateConfigFile(configPath);
         services.AddSingleton<IAuditPolicyProvider>(sp => new YamlAuditPolicyProvider(configPath));
         services.AddSingleton<IAuditConfigurationService, AuditConfigurationService>();
-        
+
         if (metadataProviderFactory != null)
             services.AddScoped(metadataProviderFactory);
         else
             services.AddScoped<IAuditMetadataProvider, DefaultAuditMetadataProvider>();
-        
+
         if (enumLabelProviderFactory != null)
             services.AddSingleton(enumLabelProviderFactory);
         else
             services.AddSingleton<IEnumLabelProvider, AttributeEnumLabelProvider>();
-        
+
         services.AddSingleton<EnumMetadataExtractor>();
         services.AddScoped<ReferenceMetadataExtractor>();
         services.AddScoped<CollectionDeltaExtractor>();
-        
+
         services.AddScoped<AuditMetadataSerializer>();
-        
+
         services.AddScoped<IRawAuditService, RawAuditService>();
-        
+
         services.AddScoped<ChangeLogInterceptor>();
 
         if (applyMigrations) services.AddHostedService<AuditDbMigrationHostedService>();
 
         return services;
     }
-    
+
     public static DbContextOptionsBuilder AddChangeLogInterceptor(
         this DbContextOptionsBuilder optionsBuilder,
         IServiceProvider serviceProvider)
@@ -73,31 +73,24 @@ public static class ServiceCollectionExtensions
         var interceptor = serviceProvider.GetRequiredService<ChangeLogInterceptor>();
         return optionsBuilder.AddInterceptors(interceptor);
     }
-    
+
     private static string ResolveConfigPath(string? configFilePath)
     {
         if (string.IsNullOrWhiteSpace(configFilePath))
-        {
             return Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
-        }
-        
-        if (Path.IsPathRooted(configFilePath))
-        {
-            return configFilePath;
-        }
-        
+
+        if (Path.IsPathRooted(configFilePath)) return configFilePath;
+
         return Path.Combine(AppContext.BaseDirectory, configFilePath);
     }
-    
+
     private static void ValidateConfigFile(string filePath)
     {
         if (!File.Exists(filePath))
-        {
             throw new InvalidOperationException(
                 $"Файл конфигурации аудита не найден: '{filePath}'. " +
                 $"Создайте файл changelog-config.yaml или укажите правильный путь.");
-        }
-        
+
         try
         {
             using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);

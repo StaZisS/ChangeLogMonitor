@@ -6,7 +6,6 @@ using ChangeLogMonitor.Interceptor.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -109,12 +108,12 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
         RollbackIfStarted(eventData.Context);
         return base.SaveChangesFailedAsync(eventData, cancellationToken);
     }
-    
+
     private bool ShouldAudit(DbContext context)
     {
         return context is not AuditDbContext;
     }
-    
+
     private void CaptureChanges(DbContext context)
     {
         EnsureSchema();
@@ -162,7 +161,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
             transactionId,
             entries.Count);
     }
-    
+
     private async Task CaptureChangesAsync(DbContext context, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken);
@@ -211,7 +210,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
             entries.Count);
     }
 
-    
+
     private List<EntityEntry> GetTrackedEntries(DbContext context)
     {
         var entries = context.ChangeTracker.Entries()
@@ -219,13 +218,13 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                         e.State == EntityState.Modified ||
                         e.State == EntityState.Deleted)
             .ToList();
-        
+
         var auditableEntries = new List<EntityEntry>();
 
         foreach (var entry in entries)
         {
             var tableName = GetTableName(context, entry);
-            
+
             if (_configService.IsEntityEnabled(tableName))
             {
                 auditableEntries.Add(entry);
@@ -244,13 +243,13 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
 
         return auditableEntries;
     }
-    
+
     private static string GetTableName(DbContext context, EntityEntry entry)
     {
         var entityType = context.Model.FindEntityType(entry.Entity.GetType());
         return entityType?.GetTableName() ?? entry.Entity.GetType().Name;
     }
-    
+
     private string GenerateTransactionId()
     {
         return $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}";
@@ -276,7 +275,7 @@ public class ChangeLogInterceptor : SaveChangesInterceptor
                 _schemaReady = true;
                 return;
             }
-            
+
             var pending = await _auditDbContext.Database.GetPendingMigrationsAsync(cancellationToken);
             if (!pending.Any())
             {

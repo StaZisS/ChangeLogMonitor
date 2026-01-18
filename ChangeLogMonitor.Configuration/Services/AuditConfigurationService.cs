@@ -31,7 +31,7 @@ public class AuditConfigurationService : IAuditConfigurationService
         _mapper = new AuditPolicyMapper();
         _validator = new YamlAuditPolicyValidator();
     }
-    
+
     public AuditPolicy GetPolicy(bool forceReload = false)
     {
         lock (_lock)
@@ -47,7 +47,7 @@ public class AuditConfigurationService : IAuditConfigurationService
             try
             {
                 var yamlRoot = _provider.Load();
-                
+
                 var validationResult = _validator.Validate(yamlRoot.AuditPolicy);
                 if (!validationResult.IsValid)
                 {
@@ -56,7 +56,7 @@ public class AuditConfigurationService : IAuditConfigurationService
                 }
 
                 _logger?.LogDebug("Audit policy validation succeeded");
-                
+
                 _cachedPolicy = _mapper.MapToDomain(yamlRoot.AuditPolicy);
                 _lastLoadTime = DateTime.UtcNow;
 
@@ -86,7 +86,7 @@ public class AuditConfigurationService : IAuditConfigurationService
             }
         }
     }
-    
+
     public async Task<AuditPolicy> GetPolicyAsync(bool forceReload = false,
         CancellationToken cancellationToken = default)
     {
@@ -101,7 +101,7 @@ public class AuditConfigurationService : IAuditConfigurationService
         try
         {
             var yamlRoot = await _provider.LoadAsync(cancellationToken);
-            
+
             var validationResult = await _validator.ValidateAsync(yamlRoot.AuditPolicy, cancellationToken);
             if (!validationResult.IsValid)
             {
@@ -110,7 +110,7 @@ public class AuditConfigurationService : IAuditConfigurationService
             }
 
             _logger?.LogDebug("Audit policy validation succeeded");
-            
+
             lock (_lock)
             {
                 _cachedPolicy = _mapper.MapToDomain(yamlRoot.AuditPolicy);
@@ -142,7 +142,7 @@ public class AuditConfigurationService : IAuditConfigurationService
             throw new InvalidOperationException("Failed to load audit policy configuration", ex);
         }
     }
-    
+
     public EntityPolicy? GetEntityPolicy(string entityName, bool forceReload = false)
     {
         var policy = GetPolicy(forceReload);
@@ -152,20 +152,20 @@ public class AuditConfigurationService : IAuditConfigurationService
         _logger?.LogWarning("Entity policy not found for: {EntityName}", entityName);
         return null;
     }
-    
+
     public bool IsEntityEnabled(string entityName, bool forceReload = false)
     {
         var policy = GetPolicy(forceReload);
-        
+
         if (policy.Mode == AuditMode.Whitelist)
             return policy.Entities.ContainsKey(entityName) &&
                    policy.Entities[entityName].Enabled;
-        
+
         if (policy.Entities.TryGetValue(entityName, out var entityPolicy)) return entityPolicy.Enabled;
 
         return true;
     }
-    
+
     public void ReloadConfiguration()
     {
         lock (_lock)
@@ -177,7 +177,7 @@ public class AuditConfigurationService : IAuditConfigurationService
 
         GetPolicy(true);
     }
-    
+
     public ConfigurationInfo GetConfigurationInfo()
     {
         lock (_lock)

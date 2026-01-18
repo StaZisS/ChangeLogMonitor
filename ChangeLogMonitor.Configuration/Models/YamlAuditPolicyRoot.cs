@@ -43,8 +43,7 @@ public class YamlAuditPolicy
     [YamlMember(Alias = "defaultTimeZone")]
     public string? DefaultTimeZone { get; set; }
 
-    [YamlMember(Alias = "accessControl")]
-    public YamlAccessControl? AccessControl { get; set; }
+    [YamlMember(Alias = "accessControl")] public YamlAccessControl? AccessControl { get; set; }
 }
 
 public class YamlMethodPresets

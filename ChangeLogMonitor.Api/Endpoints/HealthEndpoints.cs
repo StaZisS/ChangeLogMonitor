@@ -32,7 +32,7 @@ public static class HealthEndpoints
             })
             .WithName("CombinedHealth")
             .WithTags("Health");
-        
+
         app.MapGet("/aggregator/healthz", ([FromServices] ITxAggregatorHealth health) =>
             {
                 var snapshot = health.GetSnapshot();
@@ -46,7 +46,7 @@ public static class HealthEndpoints
             })
             .WithName("AggregatorHealth")
             .WithTags("Health");
-        
+
         app.MapGet("/finalizer/healthz", () => Results.Json(new
             {
                 status = "ok",

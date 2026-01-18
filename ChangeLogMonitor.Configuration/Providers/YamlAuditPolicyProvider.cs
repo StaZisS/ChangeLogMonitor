@@ -19,7 +19,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             .IgnoreUnmatchedProperties()
             .Build();
     }
-    
+
     public YamlAuditPolicyRoot Load()
     {
         if (!File.Exists(_configFilePath))
@@ -33,7 +33,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
 
             if (root?.AuditPolicy == null)
                 throw new InvalidOperationException("Invalid YAML structure: 'auditPolicy' root element not found");
-            
+
             NormalizeFieldPolicies(root.AuditPolicy);
 
             return root;
@@ -57,7 +57,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
 
             if (root?.AuditPolicy == null)
                 throw new InvalidOperationException("Invalid YAML structure: 'auditPolicy' root element not found");
-            
+
             NormalizeFieldPolicies(root.AuditPolicy);
 
             return root;
@@ -67,7 +67,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             throw new InvalidOperationException($"Failed to parse YAML file: {ex.Message}", ex);
         }
     }
-    
+
     private void NormalizeFieldPolicies(YamlAuditPolicy policy)
     {
         if (policy.Entities == null) return;
@@ -99,7 +99,7 @@ public class YamlAuditPolicyProvider : IAuditPolicyProvider
             entity.Fields = normalizedFields;
         }
     }
-    
+
     private YamlFieldPolicy ConvertToFieldPolicy(Dictionary<object, object> dict)
     {
         var policy = new YamlFieldPolicy();

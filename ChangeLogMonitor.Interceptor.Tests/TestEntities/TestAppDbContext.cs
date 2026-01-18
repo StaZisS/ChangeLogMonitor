@@ -2,9 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChangeLogMonitor.Interceptor.Tests.TestEntities;
 
-/// <summary>
-///     Тестовый DbContext для проверки работы интерцептора
-/// </summary>
 public class TestAppDbContext : DbContext
 {
     public TestAppDbContext(DbContextOptions<TestAppDbContext> options) : base(options)

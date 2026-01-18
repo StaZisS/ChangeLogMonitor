@@ -23,11 +23,11 @@ public sealed class CollectionDeltaExtractor
     {
         _configService = configService;
     }
-    
+
     public List<CollectionDeltaData> ExtractCollectionDeltas(DbContext context, IReadOnlyList<EntityEntry> entries)
     {
         var result = new List<CollectionDeltaData>();
-        
+
         var joinTableChanges = new Dictionary<(string ownerType, string ownerId, string collectionName),
             (List<CollectionItemData> added, List<CollectionItemData> removed, string relatedType)>();
 
@@ -36,16 +36,11 @@ public sealed class CollectionDeltaExtractor
             var entityType = entry.Metadata;
             var m2mInfo = DetectM2MJoinTable(entityType);
 
-            if (m2mInfo != null)
-            {
-                ProcessJoinTableEntry(context, entry, m2mInfo.Value, joinTableChanges);
-            }
+            if (m2mInfo != null) ProcessJoinTableEntry(context, entry, m2mInfo.Value, joinTableChanges);
         }
-        
+
         foreach (var ((ownerType, ownerId, collectionName), (added, removed, relatedType)) in joinTableChanges)
-        {
             if (added.Count > 0 || removed.Count > 0)
-            {
                 result.Add(new CollectionDeltaData(
                     ownerType,
                     ownerId,
@@ -53,17 +48,15 @@ public sealed class CollectionDeltaExtractor
                     relatedType,
                     added,
                     removed));
-            }
-        }
 
         return result;
     }
-    
+
     private (string ownerType, string ownerFkName, string relatedType, string relatedFkName, string collectionName)?
         DetectM2MJoinTable(IEntityType entityType)
     {
         var fks = entityType.GetForeignKeys().ToList();
-        
+
         if (fks.Count != 2)
             return null;
 
@@ -73,18 +66,18 @@ public sealed class CollectionDeltaExtractor
 
         var pkProperties = pk.Properties.Select(p => p.Name).ToHashSet();
         var fkProperties = fks.SelectMany(fk => fk.Properties.Select(p => p.Name)).ToHashSet();
-        
+
         if (!pkProperties.SetEquals(fkProperties))
             return null;
-        
+
         var fk1 = fks[0];
         var fk2 = fks[1];
-        
+
         var ownerType = fk1.PrincipalEntityType.GetTableName() ?? fk1.PrincipalEntityType.ClrType.Name;
         var ownerFkName = fk1.Properties[0].Name;
         var relatedType = fk2.PrincipalEntityType.GetTableName() ?? fk2.PrincipalEntityType.ClrType.Name;
         var relatedFkName = fk2.Properties[0].Name;
-        
+
         var collectionName = entityType.GetTableName() ?? entityType.ClrType.Name;
 
         return (ownerType, ownerFkName, relatedType, relatedFkName, collectionName);
@@ -109,8 +102,9 @@ public sealed class CollectionDeltaExtractor
             lists = (new List<CollectionItemData>(), new List<CollectionItemData>(), m2mInfo.relatedType);
             changes[key] = lists;
         }
-        
-        var title = ResolveRelatedItemTitle(context, m2mInfo.relatedType, relatedIdValue, m2mInfo.ownerType, m2mInfo.collectionName);
+
+        var title = ResolveRelatedItemTitle(context, m2mInfo.relatedType, relatedIdValue, m2mInfo.ownerType,
+            m2mInfo.collectionName);
         var item = new CollectionItemData(relatedIdValue, title);
 
         switch (entry.State)
@@ -123,7 +117,7 @@ public sealed class CollectionDeltaExtractor
                 break;
         }
     }
-    
+
     private string ResolveRelatedItemTitle(
         DbContext context,
         string relatedTypeName,
@@ -134,11 +128,12 @@ public sealed class CollectionDeltaExtractor
         try
         {
             var relatedEntityType = context.Model.FindEntityType(relatedTypeName)
-                ?? context.Model.GetEntityTypes().FirstOrDefault(e => e.ClrType.Name == relatedTypeName);
+                                    ?? context.Model.GetEntityTypes()
+                                        .FirstOrDefault(e => e.ClrType.Name == relatedTypeName);
 
             if (relatedEntityType == null)
                 return relatedId;
-            
+
             var keyProperty = relatedEntityType.FindPrimaryKey()?.Properties.FirstOrDefault();
             if (keyProperty == null)
                 return relatedId;
@@ -150,7 +145,7 @@ public sealed class CollectionDeltaExtractor
             var entity = context.Find(relatedEntityType.ClrType, keyValue);
             if (entity == null)
                 return relatedId;
-            
+
             var namePropertyName = GetNamePropertyName(ownerTypeName, collectionName, relatedEntityType.ClrType);
             if (string.IsNullOrEmpty(namePropertyName))
                 return relatedId;
@@ -197,13 +192,11 @@ public sealed class CollectionDeltaExtractor
             var lastDot = selector.LastIndexOf('.');
             return lastDot >= 0 ? selector[(lastDot + 1)..] : selector;
         }
-        
+
         var standardNames = new[] { "Name", "Title", "DisplayName", "Description" };
         foreach (var name in standardNames)
-        {
             if (relatedType.GetProperty(name) != null)
                 return name;
-        }
 
         return null;
     }

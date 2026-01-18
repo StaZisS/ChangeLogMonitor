@@ -29,13 +29,11 @@ public static class ServiceCollectionExtensions
             var settings = sp.GetRequiredService<IOptions<AppSettings>>().Value;
             var path = settings.Policy?.ConfigPath ?? "changelog-config.yaml";
             var fullPath = Path.IsPathRooted(path) ? path : Path.Combine(AppContext.BaseDirectory, path);
-            
+
             if (!File.Exists(fullPath))
-            {
                 throw new InvalidOperationException(
                     $"Файл конфигурации аудита не найден: '{fullPath}'. " +
                     $"Убедитесь что файл changelog-config.yaml существует.");
-            }
 
             return new AuditConfigurationService(
                 new YamlAuditPolicyProvider(fullPath),
@@ -45,7 +43,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAggregateFlattener, AggregateFlattener>();
         services.AddSingleton<IAuditLogRepository, ClickHouseAuditLogRepository>();
         services.AddSingleton<IAuditLogFormatter, AuditLogFormatter>();
-        
+
         services.AddSingleton<IAccessControlService, AccessControlService>();
 
         services.AddScoped<IDiffService, DiffService>();
@@ -76,7 +74,8 @@ public static class ServiceCollectionExtensions
         }
         catch (Exception ex)
         {
-            logger?.LogWarning(ex, "Failed to initialize ClickHouse schema. /diffs endpoints will not work until ClickHouse is available");
+            logger?.LogWarning(ex,
+                "Failed to initialize ClickHouse schema. /diffs endpoints will not work until ClickHouse is available");
         }
     }
 }

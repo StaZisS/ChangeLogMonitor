@@ -7,13 +7,13 @@ namespace ChangeLogMonitor.Core.Interfaces;
 public interface ICurrentUserService
 {
     /// <summary>
+    ///     Проверяет, аутентифицирован ли текущий пользователь
+    /// </summary>
+    bool IsAuthenticated { get; }
+
+    /// <summary>
     ///     Получает идентификатор текущего пользователя из JWT claim "sub" или "nameidentifier".
     ///     Возвращает null для анонимных пользователей.
     /// </summary>
     string? GetUserId();
-
-    /// <summary>
-    ///     Проверяет, аутентифицирован ли текущий пользователь
-    /// </summary>
-    bool IsAuthenticated { get; }
 }

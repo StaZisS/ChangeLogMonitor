@@ -83,17 +83,11 @@ internal sealed class TxAggregatorTransformer : ITransformer<string, string, str
                 // Extract actual payload from before/after structure if present
                 JsonElement metaElement;
                 if (root.TryGetProperty("after", out var afterEl) && afterEl.ValueKind == JsonValueKind.Object)
-                {
                     metaElement = afterEl.Clone();
-                }
                 else if (root.TryGetProperty("before", out var beforeEl) && beforeEl.ValueKind == JsonValueKind.Object)
-                {
                     metaElement = beforeEl.Clone();
-                }
                 else
-                {
                     metaElement = root.Clone();
-                }
 
                 bucket.ApplyMetadata(new TxMetadata { Meta = metaElement });
                 PersistBucket(record.Key, bucket);

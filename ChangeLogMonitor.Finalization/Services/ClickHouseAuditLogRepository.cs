@@ -50,57 +50,16 @@ SETTINGS index_granularity = 8192;";
         if (!_settings.EnsureSchema) return;
 
         await using var connection = await OpenAsync(cancellationToken);
-        
+
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = string.Format(CultureInfo.InvariantCulture, CreateTableTemplate, _quotedTableName);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
+
         _logger.LogInformation("Ensured ClickHouse table {Table}", _tableName);
-        
+
         await MigrateSchemaAsync(connection, cancellationToken);
-    }
-
-    private async Task MigrateSchemaAsync(ClickHouseConnection connection, CancellationToken cancellationToken)
-    {
-        var existingColumns = await GetExistingColumnsAsync(connection, cancellationToken);
-        
-        if (!existingColumns.Contains("user_name", StringComparer.OrdinalIgnoreCase))
-        {
-            await AddColumnAsync(connection, "user_name", "String", "user_id", cancellationToken);
-            _logger.LogInformation("Migration: Added column 'user_name' to table {Table}", _tableName);
-        }
-    }
-
-    private async Task<HashSet<string>> GetExistingColumnsAsync(
-        ClickHouseConnection connection,
-        CancellationToken cancellationToken)
-    {
-        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = $"DESCRIBE TABLE {_quotedTableName}";
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            var columnName = reader.GetString(0);
-            columns.Add(columnName);
-        }
-
-        return columns;
-    }
-
-    private async Task AddColumnAsync(
-        ClickHouseConnection connection,
-        string columnName,
-        string columnType,
-        string afterColumn,
-        CancellationToken cancellationToken)
-    {
-        await using var command = connection.CreateCommand();
-        command.CommandText = $"ALTER TABLE {_quotedTableName} ADD COLUMN IF NOT EXISTS `{columnName}` {columnType} DEFAULT '' AFTER `{afterColumn}`";
-        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task InsertAsync(IReadOnlyCollection<AuditLogRecord> records, CancellationToken cancellationToken)
@@ -270,7 +229,7 @@ SETTINGS index_granularity = 8192;";
             whereConditions.Add("tx_id = {txId:String}");
             command.Parameters.Add(CreateParameter(command, "txId", filter.TransactionId.Trim()));
         }
-        
+
         if (filter.AllowedTableNames is { Count: > 0 })
         {
             var tableParams = new List<string>();
@@ -298,6 +257,49 @@ SETTINGS index_granularity = 8192;";
         return await ReadAsync(command, cancellationToken);
     }
 
+    private async Task MigrateSchemaAsync(ClickHouseConnection connection, CancellationToken cancellationToken)
+    {
+        var existingColumns = await GetExistingColumnsAsync(connection, cancellationToken);
+
+        if (!existingColumns.Contains("user_name", StringComparer.OrdinalIgnoreCase))
+        {
+            await AddColumnAsync(connection, "user_name", "String", "user_id", cancellationToken);
+            _logger.LogInformation("Migration: Added column 'user_name' to table {Table}", _tableName);
+        }
+    }
+
+    private async Task<HashSet<string>> GetExistingColumnsAsync(
+        ClickHouseConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"DESCRIBE TABLE {_quotedTableName}";
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var columnName = reader.GetString(0);
+            columns.Add(columnName);
+        }
+
+        return columns;
+    }
+
+    private async Task AddColumnAsync(
+        ClickHouseConnection connection,
+        string columnName,
+        string columnType,
+        string afterColumn,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"ALTER TABLE {_quotedTableName} ADD COLUMN IF NOT EXISTS `{columnName}` {columnType} DEFAULT '' AFTER `{afterColumn}`";
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task<IReadOnlyList<AuditLogRecord>> ReadAsync(
         ClickHouseCommand command,
         CancellationToken cancellationToken)
@@ -318,7 +320,8 @@ SETTINGS index_granularity = 8192;";
             var txId = reader.GetFieldValue<string>(7);
             var payload = reader.GetFieldValue<string>(8);
 
-            result.Add(new AuditLogRecord((long)logId, changeTime, userId, userName, tableName, operation, entityId, txId,
+            result.Add(new AuditLogRecord((long)logId, changeTime, userId, userName, tableName, operation, entityId,
+                txId,
                 payload));
         }
 

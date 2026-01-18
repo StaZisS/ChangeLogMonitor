@@ -1,8 +1,5 @@
 namespace ChangeLogMonitor.Integration.Tests.TestEntities;
 
-/// <summary>
-///     Товар для тестирования
-/// </summary>
 public class Product
 {
     public int Id { get; set; }

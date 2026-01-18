@@ -1,18 +1,19 @@
 using System.Security.Claims;
 using System.Text;
-using ChangeLogMonitor.Core.Extensions;
+using Auditmeta.Raw;
 using ChangeLogMonitor.Interceptor.Extensions;
 using ChangeLogMonitor.Interceptor.Services;
-using static ChangeLogMonitor.Core.Extensions.EnumLabelExtensions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Npgsql;
 using TestProject.Auth;
 using TestProject.Contracts;
 using TestProject.Data;
 using TestProject.Domain;
 using TestProject.Infrastructure;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using static ChangeLogMonitor.Core.Extensions.EnumLabelExtensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +26,7 @@ builder.Services.AddHttpContextAccessor();
 if (usePostgres)
 {
     var configPath = builder.Configuration.GetValue<string>("AuditConfiguration:ConfigFilePath")
-        ?? "changelog-config.yaml";
+                     ?? "changelog-config.yaml";
 
     builder.Services.AddChangeLogInterceptor(
         auditConnectionString,
@@ -177,7 +178,8 @@ app.MapPost("/orders", async Task<IResult> (
         dbContext.Orders.Add(order);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status,
+            order.Status.ToString(), order.CreatedAt, order.UserId);
         return Results.Created($"/orders/{order.Id}", response);
     })
     .WithName("CreateOrder")
@@ -214,7 +216,8 @@ app.MapPut("/orders/{orderId:guid}", async Task<IResult> (
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status,
+            order.Status.ToString(), order.CreatedAt, order.UserId);
         return Results.Ok(response);
     })
     .WithName("UpdateOrder")
@@ -242,7 +245,8 @@ app.MapPatch("/orders/{orderId:guid}/reassign", async Task<IResult> (
         order.UserId = request.NewUserId;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status,
+            order.Status.ToString(), order.CreatedAt, order.UserId);
         return Results.Ok(response);
     })
     .WithName("ReassignOrder")
@@ -267,7 +271,8 @@ app.MapPatch("/orders/{orderId:guid}/status", async Task<IResult> (
         order.Status = request.Status;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status, order.Status.ToString(), order.CreatedAt, order.UserId);
+        var response = new OrderResponse(order.Id, order.Description, order.Amount, order.Status,
+            order.Status.ToString(), order.CreatedAt, order.UserId);
         return Results.Ok(response);
     })
     .WithName("ChangeOrderStatus")
@@ -325,7 +330,8 @@ app.MapPut("/tags/{tagId:guid}", async Task<IResult> (
         var tag = await dbContext.Tags.FirstOrDefaultAsync(t => t.Id == tagId, cancellationToken);
         if (tag is null) return Results.NotFound();
 
-        var duplicate = await dbContext.Tags.AnyAsync(t => t.Name == request.Name.Trim() && t.Id != tagId, cancellationToken);
+        var duplicate =
+            await dbContext.Tags.AnyAsync(t => t.Name == request.Name.Trim() && t.Id != tagId, cancellationToken);
         if (duplicate) return Results.Conflict(new { message = "Tag with this name already exists." });
 
         tag.Name = request.Name.Trim();
@@ -458,7 +464,7 @@ app.MapPost("/orders/batch/update-status", async Task<IResult> (
 
         if (rawAuditService is null)
             return Results.BadRequest(new { message = "Raw audit service not available. Use PostgreSQL." });
-        
+
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -468,20 +474,20 @@ app.MapPost("/orders/batch/update-status", async Task<IResult> (
                 .ExecuteUpdateAsync(
                     setters => setters.SetProperty(o => o.Status, request.ToStatus),
                     cancellationToken);
-            
+
             await rawAuditService.RecordRawOperationAsync(
                 dbContext,
-                targetEntity: "Orders",
-                affectedCount: affected,
-                reason: $"Batch status update: {request.FromStatus} -> {request.ToStatus}",
-                hints: new Dictionary<string, string>
+                "Orders",
+                affected,
+                $"Batch status update: {request.FromStatus} -> {request.ToStatus}",
+                new Dictionary<string, string>
                 {
                     ["operation"] = "batch_update_status",
                     ["from_status"] = request.FromStatus.ToString(),
                     ["to_status"] = request.ToStatus.ToString()
                 },
-                enumSnapshots: CreateEnumSnapshot(request.FromStatus, request.ToStatus),
-                cancellationToken: cancellationToken);
+                CreateEnumSnapshot(request.FromStatus, request.ToStatus),
+                cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
 
@@ -525,31 +531,29 @@ app.MapPost("/orders/batch/delete-by-status", async Task<IResult> (
                 .ExecuteDeleteAsync(cancellationToken);
 
             if (deletedTags > 0)
-            {
                 await rawAuditService.RecordRawOperationAsync(
                     dbContext,
-                    targetEntity: "OrderTags",
-                    affectedCount: deletedTags,
-                    reason: $"Cascade delete order tags for status {request.Status}",
+                    "OrderTags",
+                    deletedTags,
+                    $"Cascade delete order tags for status {request.Status}",
                     cancellationToken: cancellationToken);
-            }
-            
+
             var affected = await dbContext.Orders
                 .Where(o => o.UserId == userId && o.Status == request.Status)
                 .ExecuteDeleteAsync(cancellationToken);
 
             await rawAuditService.RecordRawOperationAsync(
                 dbContext,
-                targetEntity: "Orders",
-                affectedCount: affected,
-                reason: $"Batch delete orders with status {request.Status}",
-                hints: new Dictionary<string, string>
+                "Orders",
+                affected,
+                $"Batch delete orders with status {request.Status}",
+                new Dictionary<string, string>
                 {
                     ["operation"] = "batch_delete",
                     ["status"] = request.Status.ToString()
                 },
-                enumSnapshots: CreateEnumSnapshot(request.Status),
-                cancellationToken: cancellationToken);
+                CreateEnumSnapshot(request.Status),
+                cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
 
@@ -590,23 +594,23 @@ app.MapPost("/orders/raw/update-by-amount", async Task<IResult> (
         {
             var affected = await dbContext.ExecuteSqlRawWithAuditAsync(
                 rawAuditService,
-                targetEntity: "Orders",
-                sql: @"UPDATE ""Orders""
+                "Orders",
+                @"UPDATE ""Orders""
                        SET ""Status"" = {0}
                        WHERE ""UserId"" = {1}
                          AND ""Amount"" >= {2}
                          AND ""Amount"" <= {3}",
-                parameters: new object[] { (int)request.NewStatus, userId, request.MinAmount, request.MaxAmount },
-                reason: request.Reason ?? $"Raw update: set status to {request.NewStatus} for amount range",
-                hints: new Dictionary<string, string>
+                new object[] { (int)request.NewStatus, userId, request.MinAmount, request.MaxAmount },
+                request.Reason ?? $"Raw update: set status to {request.NewStatus} for amount range",
+                new Dictionary<string, string>
                 {
                     ["operation"] = "raw_update",
                     ["min_amount"] = request.MinAmount.ToString("F2"),
                     ["max_amount"] = request.MaxAmount.ToString("F2"),
                     ["new_status"] = request.NewStatus.ToString()
                 },
-                enumSnapshots: CreateFullEnumSnapshot<OrderStatus>(),
-                cancellationToken: cancellationToken);
+                CreateFullEnumSnapshot<OrderStatus>(),
+                cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
 
@@ -667,12 +671,12 @@ app.MapPost("/orders/raw/cancel-old", async Task<IResult> (
                         (int)OrderStatus.Cancelled
                     },
                     cancellationToken);
-                
+
                 await rawAuditService.RecordRawOperationAsync(
                     dbContext,
-                    targetEntity: "Orders",
-                    affectedCount: affected,
-                    reason: $"Cancel orders older than {olderThanDays} days",
+                    "Orders",
+                    affected,
+                    $"Cancel orders older than {olderThanDays} days",
                     enumSnapshots: CreateFullEnumSnapshot<OrderStatus>(),
                     cancellationToken: cancellationToken);
 
@@ -709,11 +713,12 @@ app.MapGet("/debug/audit-logs", async Task<IResult> (
         var take = Math.Clamp(limit ?? 10, 1, 100);
         var results = new List<object>();
 
-        await using var connection = new Npgsql.NpgsqlConnection(connString);
+        await using var connection = new NpgsqlConnection(connString);
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT id, created_at, transaction_id, payload FROM audit_log ORDER BY id DESC LIMIT {take}";
+        command.CommandText =
+            $"SELECT id, created_at, transaction_id, payload FROM audit_log ORDER BY id DESC LIMIT {take}";
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -728,29 +733,35 @@ app.MapGet("/debug/audit-logs", async Task<IResult> (
 
             try
             {
-                var envelope = Auditmeta.Raw.AuditMetaEnvelope.Parser.ParseFrom(payloadBytes);
+                var envelope = AuditMetaEnvelope.Parser.ParseFrom(payloadBytes);
                 payloadJson = new
                 {
                     transactionId = envelope.TransactionId,
                     createdAtUtcMs = envelope.CreatedAtUtcMs,
-                    actor = envelope.Actor != null ? new
-                    {
-                        userId = envelope.Actor.UserId,
-                        userName = envelope.Actor.UserName
-                    } : null,
-                    request = envelope.Request != null ? new
-                    {
-                        requestId = envelope.Request.RequestId,
-                        serviceName = envelope.Request.HasServiceName ? envelope.Request.ServiceName : null,
-                        clientIp = envelope.Request.HasClientIp ? envelope.Request.ClientIp : null,
-                        userAgent = envelope.Request.HasUserAgent ? envelope.Request.UserAgent : null
-                    } : null,
-                    bulk = envelope.Bulk != null ? new
-                    {
-                        isBulk = envelope.Bulk.IsBulk,
-                        affectedCount = envelope.Bulk.AffectedCount,
-                        target = envelope.Bulk.Target
-                    } : null,
+                    actor = envelope.Actor != null
+                        ? new
+                        {
+                            userId = envelope.Actor.UserId,
+                            userName = envelope.Actor.UserName
+                        }
+                        : null,
+                    request = envelope.Request != null
+                        ? new
+                        {
+                            requestId = envelope.Request.RequestId,
+                            serviceName = envelope.Request.HasServiceName ? envelope.Request.ServiceName : null,
+                            clientIp = envelope.Request.HasClientIp ? envelope.Request.ClientIp : null,
+                            userAgent = envelope.Request.HasUserAgent ? envelope.Request.UserAgent : null
+                        }
+                        : null,
+                    bulk = envelope.Bulk != null
+                        ? new
+                        {
+                            isBulk = envelope.Bulk.IsBulk,
+                            affectedCount = envelope.Bulk.AffectedCount,
+                            target = envelope.Bulk.Target
+                        }
+                        : null,
                     hints = envelope.Hints.Select(h => new { key = h.Key, value = h.Value }).ToList(),
                     enumSnapshots = envelope.EnumSnapshots.Select(es => new
                     {

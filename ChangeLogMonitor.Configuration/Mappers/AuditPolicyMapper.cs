@@ -19,7 +19,7 @@ public class AuditPolicyMapper
             DefaultCulture = yaml.DefaultCulture ?? "ru-RU",
             DefaultTimeZone = yaml.DefaultTimeZone ?? "Asia/Almaty"
         };
-        
+
         if (yaml.MethodPresets != null)
         {
             policy.MaskPresets = MapMaskPresets(yaml.MethodPresets.Mask);
@@ -29,15 +29,15 @@ public class AuditPolicyMapper
 
         policy.ReferencePresets = MapReferencePresets(yaml.ReferencePresets);
         policy.CollectionPresets = MapCollectionPresets(yaml.CollectionPresets);
-        
+
         if (yaml.ReferenceDefaults != null) policy.ReferenceDefaults = MapReferenceDefaults(yaml.ReferenceDefaults);
 
         if (yaml.CollectionDefaults != null) policy.CollectionDefaults = MapCollectionDefaults(yaml.CollectionDefaults);
-        
+
         if (yaml.Entities != null)
             foreach (var (entityName, yamlEntity) in yaml.Entities)
                 policy.Entities[entityName] = MapEntityPolicy(yamlEntity, policy);
-        
+
         if (yaml.AccessControl != null)
             policy.AccessControl = MapAccessControl(yaml.AccessControl);
 
@@ -54,20 +54,20 @@ public class AuditPolicyMapper
             OnUpdate = ParseUpdateBehavior(yaml.OnUpdate),
             OnDelete = ParseDeleteBehavior(yaml.OnDelete)
         };
-        
+
         if (yaml.Fields != null)
             foreach (var (fieldName, fieldValue) in yaml.Fields)
                 if (fieldValue is YamlFieldPolicy yamlField)
                     entity.Fields[fieldName] = MapFieldPolicy(yamlField, parentPolicy);
-        
+
         if (yaml.References != null)
             foreach (var (refName, yamlRef) in yaml.References)
                 entity.References[refName] = MapReferencePolicy(yamlRef, parentPolicy);
-        
+
         if (yaml.Collections != null)
             foreach (var (collName, yamlColl) in yaml.Collections)
                 entity.Collections[collName] = MapCollectionPolicy(yamlColl, parentPolicy);
-        
+
         if (yaml.Access != null)
             entity.Access = MapEntityAccess(yaml.Access);
 
@@ -102,7 +102,7 @@ public class AuditPolicyMapper
     private MaskSettings MapMaskSettings(YamlMaskSettings yaml, AuditPolicy parentPolicy)
     {
         var settings = new MaskSettings();
-        
+
         if (!string.IsNullOrEmpty(yaml.Preset) && parentPolicy.MaskPresets.TryGetValue(yaml.Preset, out var preset))
         {
             settings.MaskChar = preset.MaskChar;
@@ -111,7 +111,7 @@ public class AuditPolicyMapper
             settings.PreserveDomain = preset.PreserveDomain;
             settings.PreserveFormat = preset.PreserveFormat;
         }
-        
+
         if (!string.IsNullOrEmpty(yaml.Char)) settings.MaskChar = yaml.Char[0];
         if (yaml.KeepLeft.HasValue) settings.KeepLeft = yaml.KeepLeft.Value;
         if (yaml.KeepRight.HasValue) settings.KeepRight = yaml.KeepRight.Value;
@@ -126,7 +126,7 @@ public class AuditPolicyMapper
     private HashSettings MapHashSettings(YamlHashSettings yaml, AuditPolicy parentPolicy)
     {
         var settings = new HashSettings();
-        
+
         if (!string.IsNullOrEmpty(yaml.Preset) && parentPolicy.HashPresets.TryGetValue(yaml.Preset, out var preset))
         {
             settings.Algo = preset.Algo;
@@ -139,7 +139,7 @@ public class AuditPolicyMapper
             settings.StoreHash = preset.StoreHash;
             settings.EqualityToken = preset.EqualityToken;
         }
-        
+
         if (!string.IsNullOrEmpty(yaml.Algo)) settings.Algo = yaml.Algo;
         if (yaml.Salt != null)
             settings.Salt = new SaltSettings { Strategy = yaml.Salt.Strategy ?? "per-record", Ref = yaml.Salt.Ref };
@@ -155,7 +155,7 @@ public class AuditPolicyMapper
     private EncryptSettings MapEncryptSettings(YamlEncryptSettings yaml, AuditPolicy parentPolicy)
     {
         var settings = new EncryptSettings();
-        
+
         if (!string.IsNullOrEmpty(yaml.Preset) && parentPolicy.EncryptPresets.TryGetValue(yaml.Preset, out var preset))
         {
             settings.Algo = preset.Algo;
@@ -166,7 +166,7 @@ public class AuditPolicyMapper
             settings.Encoding = preset.Encoding;
             settings.StoreRaw = preset.StoreRaw;
         }
-        
+
         if (!string.IsNullOrEmpty(yaml.Algo)) settings.Algo = yaml.Algo;
         if (!string.IsNullOrEmpty(yaml.KeyRef)) settings.KeyRef = yaml.KeyRef;
         if (yaml.Aad != null && yaml.Aad.Any()) settings.Aad = yaml.Aad;
@@ -192,7 +192,7 @@ public class AuditPolicyMapper
     private ReferencePolicy MapReferencePolicy(YamlReferencePolicy yaml, AuditPolicy parentPolicy)
     {
         var policy = new ReferencePolicy();
-        
+
         if (!string.IsNullOrEmpty(yaml.Preset) &&
             parentPolicy.ReferencePresets.TryGetValue(yaml.Preset, out var preset))
         {
@@ -201,7 +201,7 @@ public class AuditPolicyMapper
             policy.ViewTemplate = preset.ViewTemplate;
             policy.NameMaskPreset = preset.NameMaskPreset;
         }
-        
+
         if (yaml.ShowKey.HasValue) policy.ShowKey = yaml.ShowKey.Value;
         if (yaml.ShowName.HasValue) policy.ShowName = yaml.ShowName.Value;
         if (!string.IsNullOrEmpty(yaml.ViewTemplate)) policy.ViewTemplate = yaml.ViewTemplate;
@@ -230,7 +230,7 @@ public class AuditPolicyMapper
     private CollectionPolicy MapCollectionPolicy(YamlCollectionPolicy yaml, AuditPolicy parentPolicy)
     {
         var policy = new CollectionPolicy();
-        
+
         if (!string.IsNullOrEmpty(yaml.Preset) &&
             parentPolicy.CollectionPresets.TryGetValue(yaml.Preset, out var preset))
         {
@@ -240,7 +240,7 @@ public class AuditPolicyMapper
             policy.ItemViewTemplate = preset.ItemViewTemplate;
             policy.DeltaView.CollapseToCounters = preset.CollapseToCounters;
         }
-        
+
         if (yaml.LogDeltas.HasValue) policy.LogDeltas = yaml.LogDeltas.Value;
         if (yaml.ShowKeys.HasValue) policy.ShowKeys = yaml.ShowKeys.Value;
         if (yaml.ShowNames.HasValue) policy.ShowNames = yaml.ShowNames.Value;
@@ -286,7 +286,7 @@ public class AuditPolicyMapper
 
         return policy;
     }
-    
+
     private Dictionary<string, MaskPreset> MapMaskPresets(Dictionary<string, YamlMaskPreset>? yaml)
     {
         if (yaml == null) return new Dictionary<string, MaskPreset>();
@@ -412,7 +412,7 @@ public class AuditPolicyMapper
             }
         };
     }
-    
+
     private AuditMode ParseAuditMode(string? value)
     {
         return value?.ToLower() switch

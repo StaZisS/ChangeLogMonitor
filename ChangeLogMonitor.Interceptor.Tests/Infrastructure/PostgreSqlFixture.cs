@@ -4,11 +4,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Interceptor.Tests.Infrastructure;
 
-/// <summary>
-///     Fixture для PostgreSQL контейнера.
-///     Создаёт один контейнер для всех тестов в коллекции
-///     и создает схему БД один раз перед всеми тестами.
-/// </summary>
 public class PostgreSqlFixture : IAsyncLifetime
 {
     private readonly SemaphoreSlim _schemaReadySemaphore = new(0, 1);
@@ -18,7 +13,6 @@ public class PostgreSqlFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // Запускаем PostgreSQL контейнер один раз для всех тестов
         PostgresContainer = new PostgreSqlBuilder()
             .WithImage("postgres:16-alpine")
             .WithDatabase("testdb")
@@ -29,10 +23,8 @@ public class PostgreSqlFixture : IAsyncLifetime
         await PostgresContainer.StartAsync();
         ConnectionString = PostgresContainer.GetConnectionString();
 
-        // Создаем схему БД один раз для всех тестов
         await CreateDatabaseSchemaAsync();
 
-        // Сигнализируем что схема готова
         _schemaReadySemaphore.Release();
     }
 
@@ -41,18 +33,12 @@ public class PostgreSqlFixture : IAsyncLifetime
         await PostgresContainer.DisposeAsync();
     }
 
-    /// <summary>
-    ///     Ожидает завершения создания схемы БД
-    /// </summary>
     public async Task WaitForSchemaAsync()
     {
         await _schemaReadySemaphore.WaitAsync();
-        _schemaReadySemaphore.Release(); // Сразу освобождаем для других потоков
+        _schemaReadySemaphore.Release();
     }
 
-    /// <summary>
-    ///     Создает схему БД для тестов
-    /// </summary>
     private async Task CreateDatabaseSchemaAsync()
     {
         var schemaOptions = new DbContextOptionsBuilder<TestSchemaDbContext>()

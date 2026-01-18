@@ -17,10 +17,11 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly IDiffService _diffService;
     private readonly IAccessControlService _accessControl;
-    private readonly ICurrentUserService _currentUser;
     private readonly IAuditConfigurationService _configurationService;
+    private readonly ICurrentUserService _currentUser;
+
+    private readonly IDiffService _diffService;
 
     public AuditLogViewService(
         IDiffService diffService,
@@ -33,9 +34,9 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         _currentUser = currentUser;
         _configurationService = configurationService;
     }
-    
+
     public bool IsAccessControlEnabled => _accessControl.IsEnabled;
-    
+
     public IReadOnlyList<string> GetAllowedEntities()
     {
         if (!_accessControl.IsEnabled)
@@ -45,7 +46,7 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         var roles = _accessControl.GetUserRoles(userId);
         return _accessControl.GetAllowedEntities(roles);
     }
-    
+
     public IReadOnlyList<EntityInfo> GetAvailableEntities()
     {
         var policy = _configurationService.GetPolicy();
@@ -131,21 +132,15 @@ internal sealed class AuditLogViewService : IAuditLogViewService
 
             if (payload.Data.TryGetProperty("field_changes", out var fieldChangesElement) ||
                 payload.Data.TryGetProperty("fieldChanges", out fieldChangesElement))
-            {
                 parsed.FieldChanges = DeserializeList<FieldChange>(fieldChangesElement);
-            }
 
             if (payload.Data.TryGetProperty("reference_changes", out var refChangesElement) ||
                 payload.Data.TryGetProperty("referenceChanges", out refChangesElement))
-            {
                 parsed.ReferenceChanges = DeserializeList<ReferenceChange>(refChangesElement);
-            }
 
             if (payload.Data.TryGetProperty("collection_changes", out var collChangesElement) ||
                 payload.Data.TryGetProperty("collectionChanges", out collChangesElement))
-            {
                 parsed.CollectionChanges = DeserializeList<CollectionChange>(collChangesElement);
-            }
 
             return parsed;
         }

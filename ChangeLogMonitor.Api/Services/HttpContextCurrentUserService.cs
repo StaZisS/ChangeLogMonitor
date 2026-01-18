@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Http;
 namespace ChangeLogMonitor.Api.Services;
 
 /// <summary>
-/// Implementation of ICurrentUserService that extracts user information from HttpContext.
-/// Supports JWT claims and fallback to X-User-Id header for testing.
+///     Implementation of ICurrentUserService that extracts user information from HttpContext.
+///     Supports JWT claims and fallback to X-User-Id header for testing.
 /// </summary>
 public class HttpContextCurrentUserService : ICurrentUserService
 {
@@ -40,20 +40,13 @@ public class HttpContextCurrentUserService : ICurrentUserService
         // 2. Fallback to X-User-Id header (for testing without JWT)
         if (context.Request.Headers.TryGetValue(UserIdHeader, out var headerValue) &&
             !string.IsNullOrWhiteSpace(headerValue))
-        {
             return headerValue.ToString();
-        }
 
         return null;
     }
 
     /// <inheritdoc />
-    public bool IsAuthenticated
-    {
-        get
-        {
-            // Authenticated if JWT or X-User-Id header is present
-            return GetUserId() != null;
-        }
-    }
+    public bool IsAuthenticated =>
+        // Authenticated if JWT or X-User-Id header is present
+        GetUserId() != null;
 }

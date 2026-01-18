@@ -6,23 +6,17 @@ namespace TestProject.Domain;
 
 public enum OrderStatus
 {
-    [AuditEnumLabel("Новый")]
-    New = 0,
+    [AuditEnumLabel("Новый")] New = 0,
 
-    [AuditEnumLabel("В обработке")]
-    Processing = 1,
+    [AuditEnumLabel("В обработке")] Processing = 1,
 
-    [AuditEnumLabel("Подтверждён")]
-    Confirmed = 2,
+    [AuditEnumLabel("Подтверждён")] Confirmed = 2,
 
-    [AuditEnumLabel("Отправлен")]
-    Shipped = 3,
+    [AuditEnumLabel("Отправлен")] Shipped = 3,
 
-    [AuditEnumLabel("Доставлен")]
-    Delivered = 4,
+    [AuditEnumLabel("Доставлен")] Delivered = 4,
 
-    [AuditEnumLabel("Отменён")]
-    Cancelled = 5
+    [AuditEnumLabel("Отменён")] Cancelled = 5
 }
 
 public class Order

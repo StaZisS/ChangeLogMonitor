@@ -13,9 +13,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Integration.Tests.Infrastructure;
 
-/// <summary>
-///     Базовый класс для интеграционных тестов
-/// </summary>
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
@@ -41,9 +38,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    ///     Создает AuditDbContext для работы с audit_log
-    /// </summary>
     protected AuditDbContext CreateAuditDbContext()
     {
         var options = new DbContextOptionsBuilder<AuditDbContext>()
@@ -53,9 +47,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return new AuditDbContext(options);
     }
 
-    /// <summary>
-    ///     Создает TestAppDbContext с интерцептором
-    /// </summary>
     protected TestAppDbContext CreateAppDbContext(string configFilePath)
     {
         var auditDbContext = CreateAuditDbContext();
@@ -86,18 +77,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return new TestAppDbContext(options);
     }
 
-    /// <summary>
-    ///     Создает AuditConfigurationService для форматирования
-    /// </summary>
     protected IAuditConfigurationService CreateConfigurationService(string configFilePath)
     {
         var policyProvider = new YamlAuditPolicyProvider(configFilePath);
         return new AuditConfigurationService(policyProvider);
     }
 
-    /// <summary>
-    ///     Очищает все данные из таблиц
-    /// </summary>
     protected async Task CleanDatabaseAsync()
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
@@ -115,18 +100,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         await command.ExecuteNonQueryAsync();
     }
 
-    /// <summary>
-    ///     Получает все записи из audit_log
-    /// </summary>
     protected async Task<List<AuditLog>> GetAllAuditLogsAsync()
     {
         await using var context = CreateAuditDbContext();
         return await context.AuditLogs.OrderBy(a => a.CreatedAt).ToListAsync();
     }
 
-    /// <summary>
-    ///     Получает количество записей в audit_log
-    /// </summary>
     protected async Task<int> GetAuditLogCountAsync()
     {
         await using var context = CreateAuditDbContext();

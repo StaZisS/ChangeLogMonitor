@@ -76,6 +76,7 @@ public sealed class TxAggregatorHostedService : BackgroundService, ITxAggregator
             catch (ObjectDisposedException)
             {
             }
+
             _stream = null;
             _isRunning = false;
             _isReady = false;

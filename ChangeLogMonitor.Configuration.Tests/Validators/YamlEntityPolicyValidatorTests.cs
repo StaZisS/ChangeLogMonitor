@@ -17,7 +17,6 @@ public class YamlEntityPolicyValidatorTests
     [Fact]
     public void Validate_ValidEntityPolicy_ShouldPass()
     {
-        // Arrange
         var entity = new YamlEntityPolicy
         {
             Enabled = true,
@@ -26,10 +25,8 @@ public class YamlEntityPolicyValidatorTests
             OnDelete = "eventOnly"
         };
 
-        // Act
         var result = _validator.Validate(entity);
 
-        // Assert
         result.IsValid.Should().BeTrue();
         result.Errors.Should().BeEmpty();
     }
@@ -40,13 +37,10 @@ public class YamlEntityPolicyValidatorTests
     [InlineData("nonDefaultFields")]
     public void Validate_ValidOnCreate_ShouldPass(string onCreate)
     {
-        // Arrange
         var entity = new YamlEntityPolicy { OnCreate = onCreate };
 
-        // Act
         var result = _validator.Validate(entity);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
@@ -55,13 +49,10 @@ public class YamlEntityPolicyValidatorTests
     [InlineData("ALL_FIELDS")]
     public void Validate_InvalidOnCreate_ShouldFail(string onCreate)
     {
-        // Arrange
         var entity = new YamlEntityPolicy { OnCreate = onCreate };
 
-        // Act
         var result = _validator.Validate(entity);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "OnCreate");
     }
@@ -69,7 +60,6 @@ public class YamlEntityPolicyValidatorTests
     [Fact]
     public void Validate_WithValidReferences_ShouldPass()
     {
-        // Arrange
         var entity = new YamlEntityPolicy
         {
             References = new Dictionary<string, YamlReferencePolicy>
@@ -81,17 +71,14 @@ public class YamlEntityPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(entity);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validate_WithInvalidReferences_ShouldFail()
     {
-        // Arrange
         var entity = new YamlEntityPolicy
         {
             References = new Dictionary<string, YamlReferencePolicy>
@@ -103,10 +90,8 @@ public class YamlEntityPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(entity);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName.Contains("ViewTemplate"));
     }
@@ -114,7 +99,6 @@ public class YamlEntityPolicyValidatorTests
     [Fact]
     public void Validate_WithValidCollections_ShouldPass()
     {
-        // Arrange
         var entity = new YamlEntityPolicy
         {
             Collections = new Dictionary<string, YamlCollectionPolicy>
@@ -130,17 +114,14 @@ public class YamlEntityPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(entity);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validate_WithInvalidCollectionLimits_ShouldFail()
     {
-        // Arrange
         var entity = new YamlEntityPolicy
         {
             Collections = new Dictionary<string, YamlCollectionPolicy>
@@ -156,10 +137,8 @@ public class YamlEntityPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(entity);
 
-        // Assert
         result.IsValid.Should().BeFalse();
     }
 }

@@ -12,10 +12,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Integration.Tests;
 
-/// <summary>
-///     Комплексный интеграционный тест всей цепочки:
-///     Entity Change -> Interceptor -> AuditLog -> (simulated CDC) -> AuditLogRecord -> AuditLogFormatter
-/// </summary>
 [Collection("IntegrationTests")]
 public class EndToEndIntegrationTests : IntegrationTestBase
 {
@@ -25,17 +21,12 @@ public class EndToEndIntegrationTests : IntegrationTestBase
     {
     }
 
-    /// <summary>
-    ///     Тест полной цепочки: создание клиента
-    /// </summary>
     [Fact]
     public async Task FullChain_CreateCustomer_ProducesCorrectFormattedOutput()
     {
-        // Arrange
         MetadataProvider.SetUser("user-123", "Иван Петров");
         MetadataProvider.AddHint("source", "web-app");
 
-        // Act - Create customer (Interceptor captures metadata)
         await using var appContext = CreateAppDbContext(ConfigPath);
         var customer = new Customer
         {
@@ -49,7 +40,6 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         appContext.Customers.Add(customer);
         await appContext.SaveChangesAsync();
 
-        // Verify Interceptor created audit log
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(1, "Interceptor should create one audit log entry per SaveChanges");
 
@@ -57,7 +47,6 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         auditLog.TransactionId.Should().NotBeNullOrEmpty();
         auditLog.Payload.Should().NotBeEmpty();
 
-        // Deserialize AuditMetaEnvelope (what Interceptor writes)
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(auditLog.Payload);
         envelope.TransactionId.Should().Be(auditLog.TransactionId);
         envelope.Actor.UserId.Should().Be("user-123");
@@ -66,14 +55,13 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         envelope.Request.ServiceName.Should().Be("IntegrationTests");
         envelope.Hints.Should().Contain(h => h.Key == "source" && h.Value == "web-app");
 
-        // Simulate CDC + Aggregation: create AuditRecord (what DataAggregator would produce)
         var auditRecord = CreateAuditRecordForCreate(
-            entityType: "customers",
-            entityId: customer.Id.ToString(),
-            entityTitle: customer.Name,
-            userId: envelope.Actor.UserId,
-            userTitle: envelope.Actor.UserName,
-            fieldChanges: new[]
+            "customers",
+            customer.Id.ToString(),
+            customer.Name,
+            envelope.Actor.UserId,
+            envelope.Actor.UserName,
+            new[]
             {
                 CreateFieldChange("name", "Имя клиента", null, customer.Name),
                 CreateFieldChange("email", "Электронная почта", null, customer.Email),
@@ -82,29 +70,26 @@ public class EndToEndIntegrationTests : IntegrationTestBase
                 CreateFieldChange("is_active", "Активен", null, customer.IsActive.ToString())
             });
 
-        // Create AuditLogRecord (what would be stored after aggregation)
         var auditLogRecord = new AuditLogRecord(
-            LogId: auditLog.Id,
-            ChangeTimeUtc: auditLog.CreatedAt,
-            UserId: envelope.Actor.UserId,
-            UserName: envelope.Actor.UserName,
-            TableName: "customers",
-            Operation: OperationCode.Create,
-            EntityId: customer.Id.ToString(),
-            TxId: auditLog.TransactionId,
-            Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
+            auditLog.Id,
+            auditLog.CreatedAt,
+            envelope.Actor.UserId,
+            envelope.Actor.UserName,
+            "customers",
+            OperationCode.Create,
+            customer.Id.ToString(),
+            auditLog.TransactionId,
+            Convert.ToBase64String(auditRecord.ToByteArray()));
 
-        // Format for display (Finalization layer)
         var configService = CreateConfigurationService(ConfigPath);
         var formatter = new AuditLogFormatter(configService);
         var formatted = formatter.Format(auditLogRecord, "Europe/Moscow");
 
-        // Assert formatted output
         formatted.LogId.Should().Be(auditLog.Id);
         formatted.TableName.Should().Be("customers");
         formatted.Operation.Should().Be("CREATE");
         formatted.EntityId.Should().Be(customer.Id.ToString());
-        formatted.EntityTitle.Should().Be("ООО Рога и Копыта"); // from protobuf EntityTitle
+        formatted.EntityTitle.Should().Be("ООО Рога и Копыта");
         formatted.UserId.Should().Be("user-123");
         formatted.UserTitle.Should().Be("Иван Петров");
         formatted.Summary.Should().Contain("Создана запись");
@@ -114,18 +99,13 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         formatted.Details.Should().Contain(d => d.Contains("ООО Рога и Копыта"));
     }
 
-    /// <summary>
-    ///     Тест полной цепочки: обновление заказа
-    /// </summary>
     [Fact]
     public async Task FullChain_UpdateOrder_ProducesCorrectFormattedOutput()
     {
-        // Arrange
         MetadataProvider.SetUser("admin-456", "Администратор");
 
         await using var appContext = CreateAppDbContext(ConfigPath);
 
-        // Create customer first
         var customer = new Customer
         {
             Name = "Тестовый Клиент",
@@ -136,7 +116,6 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         appContext.Customers.Add(customer);
         await appContext.SaveChangesAsync();
 
-        // Create order
         var order = new Order
         {
             OrderNumber = "ORD-001",
@@ -148,13 +127,11 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         appContext.Orders.Add(order);
         await appContext.SaveChangesAsync();
 
-        // Act - Update order status
         order.Status = "Processing";
         order.TotalAmount = 1500.00m;
         order.UpdatedAt = DateTime.UtcNow;
         await appContext.SaveChangesAsync();
 
-        // Verify
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(3, "Should have 3 audit logs: customer create, order create, order update");
         var updateAuditLog = auditLogs.Last();
@@ -163,35 +140,33 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         envelope.Actor.UserId.Should().Be("admin-456");
         envelope.Actor.UserName.Should().Be("Администратор");
 
-        // Simulate AuditRecord for update
         var auditRecord = CreateAuditRecordForUpdate(
-            entityType: "orders",
-            entityId: order.Id.ToString(),
-            entityTitle: order.OrderNumber,
-            userId: envelope.Actor.UserId,
-            userTitle: envelope.Actor.UserName,
-            fieldChanges: new[]
+            "orders",
+            order.Id.ToString(),
+            order.OrderNumber,
+            envelope.Actor.UserId,
+            envelope.Actor.UserName,
+            new[]
             {
                 CreateFieldChange("status", "Статус", "New", "Processing"),
                 CreateFieldChange("total_amount", "Сумма заказа", "1000.00", "1500.00")
             });
 
         var auditLogRecord = new AuditLogRecord(
-            LogId: updateAuditLog.Id,
-            ChangeTimeUtc: updateAuditLog.CreatedAt,
-            UserId: envelope.Actor.UserId,
-            UserName: envelope.Actor.UserName,
-            TableName: "orders",
-            Operation: OperationCode.Update,
-            EntityId: order.Id.ToString(),
-            TxId: updateAuditLog.TransactionId,
-            Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
+            updateAuditLog.Id,
+            updateAuditLog.CreatedAt,
+            envelope.Actor.UserId,
+            envelope.Actor.UserName,
+            "orders",
+            OperationCode.Update,
+            order.Id.ToString(),
+            updateAuditLog.TransactionId,
+            Convert.ToBase64String(auditRecord.ToByteArray()));
 
         var configService = CreateConfigurationService(ConfigPath);
         var formatter = new AuditLogFormatter(configService);
         var formatted = formatter.Format(auditLogRecord, "Europe/Moscow");
 
-        // Assert
         formatted.Operation.Should().Be("UPDATE");
         formatted.EntityTitle.Should().Be("ORD-001");
         formatted.Summary.Should().Contain("Изменена запись");
@@ -199,19 +174,14 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         formatted.Details.Should().Contain(d => d.Contains("New") && d.Contains("Processing"));
     }
 
-    /// <summary>
-    ///     Тест полной цепочки: сложная транзакция с несколькими сущностями
-    /// </summary>
     [Fact]
     public async Task FullChain_ComplexTransaction_MultipleEntities_AllAudited()
     {
-        // Arrange
         MetadataProvider.SetUser("operator-789", "Оператор склада");
         MetadataProvider.AddHint("transaction_type", "order_fulfillment");
 
         await using var appContext = CreateAppDbContext(ConfigPath);
 
-        // Create all entities in single transaction (one SaveChanges)
         var customer = new Customer
         {
             Name = "Крупный Заказчик",
@@ -237,10 +207,8 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         };
         appContext.Products.AddRange(product1, product2);
 
-        // Save all in one transaction - creates ONE audit log entry
         await appContext.SaveChangesAsync();
 
-        // Create order with items in separate transactions
         var order = new Order
         {
             OrderNumber = "BULK-001",
@@ -250,7 +218,7 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             CreatedAt = DateTime.UtcNow
         };
         appContext.Orders.Add(order);
-        await appContext.SaveChangesAsync(); // Second audit log
+        await appContext.SaveChangesAsync();
 
         var item1 = new OrderItem
         {
@@ -267,13 +235,11 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             UnitPrice = product2.Price
         };
         appContext.OrderItems.AddRange(item1, item2);
-        await appContext.SaveChangesAsync(); // Third audit log
+        await appContext.SaveChangesAsync();
 
-        // Verify - one audit log per SaveChanges (3 total)
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(3, "Should have 3 audit logs (one per SaveChanges call)");
 
-        // Verify each audit log has valid envelope with correct user
         foreach (var log in auditLogs)
         {
             var envelope = AuditMetaEnvelope.Parser.ParseFrom(log.Payload);
@@ -281,32 +247,31 @@ public class EndToEndIntegrationTests : IntegrationTestBase
             envelope.TransactionId.Should().NotBeNullOrEmpty();
         }
 
-        // Format last audit log (OrderItems creation)
         var lastLog = auditLogs.Last();
         var envelope2 = AuditMetaEnvelope.Parser.ParseFrom(lastLog.Payload);
 
         var auditRecord = CreateAuditRecordForCreate(
-            entityType: "order_items",
-            entityId: item2.Id.ToString(),
-            entityTitle: $"Товар B x{item2.Quantity}",
-            userId: envelope2.Actor.UserId,
-            userTitle: envelope2.Actor.UserName,
-            fieldChanges: new[]
+            "order_items",
+            item2.Id.ToString(),
+            $"Товар B x{item2.Quantity}",
+            envelope2.Actor.UserId,
+            envelope2.Actor.UserName,
+            new[]
             {
                 CreateFieldChange("quantity", "Количество", null, item2.Quantity.ToString()),
                 CreateFieldChange("unit_price", "Цена за единицу", null, item2.UnitPrice.ToString("F2"))
             });
 
         var auditLogRecord = new AuditLogRecord(
-            LogId: lastLog.Id,
-            ChangeTimeUtc: lastLog.CreatedAt,
-            UserId: envelope2.Actor.UserId,
-            UserName: envelope2.Actor.UserName,
-            TableName: "order_items",
-            Operation: OperationCode.Create,
-            EntityId: item2.Id.ToString(),
-            TxId: lastLog.TransactionId,
-            Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
+            lastLog.Id,
+            lastLog.CreatedAt,
+            envelope2.Actor.UserId,
+            envelope2.Actor.UserName,
+            "order_items",
+            OperationCode.Create,
+            item2.Id.ToString(),
+            lastLog.TransactionId,
+            Convert.ToBase64String(auditRecord.ToByteArray()));
 
         var configService = CreateConfigurationService(ConfigPath);
         var formatter = new AuditLogFormatter(configService);
@@ -316,13 +281,9 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         formatted.Details.Should().Contain(d => d.Contains("Количество"));
     }
 
-    /// <summary>
-    ///     Тест полной цепочки: удаление сущности
-    /// </summary>
     [Fact]
     public async Task FullChain_DeleteEntity_ProducesCorrectFormattedOutput()
     {
-        // Arrange
         MetadataProvider.SetUser("manager-101", "Менеджер");
 
         await using var appContext = CreateAppDbContext(ConfigPath);
@@ -339,11 +300,9 @@ public class EndToEndIntegrationTests : IntegrationTestBase
 
         var productId = product.Id;
 
-        // Act - Delete product
         appContext.Products.Remove(product);
         await appContext.SaveChangesAsync();
 
-        // Verify - 2 audit logs: create and delete
         var auditLogs = await GetAllAuditLogsAsync();
         auditLogs.Should().HaveCount(2, "Should have 2 audit logs: create and delete");
         var deleteAuditLog = auditLogs.Last();
@@ -351,7 +310,6 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         var envelope = AuditMetaEnvelope.Parser.ParseFrom(deleteAuditLog.Payload);
         envelope.Actor.UserName.Should().Be("Менеджер");
 
-        // Simulate AuditRecord for delete (no field changes, just event)
         var auditRecord = new AuditRecord
         {
             Id = Guid.NewGuid().ToString(),
@@ -365,34 +323,29 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         };
 
         var auditLogRecord = new AuditLogRecord(
-            LogId: deleteAuditLog.Id,
-            ChangeTimeUtc: deleteAuditLog.CreatedAt,
-            UserId: envelope.Actor.UserId,
-            UserName: envelope.Actor.UserName,
-            TableName: "products",
-            Operation: OperationCode.Delete,
-            EntityId: productId.ToString(),
-            TxId: deleteAuditLog.TransactionId,
-            Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
+            deleteAuditLog.Id,
+            deleteAuditLog.CreatedAt,
+            envelope.Actor.UserId,
+            envelope.Actor.UserName,
+            "products",
+            OperationCode.Delete,
+            productId.ToString(),
+            deleteAuditLog.TransactionId,
+            Convert.ToBase64String(auditRecord.ToByteArray()));
 
         var configService = CreateConfigurationService(ConfigPath);
         var formatter = new AuditLogFormatter(configService);
         var formatted = formatter.Format(auditLogRecord, "Europe/Moscow");
 
-        // Assert
         formatted.Operation.Should().Be("DELETE");
         formatted.EntityTitle.Should().Be("Удаляемый товар");
         formatted.Summary.Should().Contain("Удалена запись");
         formatted.Summary.Should().Contain("Менеджер");
     }
 
-    /// <summary>
-    ///     Тест: проверка маскирования чувствительных данных
-    /// </summary>
     [Fact]
     public async Task FullChain_SensitiveData_IsMaskedInOutput()
     {
-        // Arrange
         MetadataProvider.SetUser("admin", "System Admin");
 
         await using var appContext = CreateAppDbContext(ConfigPath);
@@ -408,14 +361,13 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         appContext.Customers.Add(customer);
         await appContext.SaveChangesAsync();
 
-        // Create AuditRecord with hashed password field
         var auditRecord = CreateAuditRecordForCreate(
-            entityType: "customers",
-            entityId: customer.Id.ToString(),
-            entityTitle: customer.Name,
-            userId: "admin",
-            userTitle: "System Admin",
-            fieldChanges: new[]
+            "customers",
+            customer.Id.ToString(),
+            customer.Name,
+            "admin",
+            "System Admin",
+            new[]
             {
                 CreateFieldChange("name", "Имя клиента", null, customer.Name),
                 CreateFieldChange("email", "Электронная почта", null, customer.Email),
@@ -426,21 +378,20 @@ public class EndToEndIntegrationTests : IntegrationTestBase
         var log = auditLogs.Last();
 
         var auditLogRecord = new AuditLogRecord(
-            LogId: log.Id,
-            ChangeTimeUtc: log.CreatedAt,
-            UserId: "admin",
-            UserName: "System Admin",
-            TableName: "customers",
-            Operation: OperationCode.Create,
-            EntityId: customer.Id.ToString(),
-            TxId: log.TransactionId,
-            Payload: Convert.ToBase64String(auditRecord.ToByteArray()));
+            log.Id,
+            log.CreatedAt,
+            "admin",
+            "System Admin",
+            "customers",
+            OperationCode.Create,
+            customer.Id.ToString(),
+            log.TransactionId,
+            Convert.ToBase64String(auditRecord.ToByteArray()));
 
         var configService = CreateConfigurationService(ConfigPath);
         var formatter = new AuditLogFormatter(configService);
         var formatted = formatter.Format(auditLogRecord, "UTC");
 
-        // Assert - hashed field should show hash prefix
         formatted.Details.Should().Contain(d => d.Contains("[SHA256]") || d.Contains("password_hash"));
     }
 

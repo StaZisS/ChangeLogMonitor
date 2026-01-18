@@ -28,7 +28,8 @@ public static class DiffFormattedEndpoints
 
                 var take = Math.Clamp(limit ?? 50, 1, 500);
                 var timezone = GetTimezone(httpContext);
-                var response = await diffService.GetByEntityFormattedAsync(tableName, entityId, take, timezone, cancellationToken);
+                var response =
+                    await diffService.GetByEntityFormattedAsync(tableName, entityId, take, timezone, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("GetDiffsByEntity")
@@ -46,7 +47,8 @@ public static class DiffFormattedEndpoints
 
                 var take = Math.Clamp(limit ?? 50, 1, 500);
                 var timezone = GetTimezone(httpContext);
-                var response = await diffService.GetByTransactionFormattedAsync(transactionId, take, timezone, cancellationToken);
+                var response =
+                    await diffService.GetByTransactionFormattedAsync(transactionId, take, timezone, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("GetDiffsByTransaction")
@@ -92,7 +94,8 @@ public static class DiffFormattedEndpoints
                     userId,
                     entityId,
                     transactionId);
-                var result = await diffService.GetFilteredFormattedAsync(filter, cursor, take, timezone, cancellationToken);
+                var result =
+                    await diffService.GetFilteredFormattedAsync(filter, cursor, take, timezone, cancellationToken);
                 return Results.Ok(result);
             })
             .WithName("GetFilteredDiffs")
@@ -105,9 +108,7 @@ public static class DiffFormattedEndpoints
     {
         if (httpContext.Request.Headers.TryGetValue(TimezoneHeader, out var timezoneHeader) &&
             !string.IsNullOrWhiteSpace(timezoneHeader))
-        {
             return timezoneHeader.ToString();
-        }
 
         return AuditLogMessages.DefaultTimezone;
     }

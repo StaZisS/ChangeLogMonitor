@@ -19,7 +19,6 @@ public class TxCdcParserTests
     [Fact]
     public void ExtractTxId_ExtractsOnlyXidFromPostgresFormat()
     {
-        // Debezium PostgreSQL формирует transaction.id как "xid:lsn"
         const string json = "{\"payload\":{\"transaction\":{\"id\":\"763:27659832\"},\"after\":{\"id\":1}}}";
 
         var txId = TxCdcParser.ExtractTxId(json);
@@ -30,7 +29,6 @@ public class TxCdcParserTests
     [Fact]
     public void ExtractTxId_GroupsSameTransactionByXid()
     {
-        // Две записи из одной транзакции PostgreSQL должны группироваться по одному xid
         const string json1 = "{\"payload\":{\"transaction\":{\"id\":\"763:27659832\"}}}";
         const string json2 = "{\"payload\":{\"transaction\":{\"id\":\"763:27660776\"}}}";
 

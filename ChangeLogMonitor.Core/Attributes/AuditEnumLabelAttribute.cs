@@ -10,23 +10,18 @@ namespace ChangeLogMonitor.Core.Attributes;
 /// {
 ///     [AuditEnumLabel("Новый")]
 ///     New = 0,
-///
+/// 
 ///     [AuditEnumLabel("В обработке")]
 ///     Processing = 1,
-///
+/// 
 ///     [AuditEnumLabel("Завершён")]
 ///     Completed = 2
 /// }
 /// </code>
 /// </example>
-[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+[AttributeUsage(AttributeTargets.Field)]
 public sealed class AuditEnumLabelAttribute : Attribute
 {
-    /// <summary>
-    ///     Человекочитаемая метка значения enum
-    /// </summary>
-    public string Label { get; }
-
     /// <summary>
     ///     Создает атрибут с указанной меткой
     /// </summary>
@@ -35,4 +30,9 @@ public sealed class AuditEnumLabelAttribute : Attribute
     {
         Label = label ?? throw new ArgumentNullException(nameof(label));
     }
+
+    /// <summary>
+    ///     Человекочитаемая метка значения enum
+    /// </summary>
+    public string Label { get; }
 }

@@ -14,12 +14,12 @@ public class AuditMetadataSerializer
     {
         _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
     }
-    
+
     public byte[] Serialize(string transactionId)
     {
         return Serialize(transactionId, null);
     }
-    
+
     public byte[] Serialize(string transactionId, Dictionary<string, Dictionary<string, string>>? enumSnapshots)
     {
         return Serialize(transactionId, enumSnapshots, null, null);
@@ -73,7 +73,7 @@ public class AuditMetadataSerializer
             if (userAgent != null)
                 envelope.Request.UserAgent = userAgent;
         }
-        
+
         var hints = _metadataProvider.GetHints();
         if (hints != null && hints.Count > 0)
             foreach (var hint in hints)
@@ -82,7 +82,7 @@ public class AuditMetadataSerializer
                     Key = hint.Key,
                     Value = hint.Value
                 });
-        
+
         if (enumSnapshots != null && enumSnapshots.Count > 0)
             foreach (var (enumType, pairs) in enumSnapshots)
             {
@@ -100,7 +100,7 @@ public class AuditMetadataSerializer
 
                 envelope.EnumSnapshots.Add(snapshot);
             }
-        
+
         if (referenceSnapshots != null && referenceSnapshots.Count > 0)
             foreach (var refData in referenceSnapshots)
                 envelope.ReferenceSnapshots.Add(new ReferenceSnapshot
@@ -111,7 +111,7 @@ public class AuditMetadataSerializer
                     Key = refData.Key,
                     Title = refData.Title
                 });
-        
+
         if (collectionDeltas != null && collectionDeltas.Count > 0)
             foreach (var delta in collectionDeltas)
             {
@@ -175,7 +175,7 @@ public class AuditMetadataSerializer
                 Target = targetEntity
             }
         };
-        
+
         var requestId = _metadataProvider.GetRequestId();
         var serviceName = _metadataProvider.GetServiceName();
         var clientIp = _metadataProvider.GetClientIp();
@@ -197,7 +197,7 @@ public class AuditMetadataSerializer
             if (userAgent != null)
                 envelope.Request.UserAgent = userAgent;
         }
-        
+
         var providerHints = _metadataProvider.GetHints();
         if (providerHints != null && providerHints.Count > 0)
             foreach (var hint in providerHints)
@@ -206,7 +206,7 @@ public class AuditMetadataSerializer
                     Key = hint.Key,
                     Value = hint.Value
                 });
-        
+
         if (additionalHints != null && additionalHints.Count > 0)
             foreach (var hint in additionalHints)
                 envelope.Hints.Add(new Hint
@@ -214,7 +214,7 @@ public class AuditMetadataSerializer
                     Key = hint.Key,
                     Value = hint.Value
                 });
-        
+
         if (enumSnapshots != null && enumSnapshots.Count > 0)
             foreach (var (enumType, pairs) in enumSnapshots)
             {

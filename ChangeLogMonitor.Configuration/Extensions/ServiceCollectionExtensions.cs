@@ -2,7 +2,6 @@ using ChangeLogMonitor.Configuration.Providers;
 using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace ChangeLogMonitor.Configuration.Extensions;
 
@@ -23,10 +22,7 @@ public static class ServiceCollectionExtensions
         var filePath = ResolveConfigPath(configFilePath);
 
         // Проверяем файл при старте
-        if (validateOnStartup)
-        {
-            ValidateConfigFile(filePath);
-        }
+        if (validateOnStartup) ValidateConfigFile(filePath);
 
         // Регистрируем провайдер
         services.AddSingleton<IAuditPolicyProvider>(sp =>
@@ -47,15 +43,10 @@ public static class ServiceCollectionExtensions
     private static string ResolveConfigPath(string? configFilePath)
     {
         if (string.IsNullOrWhiteSpace(configFilePath))
-        {
             return Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
-        }
 
         // Если путь абсолютный - используем как есть
-        if (Path.IsPathRooted(configFilePath))
-        {
-            return configFilePath;
-        }
+        if (Path.IsPathRooted(configFilePath)) return configFilePath;
 
         // Относительный путь - относительно BaseDirectory
         return Path.Combine(AppContext.BaseDirectory, configFilePath);
@@ -68,11 +59,9 @@ public static class ServiceCollectionExtensions
     private static void ValidateConfigFile(string filePath)
     {
         if (!File.Exists(filePath))
-        {
             throw new InvalidOperationException(
                 $"Файл конфигурации аудита не найден: '{filePath}'. " +
                 $"Создайте файл changelog-config.yaml или укажите правильный путь в appsettings.json (AuditConfiguration:ConfigFilePath).");
-        }
 
         // Проверяем доступность файла на чтение
         try

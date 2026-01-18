@@ -1,6 +1,7 @@
+using System.Data;
+using Microsoft.EntityFrameworkCore;
 using TestProject.Domain;
 using TestProject.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 
 namespace TestProject.Data;
 
@@ -13,9 +14,9 @@ public static class DatabaseInitializer
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         await context.Database.EnsureCreatedAsync(cancellationToken);
-        
+
         await EnsureStatusColumnAsync(context, cancellationToken);
-        
+
         await EnsureTagsTablesAsync(context, cancellationToken);
 
         var hasChanges = false;
@@ -47,7 +48,7 @@ public static class DatabaseInitializer
             });
             hasChanges = true;
         }
-        
+
         if (!await context.Tags.AnyAsync(t => t.Id == SeedData.UrgentTagId, cancellationToken))
         {
             context.Tags.AddRange(
@@ -60,12 +61,9 @@ public static class DatabaseInitializer
             hasChanges = true;
         }
 
-        if (hasChanges)
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
+        if (hasChanges) await context.SaveChangesAsync(cancellationToken);
     }
-    
+
     private static async Task EnsureStatusColumnAsync(AppDbContext context, CancellationToken cancellationToken)
     {
         var connection = context.Database.GetDbConnection();
@@ -77,7 +75,7 @@ public static class DatabaseInitializer
         try
         {
             await connection.OpenAsync(cancellationToken);
-            
+
             await using var checkCmd = connection.CreateCommand();
             checkCmd.CommandText = @"
                 SELECT COUNT(*) FROM information_schema.columns
@@ -96,7 +94,7 @@ public static class DatabaseInitializer
         {
         }
     }
-    
+
     private static async Task EnsureTagsTablesAsync(AppDbContext context, CancellationToken cancellationToken)
     {
         var connection = context.Database.GetDbConnection();
@@ -107,9 +105,9 @@ public static class DatabaseInitializer
 
         try
         {
-            if (connection.State != System.Data.ConnectionState.Open)
+            if (connection.State != ConnectionState.Open)
                 await connection.OpenAsync(cancellationToken);
-            
+
             await using var checkTagsCmd = connection.CreateCommand();
             checkTagsCmd.CommandText = @"
                 SELECT COUNT(*) FROM information_schema.tables
@@ -130,7 +128,7 @@ public static class DatabaseInitializer
                 ";
                 await createTagsCmd.ExecuteNonQueryAsync(cancellationToken);
             }
-            
+
             await using var checkOrderTagsCmd = connection.CreateCommand();
             checkOrderTagsCmd.CommandText = @"
                 SELECT COUNT(*) FROM information_schema.tables

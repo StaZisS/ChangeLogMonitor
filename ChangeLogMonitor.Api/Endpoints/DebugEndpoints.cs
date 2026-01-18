@@ -1,3 +1,4 @@
+using Audit.V1;
 using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Core.Interfaces;
 using ChangeLogMonitor.Finalization.Models;
@@ -74,7 +75,7 @@ public static class DebugEndpoints
                     try
                     {
                         var payloadBytes = Convert.FromBase64String(record.Payload);
-                        var auditRecord = Audit.V1.AuditRecord.Parser.ParseFrom(payloadBytes);
+                        var auditRecord = AuditRecord.Parser.ParseFrom(payloadBytes);
 
                         payloadJson = new
                         {
@@ -93,22 +94,26 @@ public static class DebugEndpoints
                                 fieldTitle = fc.FieldTitle,
                                 valueKind = fc.ValueKind.ToString(),
                                 sensitiveMode = fc.SensitiveMode.ToString(),
-                                oldValue = fc.OldValue != null ? new
-                                {
-                                    normalized = fc.OldValue.Normalized,
-                                    enumCode = fc.OldValue.EnumCode,
-                                    enumTitle = fc.OldValue.EnumTitle,
-                                    referenceKey = fc.OldValue.ReferenceKey,
-                                    referenceTitle = fc.OldValue.ReferenceTitle
-                                } : null,
-                                newValue = fc.NewValue != null ? new
-                                {
-                                    normalized = fc.NewValue.Normalized,
-                                    enumCode = fc.NewValue.EnumCode,
-                                    enumTitle = fc.NewValue.EnumTitle,
-                                    referenceKey = fc.NewValue.ReferenceKey,
-                                    referenceTitle = fc.NewValue.ReferenceTitle
-                                } : null
+                                oldValue = fc.OldValue != null
+                                    ? new
+                                    {
+                                        normalized = fc.OldValue.Normalized,
+                                        enumCode = fc.OldValue.EnumCode,
+                                        enumTitle = fc.OldValue.EnumTitle,
+                                        referenceKey = fc.OldValue.ReferenceKey,
+                                        referenceTitle = fc.OldValue.ReferenceTitle
+                                    }
+                                    : null,
+                                newValue = fc.NewValue != null
+                                    ? new
+                                    {
+                                        normalized = fc.NewValue.Normalized,
+                                        enumCode = fc.NewValue.EnumCode,
+                                        enumTitle = fc.NewValue.EnumTitle,
+                                        referenceKey = fc.NewValue.ReferenceKey,
+                                        referenceTitle = fc.NewValue.ReferenceTitle
+                                    }
+                                    : null
                             }).ToList(),
                             collectionChanges = auditRecord.CollectionChanges.Select(cc => new
                             {
@@ -172,12 +177,10 @@ public static class DebugEndpoints
 
                     DiffFilterRequest? simulatedFilter = null;
                     if (isEnabled)
-                    {
                         simulatedFilter = new DiffFilterRequest(null, null, null, null, null, null, null)
                         {
                             AllowedTableNames = allowedEntities.ToList()
                         };
-                    }
 
                     return Results.Ok(new
                     {

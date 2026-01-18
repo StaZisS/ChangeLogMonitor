@@ -25,13 +25,114 @@ public class AuditLogFormatterTests
         _formatter = new AuditLogFormatter(_configurationServiceMock.Object);
     }
 
+    #region Operation Name Tests
+
+    [Theory]
+    [InlineData(OperationCode.Create, "CREATE")]
+    [InlineData(OperationCode.Update, "UPDATE")]
+    [InlineData(OperationCode.Delete, "DELETE")]
+    [InlineData(OperationCode.SoftDelete, "SOFT_DELETE")]
+    [InlineData(OperationCode.BulkUpdate, "BULK_UPDATE")]
+    [InlineData(OperationCode.BulkDelete, "BULK_DELETE")]
+    public void Format_ReturnsCorrectOperationName(OperationCode operation, string expectedName)
+    {
+        var record = CreateAuditLogRecord(operation: operation);
+
+        var result = _formatter.Format(record, "UTC");
+
+        Assert.Equal(expectedName, result.Operation);
+    }
+
+    #endregion
+
+    #region Collection Changes Formatting Tests
+
+    [Fact]
+    public void Format_IncludesCollectionChanges_InDetails()
+    {
+        var auditRecord = new AuditRecord
+        {
+            Id = "test-1",
+            EntityType = "Orders",
+            EntityId = "order-1",
+            Operation = OperationType.OperationUpdate,
+            TimestampUtc = Timestamp.FromDateTime(DateTime.UtcNow)
+        };
+
+        var collectionChange = new CollectionChange
+        {
+            FieldName = "Tags",
+            FieldTitle = "Теги"
+        };
+        collectionChange.Items.Add(new CollectionItemChange
+        {
+            Kind = CollectionDeltaKind.Add,
+            ItemKey = "tag-1",
+            ItemTitle = "Important"
+        });
+
+        auditRecord.CollectionChanges.Add(collectionChange);
+
+        var record = CreateAuditLogRecord(payload: auditRecord);
+
+        var result = _formatter.Format(record, "UTC");
+
+        Assert.NotEmpty(result.Details);
+        Assert.Contains(result.Details, d => d.Contains("Теги") && d.Contains("Important"));
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static AuditLogRecord CreateAuditLogRecord(
+        long logId = 1,
+        DateTime? changeTimeUtc = null,
+        string userId = "user-1",
+        string userName = "Test User",
+        string tableName = "TestTable",
+        OperationCode operation = OperationCode.Create,
+        string entityId = "entity-1",
+        string txId = "tx-1",
+        AuditRecord? payload = null)
+    {
+        var time = changeTimeUtc ?? DateTime.UtcNow;
+
+        if (payload == null)
+            payload = new AuditRecord
+            {
+                Id = $"{txId}-0",
+                EntityType = tableName,
+                EntityId = entityId,
+                Operation = (OperationType)(byte)operation,
+                TimestampUtc = Timestamp.FromDateTime(DateTime.SpecifyKind(time, DateTimeKind.Utc)),
+                UserId = userId
+            };
+
+        var payloadBytes = payload.ToByteArray();
+        var payloadBase64 = Convert.ToBase64String(payloadBytes);
+
+        return new AuditLogRecord(
+            logId,
+            time,
+            userId,
+            userName,
+            tableName,
+            operation,
+            entityId,
+            txId,
+            payloadBase64);
+    }
+
+    #endregion
+
     #region Basic Formatting Tests
 
     [Fact]
     public void Format_ReturnsFormattedResponse_WithCorrectFields()
     {
         var record = CreateAuditLogRecord(
-            logId: 1,
+            1,
             tableName: "Orders",
             operation: OperationCode.Create,
             entityId: "order-123",
@@ -93,26 +194,6 @@ public class AuditLogFormatterTests
         var result = _formatter.Format(record, "UTC");
 
         Assert.Equal("Admin User", result.UserTitle);
-    }
-
-    #endregion
-
-    #region Operation Name Tests
-
-    [Theory]
-    [InlineData(OperationCode.Create, "CREATE")]
-    [InlineData(OperationCode.Update, "UPDATE")]
-    [InlineData(OperationCode.Delete, "DELETE")]
-    [InlineData(OperationCode.SoftDelete, "SOFT_DELETE")]
-    [InlineData(OperationCode.BulkUpdate, "BULK_UPDATE")]
-    [InlineData(OperationCode.BulkDelete, "BULK_DELETE")]
-    public void Format_ReturnsCorrectOperationName(OperationCode operation, string expectedName)
-    {
-        var record = CreateAuditLogRecord(operation: operation);
-
-        var result = _formatter.Format(record, "UTC");
-
-        Assert.Equal(expectedName, result.Operation);
     }
 
     #endregion
@@ -220,7 +301,6 @@ public class AuditLogFormatterTests
         var result = _formatter.Format(record, "UTC");
 
         Assert.NotEmpty(result.Details);
-        // Masked fields show the masked values as-is (e.g., "***")
         Assert.Contains(result.Details, d => d.Contains("Пароль") && d.Contains("***"));
     }
 
@@ -250,7 +330,6 @@ public class AuditLogFormatterTests
         var result = _formatter.Format(record, "UTC");
 
         Assert.NotEmpty(result.Details);
-        // Hashed fields show "[SHA256]" prefix before values
         Assert.Contains(result.Details, d => d.Contains("ИИН") && d.Contains("[SHA256]"));
     }
 
@@ -312,44 +391,6 @@ public class AuditLogFormatterTests
 
     #endregion
 
-    #region Collection Changes Formatting Tests
-
-    [Fact]
-    public void Format_IncludesCollectionChanges_InDetails()
-    {
-        var auditRecord = new AuditRecord
-        {
-            Id = "test-1",
-            EntityType = "Orders",
-            EntityId = "order-1",
-            Operation = OperationType.OperationUpdate,
-            TimestampUtc = Timestamp.FromDateTime(DateTime.UtcNow)
-        };
-
-        var collectionChange = new CollectionChange
-        {
-            FieldName = "Tags",
-            FieldTitle = "Теги"
-        };
-        collectionChange.Items.Add(new CollectionItemChange
-        {
-            Kind = CollectionDeltaKind.Add,
-            ItemKey = "tag-1",
-            ItemTitle = "Important"
-        });
-
-        auditRecord.CollectionChanges.Add(collectionChange);
-
-        var record = CreateAuditLogRecord(payload: auditRecord);
-
-        var result = _formatter.Format(record, "UTC");
-
-        Assert.NotEmpty(result.Details);
-        Assert.Contains(result.Details, d => d.Contains("Теги") && d.Contains("Important"));
-    }
-
-    #endregion
-
     #region Timezone Tests
 
     [Fact]
@@ -358,9 +399,8 @@ public class AuditLogFormatterTests
         var utcTime = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
         var record = CreateAuditLogRecord(changeTimeUtc: utcTime);
 
-        var result = _formatter.Format(record, "Europe/Moscow"); // UTC+3
+        var result = _formatter.Format(record, "Europe/Moscow");
 
-        // Moscow is UTC+3, so 12:00 UTC should be 15:00 Moscow
         Assert.Equal(15, result.ChangeTime.Hour);
     }
 
@@ -372,7 +412,6 @@ public class AuditLogFormatterTests
 
         var result = _formatter.Format(record, "Invalid/Timezone");
 
-        // Should fall back to UTC or default timezone - verify it doesn't throw
         Assert.True(result.ChangeTime != default);
     }
 
@@ -423,7 +462,6 @@ public class AuditLogFormatterTests
     [Fact]
     public void Format_UsesDisplayNameFromConfig_WhenEntityTitleIsEmpty()
     {
-        // Arrange
         var entityPolicy = new EntityPolicy { DisplayName = "Заказы" };
         _configurationServiceMock
             .Setup(x => x.GetEntityPolicy("Orders", It.IsAny<bool>()))
@@ -441,17 +479,14 @@ public class AuditLogFormatterTests
 
         var record = CreateAuditLogRecord(tableName: "Orders", payload: auditRecord);
 
-        // Act
         var result = _formatter.Format(record, "UTC");
 
-        // Assert
         Assert.Equal("Заказы", result.EntityTitle);
     }
 
     [Fact]
     public void Format_PrefersEntityTitleFromPayload_OverDisplayNameFromConfig()
     {
-        // Arrange
         var entityPolicy = new EntityPolicy { DisplayName = "Заказы" };
         _configurationServiceMock
             .Setup(x => x.GetEntityPolicy("Orders", It.IsAny<bool>()))
@@ -462,63 +497,16 @@ public class AuditLogFormatterTests
             Id = "test-1",
             EntityType = "Orders",
             EntityId = "order-1",
-            EntityTitle = "Order #12345", // This should take priority
+            EntityTitle = "Order #12345",
             Operation = OperationType.OperationCreate,
             TimestampUtc = Timestamp.FromDateTime(DateTime.UtcNow)
         };
 
         var record = CreateAuditLogRecord(tableName: "Orders", payload: auditRecord);
 
-        // Act
         var result = _formatter.Format(record, "UTC");
 
-        // Assert
         Assert.Equal("Order #12345", result.EntityTitle);
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    private static AuditLogRecord CreateAuditLogRecord(
-        long logId = 1,
-        DateTime? changeTimeUtc = null,
-        string userId = "user-1",
-        string userName = "Test User",
-        string tableName = "TestTable",
-        OperationCode operation = OperationCode.Create,
-        string entityId = "entity-1",
-        string txId = "tx-1",
-        AuditRecord? payload = null)
-    {
-        var time = changeTimeUtc ?? DateTime.UtcNow;
-
-        if (payload == null)
-        {
-            payload = new AuditRecord
-            {
-                Id = $"{txId}-0",
-                EntityType = tableName,
-                EntityId = entityId,
-                Operation = (OperationType)(byte)operation,
-                TimestampUtc = Timestamp.FromDateTime(DateTime.SpecifyKind(time, DateTimeKind.Utc)),
-                UserId = userId
-            };
-        }
-
-        var payloadBytes = payload.ToByteArray();
-        var payloadBase64 = Convert.ToBase64String(payloadBytes);
-
-        return new AuditLogRecord(
-            logId,
-            time,
-            userId,
-            userName,
-            tableName,
-            operation,
-            entityId,
-            txId,
-            payloadBase64);
     }
 
     #endregion

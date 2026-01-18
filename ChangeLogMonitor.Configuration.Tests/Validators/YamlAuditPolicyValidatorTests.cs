@@ -17,7 +17,6 @@ public class YamlAuditPolicyValidatorTests
     [Fact]
     public void Validate_ValidPolicy_ShouldPass()
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -27,10 +26,8 @@ public class YamlAuditPolicyValidatorTests
             OnDelete = "eventOnly"
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeTrue();
         result.Errors.Should().BeEmpty();
     }
@@ -38,17 +35,14 @@ public class YamlAuditPolicyValidatorTests
     [Fact]
     public void Validate_MissingVersion_ShouldFail()
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = null,
             Mode = "whitelist"
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Version");
         result.Errors.First().ErrorMessage.Should().Contain("Version is required");
@@ -60,17 +54,14 @@ public class YamlAuditPolicyValidatorTests
     [InlineData("Blacklist")]
     public void Validate_InvalidMode_ShouldFail(string mode)
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
             Mode = mode
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Mode");
         result.Errors.First().ErrorMessage.Should().Contain("Mode must be one of");
@@ -81,17 +72,14 @@ public class YamlAuditPolicyValidatorTests
     [InlineData("blacklist")]
     public void Validate_ValidMode_ShouldPass(string mode)
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
             Mode = mode
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
@@ -100,17 +88,14 @@ public class YamlAuditPolicyValidatorTests
     [InlineData("EVENT_ONLY")]
     public void Validate_InvalidOnCreate_ShouldFail(string onCreate)
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
             OnCreate = onCreate
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "OnCreate");
     }
@@ -121,17 +106,14 @@ public class YamlAuditPolicyValidatorTests
     [InlineData("nonDefaultFields")]
     public void Validate_ValidOnCreate_ShouldPass(string onCreate)
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
             OnCreate = onCreate
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
@@ -140,17 +122,14 @@ public class YamlAuditPolicyValidatorTests
     [InlineData("DELTA")]
     public void Validate_InvalidOnUpdate_ShouldFail(string onUpdate)
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
             OnUpdate = onUpdate
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "OnUpdate");
     }
@@ -160,24 +139,20 @@ public class YamlAuditPolicyValidatorTests
     [InlineData("fullSnapshot")]
     public void Validate_ValidOnUpdate_ShouldPass(string onUpdate)
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
             OnUpdate = onUpdate
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validate_InvalidReferenceDefaultsTemplate_ShouldFail()
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -187,10 +162,8 @@ public class YamlAuditPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "ReferenceDefaults.ViewTemplate");
         result.Errors.First().ErrorMessage.Should().Contain("{name}");
@@ -203,7 +176,6 @@ public class YamlAuditPolicyValidatorTests
     [InlineData("{name} (ID={key})")]
     public void Validate_ValidReferenceDefaultsTemplate_ShouldPass(string template)
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -213,17 +185,14 @@ public class YamlAuditPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validate_InvalidCollectionLimits_ShouldFail()
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -237,10 +206,8 @@ public class YamlAuditPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().HaveCountGreaterThan(0);
     }
@@ -248,7 +215,6 @@ public class YamlAuditPolicyValidatorTests
     [Fact]
     public void Validate_ValidCollectionLimits_ShouldPass()
     {
-        // Arrange
         var policy = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -262,10 +228,8 @@ public class YamlAuditPolicyValidatorTests
             }
         };
 
-        // Act
         var result = _validator.Validate(policy);
 
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 }

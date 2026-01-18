@@ -12,7 +12,7 @@ namespace ChangeLogMonitor.Core.Services;
 public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
 {
     private readonly ConcurrentDictionary<Type, IReadOnlyDictionary<string, string>> _cache = new();
-    
+
     public string? GetLabel(Type enumType, object value)
     {
         if (enumType == null) throw new ArgumentNullException(nameof(enumType));
@@ -25,6 +25,16 @@ public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
         var key = Convert.ToInt64(value).ToString();
 
         return labels.TryGetValue(key, out var label) ? label : null;
+    }
+
+    public IReadOnlyDictionary<string, string> GetAllLabels(Type enumType)
+    {
+        if (enumType == null) throw new ArgumentNullException(nameof(enumType));
+
+        if (!enumType.IsEnum)
+            throw new ArgumentException($"Type {enumType.Name} is not an enum", nameof(enumType));
+
+        return _cache.GetOrAdd(enumType, BuildLabelsDictionary);
     }
 
     /// <summary>
@@ -42,16 +52,6 @@ public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
     {
         return GetAllLabels(typeof(TEnum));
     }
-    
-    public IReadOnlyDictionary<string, string> GetAllLabels(Type enumType)
-    {
-        if (enumType == null) throw new ArgumentNullException(nameof(enumType));
-
-        if (!enumType.IsEnum)
-            throw new ArgumentException($"Type {enumType.Name} is not an enum", nameof(enumType));
-
-        return _cache.GetOrAdd(enumType, BuildLabelsDictionary);
-    }
 
     private static IReadOnlyDictionary<string, string> BuildLabelsDictionary(Type enumType)
     {
@@ -63,7 +63,7 @@ public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
             if (value == null) continue;
 
             var code = Convert.ToInt64(value).ToString();
-            
+
             var attribute = field.GetCustomAttribute<AuditEnumLabelAttribute>();
             var label = attribute?.Label ?? field.Name;
 

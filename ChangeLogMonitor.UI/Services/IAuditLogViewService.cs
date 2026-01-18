@@ -4,6 +4,8 @@ namespace ChangeLogMonitor.UI.Services;
 
 public interface IAuditLogViewService
 {
+    bool IsAccessControlEnabled { get; }
+
     Task<AuditLogListViewModel> GetLogsAsync(
         AuditLogFilterViewModel filter,
         string? cursor,
@@ -12,10 +14,8 @@ public interface IAuditLogViewService
         CancellationToken cancellationToken);
 
     ParsedPayload ParsePayload(string json);
-    
+
     IReadOnlyList<string> GetAllowedEntities();
-    
-    bool IsAccessControlEnabled { get; }
-    
+
     IReadOnlyList<EntityInfo> GetAvailableEntities();
 }

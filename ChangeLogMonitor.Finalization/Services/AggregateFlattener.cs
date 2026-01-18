@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -6,6 +8,7 @@ using Audit.V1;
 using Auditmeta.Raw;
 using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Core.Enums;
+using ChangeLogMonitor.Core.Models.Policy;
 using ChangeLogMonitor.DataAggregator.Models;
 using ChangeLogMonitor.Finalization.Models;
 using Google.Protobuf;
@@ -42,10 +45,7 @@ public sealed class AggregateFlattener(
 
     public IReadOnlyCollection<AuditLogRecord> Flatten(string? rawPayload, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(rawPayload))
-        {
-            return Array.Empty<AuditLogRecord>();
-        }
+        if (string.IsNullOrWhiteSpace(rawPayload)) return Array.Empty<AuditLogRecord>();
 
         TxAggregate? aggregate;
         try
@@ -59,9 +59,7 @@ public sealed class AggregateFlattener(
         }
 
         if (aggregate?.Events == null || aggregate.Events.Count == 0 || string.IsNullOrWhiteSpace(aggregate.TxId))
-        {
             return Array.Empty<AuditLogRecord>();
-        }
 
         var normalizedMeta = NormalizeMeta(aggregate.Meta);
         var (userId, userName) = ResolveUserInfo(normalizedMeta);
@@ -71,7 +69,7 @@ public sealed class AggregateFlattener(
         var collectionDeltas = ExtractCollectionDeltas(normalizedMeta);
         var normalizationVersion = ResolveNormalizationVersion();
         var records = new List<AuditLogRecord>(aggregate.Events.Count);
-        
+
         var processedEntities = new HashSet<(string entityType, string entityId)>();
 
         for (var i = 0; i < aggregate.Events.Count; i++)
@@ -113,7 +111,7 @@ public sealed class AggregateFlattener(
                 aggregate.TxId,
                 payload));
         }
-        
+
         var syntheticRecords = BuildSyntheticCollectionRecords(
             aggregate,
             collectionDeltas,
@@ -156,13 +154,11 @@ public sealed class AggregateFlattener(
             RawPayloadJson = aggregateEvent.Payload.GetRawText(),
             NormalizationVersion = normalizationVersion
         };
-        
-        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots, fieldEnumMappings, referenceSnapshots);
-        foreach (var fc in fieldChanges)
-        {
-            record.FieldChanges.Add(fc);
-        }
-        
+
+        var fieldChanges = BuildFieldChanges(tableName, operation, aggregateEvent.Payload, enumSnapshots,
+            fieldEnumMappings, referenceSnapshots);
+        foreach (var fc in fieldChanges) record.FieldChanges.Add(fc);
+
         var entityCollectionDeltas = collectionDeltas
             .Where(d => d.EntityType.Equals(tableName, StringComparison.OrdinalIgnoreCase) &&
                         d.EntityId == entityId)
@@ -170,43 +166,36 @@ public sealed class AggregateFlattener(
 
         foreach (var delta in entityCollectionDeltas)
         {
-            var collectionChange = new Audit.V1.CollectionChange
+            var collectionChange = new CollectionChange
             {
                 FieldName = delta.FieldName,
                 FieldTitle = delta.FieldName
             };
 
             foreach (var added in delta.Added)
-            {
-                collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                collectionChange.Items.Add(new CollectionItemChange
                 {
-                    Kind = Audit.V1.CollectionDeltaKind.Add,
+                    Kind = CollectionDeltaKind.Add,
                     ItemKey = added.Key,
                     ItemTitle = added.Title,
                     RawNormalized = added.Title
                 });
-            }
 
             foreach (var removed in delta.Removed)
-            {
-                collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                collectionChange.Items.Add(new CollectionItemChange
                 {
-                    Kind = Audit.V1.CollectionDeltaKind.Remove,
+                    Kind = CollectionDeltaKind.Remove,
                     ItemKey = removed.Key,
                     ItemTitle = removed.Title,
                     RawNormalized = removed.Title
                 });
-            }
 
-            if (collectionChange.Items.Count > 0)
-            {
-                record.CollectionChanges.Add(collectionChange);
-            }
+            if (collectionChange.Items.Count > 0) record.CollectionChanges.Add(collectionChange);
         }
 
         return record;
     }
-    
+
     private List<AuditLogRecord> BuildSyntheticCollectionRecords(
         TxAggregate aggregate,
         IReadOnlyList<CollectionDeltaInfo> collectionDeltas,
@@ -229,7 +218,7 @@ public sealed class AggregateFlattener(
         {
             var (entityType, entityId) = group.Key;
             var changeTime = DateTime.UtcNow;
-            
+
             var record = new AuditRecord
             {
                 Id = $"{aggregate.TxId}-coll-{ordinal}",
@@ -244,41 +233,34 @@ public sealed class AggregateFlattener(
                 RawPayloadJson = "{}",
                 NormalizationVersion = normalizationVersion
             };
-            
+
             foreach (var delta in group)
             {
-                var collectionChange = new Audit.V1.CollectionChange
+                var collectionChange = new CollectionChange
                 {
                     FieldName = delta.FieldName,
                     FieldTitle = delta.FieldName
                 };
 
                 foreach (var added in delta.Added)
-                {
-                    collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                    collectionChange.Items.Add(new CollectionItemChange
                     {
-                        Kind = Audit.V1.CollectionDeltaKind.Add,
+                        Kind = CollectionDeltaKind.Add,
                         ItemKey = added.Key,
                         ItemTitle = added.Title,
                         RawNormalized = added.Title
                     });
-                }
 
                 foreach (var removed in delta.Removed)
-                {
-                    collectionChange.Items.Add(new Audit.V1.CollectionItemChange
+                    collectionChange.Items.Add(new CollectionItemChange
                     {
-                        Kind = Audit.V1.CollectionDeltaKind.Remove,
+                        Kind = CollectionDeltaKind.Remove,
                         ItemKey = removed.Key,
                         ItemTitle = removed.Title,
                         RawNormalized = removed.Title
                     });
-                }
 
-                if (collectionChange.Items.Count > 0)
-                {
-                    record.CollectionChanges.Add(collectionChange);
-                }
+                if (collectionChange.Items.Count > 0) record.CollectionChanges.Add(collectionChange);
             }
 
             if (record.CollectionChanges.Count > 0)
@@ -325,7 +307,7 @@ public sealed class AggregateFlattener(
 
         if (!shouldIncludeFields)
             yield break;
-        
+
         JsonElement? before = null;
         JsonElement? after = null;
 
@@ -336,11 +318,8 @@ public sealed class AggregateFlattener(
 
             if (TryGetPropertyCaseInsensitive(payload, "after", out var afterEl))
                 after = afterEl.ValueKind != JsonValueKind.Null ? afterEl : null;
-            
-            if (before == null && after == null)
-            {
-                after = payload;
-            }
+
+            if (before == null && after == null) after = payload;
         }
 
         // Build field changes based on operation
@@ -348,14 +327,13 @@ public sealed class AggregateFlattener(
         {
             // For create, show all fields from "after" as new values
             if (after?.ValueKind == JsonValueKind.Object)
-            {
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy,
+                        enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
-            }
         }
         else if (operation == OperationCode.Update)
         {
@@ -373,7 +351,8 @@ public sealed class AggregateFlattener(
                     if (oldStr == newStr)
                         continue;
 
-                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(afterProp.Key, beforeValue, afterProp.Value, entityPolicy,
+                        globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -382,7 +361,8 @@ public sealed class AggregateFlattener(
             {
                 foreach (var prop in after.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(prop.Name, null, prop.Value, entityPolicy, globalPolicy,
+                        enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
@@ -391,14 +371,13 @@ public sealed class AggregateFlattener(
         else if (operation == OperationCode.Delete)
         {
             if (before?.ValueKind == JsonValueKind.Object)
-            {
                 foreach (var prop in before.Value.EnumerateObject())
                 {
-                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy, enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
+                    var fieldChange = ProcessField(prop.Name, prop.Value, null, entityPolicy, globalPolicy,
+                        enumSnapshots, fieldEnumMappings, referenceSnapshots, tableName);
                     if (fieldChange != null)
                         yield return fieldChange;
                 }
-            }
         }
     }
 
@@ -406,8 +385,8 @@ public sealed class AggregateFlattener(
         string fieldName,
         JsonElement? oldValue,
         JsonElement? newValue,
-        ChangeLogMonitor.Core.Models.Policy.EntityPolicy? entityPolicy,
-        ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy,
+        EntityPolicy? entityPolicy,
+        AuditPolicy? globalPolicy,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> enumSnapshots,
         IReadOnlyDictionary<(string entityType, string fieldName), string> fieldEnumMappings,
         IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> referenceSnapshots,
@@ -415,49 +394,47 @@ public sealed class AggregateFlattener(
     {
         if (IsSystemField(fieldName))
             return null;
-        
+
         if (globalPolicy?.GlobalFieldExclusions?.Contains(fieldName, StringComparer.OrdinalIgnoreCase) == true)
             return null;
-        
+
         var fieldPolicy = entityPolicy?.Fields?.TryGetValue(fieldName, out var fp) == true ? fp : null;
-        
-        if (fieldPolicy?.Action == ChangeLogMonitor.Core.Enums.FieldAction.Exclude)
+
+        if (fieldPolicy?.Action == FieldAction.Exclude)
             return null;
 
         var oldStr = oldValue.HasValue ? ExtractScalar(oldValue.Value) : null;
         var newStr = newValue.HasValue ? ExtractScalar(newValue.Value) : null;
-        
+
         if (string.IsNullOrEmpty(oldStr) && string.IsNullOrEmpty(newStr))
             return null;
-        
+
         var sensitiveMode = SensitiveMode.None;
-        string? processedOld = oldStr;
-        string? processedNew = newStr;
+        var processedOld = oldStr;
+        var processedNew = newStr;
 
         if (fieldPolicy != null)
-        {
             switch (fieldPolicy.Action)
             {
-                case ChangeLogMonitor.Core.Enums.FieldAction.Mask:
+                case FieldAction.Mask:
                     sensitiveMode = SensitiveMode.Masked;
                     processedOld = ApplyMask(oldStr, fieldPolicy.Mask, globalPolicy);
                     processedNew = ApplyMask(newStr, fieldPolicy.Mask, globalPolicy);
                     break;
 
-                case ChangeLogMonitor.Core.Enums.FieldAction.Hash:
+                case FieldAction.Hash:
                     sensitiveMode = SensitiveMode.Hashed;
                     processedOld = ApplyHash(oldStr, fieldPolicy.Hash, globalPolicy);
                     processedNew = ApplyHash(newStr, fieldPolicy.Hash, globalPolicy);
                     break;
 
-                case ChangeLogMonitor.Core.Enums.FieldAction.Encrypt:
+                case FieldAction.Encrypt:
                     sensitiveMode = SensitiveMode.Encrypted;
                     processedOld = oldStr != null ? "[ENCRYPTED]" : null;
                     processedNew = newStr != null ? "[ENCRYPTED]" : null;
                     break;
             }
-        }
-        
+
         var valueKind = ValueKind.Scalar;
         IReadOnlyDictionary<string, string>? enumLabels = null;
         ReferenceSnapshotInfo? referenceInfo = null;
@@ -478,7 +455,6 @@ public sealed class AggregateFlattener(
         {
             // Fallback: пробуем сопоставить по имени поля
             foreach (var (typeName, labels) in enumSnapshots)
-            {
                 if (typeName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
                     typeName.EndsWith(fieldName, StringComparison.OrdinalIgnoreCase))
                 {
@@ -486,9 +462,8 @@ public sealed class AggregateFlattener(
                     valueKind = ValueKind.Enum;
                     break;
                 }
-            }
         }
-        
+
         FieldValue? oldFieldValue = null;
         FieldValue? newFieldValue = null;
 
@@ -505,9 +480,10 @@ public sealed class AggregateFlattener(
             else if (valueKind == ValueKind.Reference && referenceInfo != null)
             {
                 oldFieldValue.ReferenceKey = oldStr ?? string.Empty;
-                oldFieldValue.ReferenceTitle = referenceInfo.KeyTitles.TryGetValue(oldStr ?? string.Empty, out var oldRefTitle)
-                    ? oldRefTitle
-                    : oldStr ?? string.Empty;
+                oldFieldValue.ReferenceTitle =
+                    referenceInfo.KeyTitles.TryGetValue(oldStr ?? string.Empty, out var oldRefTitle)
+                        ? oldRefTitle
+                        : oldStr ?? string.Empty;
             }
         }
 
@@ -524,9 +500,10 @@ public sealed class AggregateFlattener(
             else if (valueKind == ValueKind.Reference && referenceInfo != null)
             {
                 newFieldValue.ReferenceKey = newStr ?? string.Empty;
-                newFieldValue.ReferenceTitle = referenceInfo.KeyTitles.TryGetValue(newStr ?? string.Empty, out var newRefTitle)
-                    ? newRefTitle
-                    : newStr ?? string.Empty;
+                newFieldValue.ReferenceTitle =
+                    referenceInfo.KeyTitles.TryGetValue(newStr ?? string.Empty, out var newRefTitle)
+                        ? newRefTitle
+                        : newStr ?? string.Empty;
             }
         }
 
@@ -541,7 +518,7 @@ public sealed class AggregateFlattener(
         };
     }
 
-    private static string? ApplyMask(string? value, ChangeLogMonitor.Core.Models.Policy.MaskSettings? settings, ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy)
+    private static string? ApplyMask(string? value, MaskSettings? settings, AuditPolicy? globalPolicy)
     {
         if (string.IsNullOrEmpty(value))
             return value;
@@ -549,7 +526,7 @@ public sealed class AggregateFlattener(
         var maskChar = settings?.MaskChar ?? '*';
         var keepLeft = settings?.KeepLeft ?? 0;
         var keepRight = settings?.KeepRight ?? 0;
-        
+
         if (!string.IsNullOrEmpty(settings?.Preset) &&
             globalPolicy?.MaskPresets?.TryGetValue(settings.Preset, out var preset) == true)
         {
@@ -568,33 +545,31 @@ public sealed class AggregateFlattener(
         return left + middle + right;
     }
 
-    private static string? ApplyHash(string? value, ChangeLogMonitor.Core.Models.Policy.HashSettings? settings, ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy)
+    private static string? ApplyHash(string? value, HashSettings? settings, AuditPolicy? globalPolicy)
     {
         if (string.IsNullOrEmpty(value))
             return value;
 
         var algo = settings?.Algo ?? "SHA-256";
-        
+
         if (!string.IsNullOrEmpty(settings?.Preset) &&
             globalPolicy?.HashPresets?.TryGetValue(settings.Preset, out var preset) == true)
-        {
             algo = preset.Algo;
-        }
 
         try
         {
-            System.Security.Cryptography.HashAlgorithm hashAlgorithm = algo.ToUpperInvariant() switch
+            HashAlgorithm hashAlgorithm = algo.ToUpperInvariant() switch
             {
-                "SHA-256" or "SHA256" => System.Security.Cryptography.SHA256.Create(),
-                "SHA-384" or "SHA384" => System.Security.Cryptography.SHA384.Create(),
-                "SHA-512" or "SHA512" => System.Security.Cryptography.SHA512.Create(),
-                "MD5" => System.Security.Cryptography.MD5.Create(),
-                _ => System.Security.Cryptography.SHA256.Create()
+                "SHA-256" or "SHA256" => SHA256.Create(),
+                "SHA-384" or "SHA384" => SHA384.Create(),
+                "SHA-512" or "SHA512" => SHA512.Create(),
+                "MD5" => MD5.Create(),
+                _ => SHA256.Create()
             };
 
             using (hashAlgorithm)
             {
-                var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+                var bytes = Encoding.UTF8.GetBytes(value);
                 var hash = hashAlgorithm.ComputeHash(bytes);
                 return Convert.ToBase64String(hash);
             }
@@ -606,39 +581,27 @@ public sealed class AggregateFlattener(
     }
 
     private static bool ShouldIncludeFieldsOnCreate(
-        ChangeLogMonitor.Core.Models.Policy.EntityPolicy? entityPolicy,
-        ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy)
+        EntityPolicy? entityPolicy,
+        AuditPolicy? globalPolicy)
     {
         // Check entity-level policy first
-        if (entityPolicy?.OnCreate != null)
-        {
-            return entityPolicy.OnCreate != ChangeLogMonitor.Core.Enums.CreateBehavior.EventOnly;
-        }
+        if (entityPolicy?.OnCreate != null) return entityPolicy.OnCreate != CreateBehavior.EventOnly;
 
         // Fall back to global policy
-        if (globalPolicy != null)
-        {
-            return globalPolicy.OnCreate != ChangeLogMonitor.Core.Enums.CreateBehavior.EventOnly;
-        }
+        if (globalPolicy != null) return globalPolicy.OnCreate != CreateBehavior.EventOnly;
 
         return false;
     }
 
     private static bool ShouldIncludeFieldsOnDelete(
-        ChangeLogMonitor.Core.Models.Policy.EntityPolicy? entityPolicy,
-        ChangeLogMonitor.Core.Models.Policy.AuditPolicy? globalPolicy)
+        EntityPolicy? entityPolicy,
+        AuditPolicy? globalPolicy)
     {
         // Check entity-level policy first
-        if (entityPolicy?.OnDelete != null)
-        {
-            return entityPolicy.OnDelete != ChangeLogMonitor.Core.Enums.DeleteBehavior.EventOnly;
-        }
+        if (entityPolicy?.OnDelete != null) return entityPolicy.OnDelete != DeleteBehavior.EventOnly;
 
         // Fall back to global policy
-        if (globalPolicy != null)
-        {
-            return globalPolicy.OnDelete != ChangeLogMonitor.Core.Enums.DeleteBehavior.EventOnly;
-        }
+        if (globalPolicy != null) return globalPolicy.OnDelete != DeleteBehavior.EventOnly;
 
         return false;
     }
@@ -662,18 +625,14 @@ public sealed class AggregateFlattener(
         if (payload.ValueKind != JsonValueKind.Object) return string.Empty;
 
         // Try to get entity ID from "after" first (for create/update), then "before" (for delete)
-        JsonElement targetElement = payload;
+        var targetElement = payload;
 
         if (TryGetPropertyCaseInsensitive(payload, "after", out var afterEl) &&
             afterEl.ValueKind == JsonValueKind.Object)
-        {
             targetElement = afterEl;
-        }
         else if (TryGetPropertyCaseInsensitive(payload, "before", out var beforeEl) &&
                  beforeEl.ValueKind == JsonValueKind.Object)
-        {
             targetElement = beforeEl;
-        }
 
         foreach (var candidate in EntityIdCandidates)
             if (TryGetPropertyCaseInsensitive(targetElement, candidate, out var valueElement))
@@ -723,8 +682,9 @@ public sealed class AggregateFlattener(
 
         return (string.Empty, string.Empty);
     }
-    
-    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ExtractEnumSnapshots(JsonElement? meta)
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ExtractEnumSnapshots(
+        JsonElement? meta)
     {
         var emptyResult = new Dictionary<string, IReadOnlyDictionary<string, string>>();
 
@@ -738,7 +698,6 @@ public sealed class AggregateFlattener(
         {
             var base64 = payloadElement.GetString();
             if (!string.IsNullOrWhiteSpace(base64))
-            {
                 try
                 {
                     var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
@@ -748,12 +707,10 @@ public sealed class AggregateFlattener(
                         foreach (var snapshot in envelope.EnumSnapshots)
                         {
                             var pairs = new Dictionary<string, string>();
-                            foreach (var pair in snapshot.Pairs)
-                            {
-                                pairs[pair.Code] = pair.Label;
-                            }
+                            foreach (var pair in snapshot.Pairs) pairs[pair.Code] = pair.Label;
                             result[snapshot.EnumType] = pairs;
                         }
+
                         return result;
                     }
                 }
@@ -761,13 +718,13 @@ public sealed class AggregateFlattener(
                 {
                     // not a valid protobuf payload – skip
                 }
-            }
         }
 
         return emptyResult;
     }
 
-    private static IReadOnlyDictionary<(string entityType, string fieldName), string> ExtractFieldEnumMappings(JsonElement? meta)
+    private static IReadOnlyDictionary<(string entityType, string fieldName), string> ExtractFieldEnumMappings(
+        JsonElement? meta)
     {
         var emptyResult = new Dictionary<(string, string), string>();
 
@@ -781,7 +738,6 @@ public sealed class AggregateFlattener(
         {
             var base64 = payloadElement.GetString();
             if (!string.IsNullOrWhiteSpace(base64))
-            {
                 try
                 {
                     var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
@@ -789,9 +745,7 @@ public sealed class AggregateFlattener(
                     {
                         var result = new Dictionary<(string, string), string>();
                         foreach (var mapping in envelope.FieldEnumMappings)
-                        {
                             result[(mapping.EntityType, mapping.FieldName)] = mapping.EnumType;
-                        }
                         return result;
                     }
                 }
@@ -799,7 +753,6 @@ public sealed class AggregateFlattener(
                 {
                     // not a valid protobuf payload – skip
                 }
-            }
         }
 
         return emptyResult;
@@ -812,36 +765,24 @@ public sealed class AggregateFlattener(
 
         if (TryGetPropertyCaseInsensitive(obj, "user_id", out var userIdElement) ||
             TryGetPropertyCaseInsensitive(obj, "userId", out userIdElement))
-        {
             userId = ExtractScalar(userIdElement);
-        }
 
         if (TryGetPropertyCaseInsensitive(obj, "user_name", out var userNameElement) ||
             TryGetPropertyCaseInsensitive(obj, "userName", out userNameElement))
-        {
             userName = ExtractScalar(userNameElement);
-        }
 
         if (TryGetPropertyCaseInsensitive(obj, "actor", out var actorElement) &&
             actorElement.ValueKind == JsonValueKind.Object)
         {
             if (string.IsNullOrWhiteSpace(userId))
-            {
                 if (TryGetPropertyCaseInsensitive(actorElement, "user_id", out var actorUser) ||
                     TryGetPropertyCaseInsensitive(actorElement, "userId", out actorUser))
-                {
                     userId = ExtractScalar(actorUser);
-                }
-            }
 
             if (string.IsNullOrWhiteSpace(userName))
-            {
                 if (TryGetPropertyCaseInsensitive(actorElement, "user_name", out var actorName) ||
                     TryGetPropertyCaseInsensitive(actorElement, "userName", out actorName))
-                {
                     userName = ExtractScalar(actorName);
-                }
-            }
         }
 
         return !string.IsNullOrWhiteSpace(userId);
@@ -907,10 +848,9 @@ public sealed class AggregateFlattener(
         try
         {
             var version = _configurationService?.GetPolicy()?.Version;
-            if (!string.IsNullOrWhiteSpace(version) && uint.TryParse(version, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
-            {
-                return parsed;
-            }
+            if (!string.IsNullOrWhiteSpace(version) &&
+                uint.TryParse(version, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) &&
+                parsed > 0) return parsed;
             return 1;
         }
         catch
@@ -925,8 +865,9 @@ public sealed class AggregateFlattener(
 
         return value.Substring(0, maxLength) + "...";
     }
-    
-    private static IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo> ExtractReferenceSnapshots(JsonElement? meta)
+
+    private static IReadOnlyDictionary<(string entityType, string fieldName), ReferenceSnapshotInfo>
+        ExtractReferenceSnapshots(JsonElement? meta)
     {
         var emptyResult = new Dictionary<(string, string), ReferenceSnapshotInfo>();
 
@@ -934,13 +875,12 @@ public sealed class AggregateFlattener(
             return emptyResult;
 
         var root = meta.Value;
-        
+
         if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
             payloadElement.ValueKind == JsonValueKind.String)
         {
             var base64 = payloadElement.GetString();
             if (!string.IsNullOrWhiteSpace(base64))
-            {
                 try
                 {
                     var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
@@ -959,9 +899,11 @@ public sealed class AggregateFlattener(
                                     new Dictionary<string, string>());
                                 result[key] = info;
                             }
+
                             // Add key->title mapping
                             info.KeyTitles[snapshot.Key] = snapshot.Title;
                         }
+
                         return result;
                     }
                 }
@@ -969,7 +911,6 @@ public sealed class AggregateFlattener(
                 {
                     // not a valid protobuf payload – skip
                 }
-            }
         }
 
         return emptyResult;
@@ -983,13 +924,12 @@ public sealed class AggregateFlattener(
             return emptyResult;
 
         var root = meta.Value;
-        
+
         if (TryGetPropertyCaseInsensitive(root, "payload", out var payloadElement) &&
             payloadElement.ValueKind == JsonValueKind.String)
         {
             var base64 = payloadElement.GetString();
             if (!string.IsNullOrWhiteSpace(base64))
-            {
                 try
                 {
                     var envelope = AuditMetaEnvelope.Parser.ParseFrom(Convert.FromBase64String(base64));
@@ -1013,6 +953,7 @@ public sealed class AggregateFlattener(
                                 added,
                                 removed));
                         }
+
                         return result;
                     }
                 }
@@ -1020,7 +961,6 @@ public sealed class AggregateFlattener(
                 {
                     // not a valid protobuf payload – skip
                 }
-            }
         }
 
         return emptyResult;

@@ -1,5 +1,5 @@
 @page
-@model ChangeLogMonitor.UI.Pages.AuditLog.IndexModel
+@model IndexModel
 @{
     ViewData["Title"] = "Журнал аудита";
 }
@@ -17,172 +17,173 @@
         <div class="table-responsive">
             <table class="table table-hover log-table mb-0">
                 <thead class="table-light">
-                    <tr>
-                        <th style="width: 40px"></th>
-                        <th>Время</th>
-                        <th>Таблица</th>
-                        <th>Операция</th>
-                        <th>Сущность</th>
-                        <th>Пользователь</th>
-                        <th>Транзакция</th>
-                    </tr>
-                    <tr class="filter-row-header">
-                        <td>
-                            <button type="submit" class="btn btn-sm btn-primary" title="Поиск">
-                                <i class="bi bi-search"></i>
-                            </button>
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <input type="datetime-local" class="form-control form-control-sm"
-                                       name="fromTime" value="@(Model.FromTime?.ToString("yyyy-MM-ddTHH:mm"))"
-                                       title="С" placeholder="С"/>
-                                <input type="datetime-local" class="form-control form-control-sm"
-                                       name="toTime" value="@(Model.ToTime?.ToString("yyyy-MM-ddTHH:mm"))"
-                                       title="По" placeholder="По"/>
-                            </div>
-                        </td>
-                        <td>
-                            @if (Model.AvailableEntities.Count > 0)
-                            {
-                                <select class="form-select form-select-sm" name="tableName">
-                                    <option value="">Все</option>
-                                    @foreach (var entity in Model.AvailableEntities)
-                                    {
-                                        <option value="@entity.Name" selected="@(Model.TableName == entity.Name)">
-                                            @entity.DisplayName
-                                        </option>
-                                    }
-                                </select>
-                            }
-                            else
-                            {
-                                <input type="text" class="form-control form-control-sm" name="tableName"
-                                       value="@Model.TableName" placeholder="Таблица..."/>
-                            }
-                        </td>
-                        <td>
-                            <select class="form-select form-select-sm" name="operation">
+                <tr>
+                    <th style="width: 40px"></th>
+                    <th>Время</th>
+                    <th>Таблица</th>
+                    <th>Операция</th>
+                    <th>Сущность</th>
+                    <th>Пользователь</th>
+                    <th>Транзакция</th>
+                </tr>
+                <tr class="filter-row-header">
+                    <td>
+                        <button type="submit" class="btn btn-sm btn-primary" title="Поиск">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <input type="datetime-local" class="form-control form-control-sm"
+                                   name="fromTime" value="@(Model.FromTime?.ToString("yyyy-MM-ddTHH:mm"))"
+                                   title="С" placeholder="С"/>
+                            <input type="datetime-local" class="form-control form-control-sm"
+                                   name="toTime" value="@(Model.ToTime?.ToString("yyyy-MM-ddTHH:mm"))"
+                                   title="По" placeholder="По"/>
+                        </div>
+                    </td>
+                    <td>
+                        @if (Model.AvailableEntities.Count > 0)
+                        {
+                            <select class="form-select form-select-sm" name="tableName">
                                 <option value="">Все</option>
-                                <option value="1" selected="@(Model.Operation == 1)">Создание</option>
-                                <option value="2" selected="@(Model.Operation == 2)">Изменение</option>
-                                <option value="3" selected="@(Model.Operation == 3)">Удаление</option>
+                                @foreach (var entity in Model.AvailableEntities)
+                                {
+                                    <option value="@entity.Name" selected="@(Model.TableName == entity.Name)">
+                                        @entity.DisplayName
+                                    </option>
+                                }
                             </select>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm" name="entityId"
-                                   value="@Model.EntityId" placeholder="ID сущности..."/>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm" name="userId"
-                                   value="@Model.UserId" placeholder="Пользователь..."/>
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <input type="text" class="form-control form-control-sm" name="transactionId"
-                                       value="@Model.TransactionId" placeholder="ID транзакции..."/>
-                                <button type="button" id="clearFilters" class="btn btn-sm btn-outline-secondary" title="Очистить">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                        }
+                        else
+                        {
+                            <input type="text" class="form-control form-control-sm" name="tableName"
+                                   value="@Model.TableName" placeholder="Таблица..."/>
+                        }
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm" name="operation">
+                            <option value="">Все</option>
+                            <option value="1" selected="@(Model.Operation == 1)">Создание</option>
+                            <option value="2" selected="@(Model.Operation == 2)">Изменение</option>
+                            <option value="3" selected="@(Model.Operation == 3)">Удаление</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm" name="entityId"
+                               value="@Model.EntityId" placeholder="ID сущности..."/>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm" name="userId"
+                               value="@Model.UserId" placeholder="Пользователь..."/>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <input type="text" class="form-control form-control-sm" name="transactionId"
+                                   value="@Model.TransactionId" placeholder="ID транзакции..."/>
+                            <button type="button" id="clearFilters" class="btn btn-sm btn-outline-secondary"
+                                    title="Очистить">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
                 </thead>
                 <tbody>
-                    @if (Model.ViewModel.Items.Count == 0)
+                @if (Model.ViewModel.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <p class="mb-0">Записи не найдены</p>
+                                <small class="text-muted">Попробуйте изменить параметры фильтра</small>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.ViewModel.Items)
                     {
-                        <tr>
-                            <td colspan="7">
-                                <div class="empty-state">
-                                    <i class="bi bi-inbox"></i>
-                                    <p class="mb-0">Записи не найдены</p>
-                                    <small class="text-muted">Попробуйте изменить параметры фильтра</small>
-                                </div>
+                        <tr class="log-entry-row">
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary expand-btn"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#diff-@item.LogId"
+                                        aria-expanded="false">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
                             </td>
-                        </tr>
-                    }
-                    else
-                    {
-                        @foreach (var item in Model.ViewModel.Items)
-                        {
-                            <tr class="log-entry-row">
-                                <td>
-                                    <button class="btn btn-sm btn-outline-secondary expand-btn"
-                                            type="button"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#diff-@item.LogId"
-                                            aria-expanded="false">
-                                        <i class="bi bi-chevron-right"></i>
-                                    </button>
-                                </td>
-                                <td>
-                                    <span class="text-muted">@item.ChangeTime.ToString("dd.MM.yyyy HH:mm:ss")</span>
-                                </td>
-                                <td><code>@item.TableName</code></td>
-                                <td>
-                                    <span class="badge @item.OperationBadgeClass">@item.OperationName</span>
-                                </td>
-                                <td>
+                            <td>
+                                <span class="text-muted">@item.ChangeTime.ToString("dd.MM.yyyy HH:mm:ss")</span>
+                            </td>
+                            <td><code>@item.TableName</code></td>
+                            <td>
+                                <span class="badge @item.OperationBadgeClass">@item.OperationName</span>
+                            </td>
+                            <td>
                                     <span class="text-truncate-sm" title="@item.EntityTitle (@item.EntityId)">
                                         @(string.IsNullOrWhiteSpace(item.EntityTitle) || item.EntityTitle == item.TableName
                                             ? item.EntityId
                                             : item.EntityTitle)
                                     </span>
-                                </td>
-                                <td>
+                            </td>
+                            <td>
                                     <span title="@item.UserId">
                                         @(string.IsNullOrWhiteSpace(item.UserTitle) || item.UserTitle == item.UserId
                                             ? item.UserId
                                             : item.UserTitle)
                                     </span>
-                                </td>
-                                <td>
-                                    <code class="text-truncate-sm" title="@item.TransactionId">
-                                        @(item.TransactionId.Length > 12 ? item.TransactionId[..12] + "..." : item.TransactionId)
-                                    </code>
-                                </td>
-                            </tr>
-                            <tr class="collapse" id="diff-@item.LogId">
-                                <td colspan="7" class="bg-light p-0">
-                                    <div class="diff-container m-2">
-                                        @if (string.IsNullOrWhiteSpace(item.Summary) && item.Details.Count == 0)
-                                        {
-                                            <div class="text-muted text-center py-3">
-                                                <i class="bi bi-info-circle me-1"></i>Детали изменений недоступны
+                            </td>
+                            <td>
+                                <code class="text-truncate-sm" title="@item.TransactionId">
+                                    @(item.TransactionId.Length > 12 ? item.TransactionId[..12] + "..." : item.TransactionId)
+                                </code>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="diff-@item.LogId">
+                            <td colspan="7" class="bg-light p-0">
+                                <div class="diff-container m-2">
+                                    @if (string.IsNullOrWhiteSpace(item.Summary) && item.Details.Count == 0)
+                                    {
+                                        <div class="text-muted text-center py-3">
+                                            <i class="bi bi-info-circle me-1"></i>Детали изменений недоступны
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="summary-section mb-3">
+                                            <div class="alert alert-info py-2 mb-2">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                <strong>@item.Summary</strong>
                                             </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="summary-section mb-3">
-                                                <div class="alert alert-info py-2 mb-2">
-                                                    <i class="bi bi-info-circle me-2"></i>
-                                                    <strong>@item.Summary</strong>
-                                                </div>
-                                            </div>
+                                        </div>
 
-                                            @if (item.Details.Count > 0)
-                                            {
-                                                <div class="details-section">
-                                                    <h6 class="text-muted mb-2">
-                                                        <i class="bi bi-list-check me-1"></i>Детали изменений:
-                                                    </h6>
-                                                    <ul class="list-group list-group-flush">
-                                                        @foreach (var detail in item.Details)
-                                                        {
-                                                            <li class="list-group-item bg-transparent py-1 px-2">
-                                                                <i class="bi bi-dot text-primary"></i>
-                                                                @detail
-                                                            </li>
-                                                        }
-                                                    </ul>
-                                                </div>
-                                            }
+                                        @if (item.Details.Count > 0)
+                                        {
+                                            <div class="details-section">
+                                                <h6 class="text-muted mb-2">
+                                                    <i class="bi bi-list-check me-1"></i>Детали изменений:
+                                                </h6>
+                                                <ul class="list-group list-group-flush">
+                                                    @foreach (var detail in item.Details)
+                                                    {
+                                                        <li class="list-group-item bg-transparent py-1 px-2">
+                                                            <i class="bi bi-dot text-primary"></i>
+                                                            @detail
+                                                        </li>
+                                                    }
+                                                </ul>
+                                            </div>
                                         }
-                                    </div>
-                                </td>
-                            </tr>
-                        }
+                                    }
+                                </div>
+                            </td>
+                        </tr>
                     }
+                }
                 </tbody>
             </table>
         </div>

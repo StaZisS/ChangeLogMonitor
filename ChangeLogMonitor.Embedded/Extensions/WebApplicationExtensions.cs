@@ -7,13 +7,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ChangeLogMonitor.Embedded.Extensions;
 
 /// <summary>
-/// Extension methods for configuring ChangeLogMonitor middleware pipeline.
+///     Extension methods for configuring ChangeLogMonitor middleware pipeline.
 /// </summary>
 public static class WebApplicationExtensions
 {
     /// <summary>
-    /// Configures ChangeLogMonitor middleware and endpoints.
-    /// Maps API endpoints if EnableApi option is true.
+    ///     Configures ChangeLogMonitor middleware and endpoints.
+    ///     Maps API endpoints if EnableApi option is true.
     /// </summary>
     /// <param name="app">The endpoint route builder.</param>
     /// <returns>The endpoint route builder for chaining.</returns>

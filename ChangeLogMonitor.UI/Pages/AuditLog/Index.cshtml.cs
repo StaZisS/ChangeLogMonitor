@@ -16,35 +16,26 @@ public class IndexModel : PageModel
         _viewService = viewService;
     }
 
-    [BindProperty(SupportsGet = true)]
-    public string? TableName { get; set; }
+    [BindProperty(SupportsGet = true)] public string? TableName { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public DateTime? FromTime { get; set; }
+    [BindProperty(SupportsGet = true)] public DateTime? FromTime { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public DateTime? ToTime { get; set; }
+    [BindProperty(SupportsGet = true)] public DateTime? ToTime { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public int? Operation { get; set; }
+    [BindProperty(SupportsGet = true)] public int? Operation { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public string? UserId { get; set; }
+    [BindProperty(SupportsGet = true)] public string? UserId { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public string? EntityId { get; set; }
+    [BindProperty(SupportsGet = true)] public string? EntityId { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public string? TransactionId { get; set; }
+    [BindProperty(SupportsGet = true)] public string? TransactionId { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public string? Cursor { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Cursor { get; set; }
 
-    [BindProperty(SupportsGet = true)]
-    public int PageSize { get; set; } = 50;
+    [BindProperty(SupportsGet = true)] public int PageSize { get; set; } = 50;
 
     public AuditLogListViewModel ViewModel { get; set; } = new();
-    
+
     public IReadOnlyList<EntityInfo> AvailableEntities { get; set; } = Array.Empty<EntityInfo>();
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
@@ -71,9 +62,7 @@ public class IndexModel : PageModel
     {
         if (Request.Headers.TryGetValue(TimezoneHeader, out var timezoneHeader) &&
             !string.IsNullOrWhiteSpace(timezoneHeader))
-        {
             return timezoneHeader.ToString();
-        }
 
         return AuditLogMessages.DefaultTimezone;
     }

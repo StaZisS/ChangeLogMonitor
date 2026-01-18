@@ -23,7 +23,7 @@ public class RawAuditService : IRawAuditService
         _metadataSerializer = metadataSerializer ?? throw new ArgumentNullException(nameof(metadataSerializer));
         _logger = logger;
     }
-    
+
     public async Task RecordRawOperationAsync(
         DbContext context,
         string targetEntity,
@@ -38,7 +38,9 @@ public class RawAuditService : IRawAuditService
 
         var allHints = MergeHints(reason, hints);
         var transactionId = GenerateTransactionId();
-        var payload = _metadataSerializer.SerializeBulkOperation(transactionId, targetEntity, affectedCount, allHints, enumSnapshots);
+        var payload =
+            _metadataSerializer.SerializeBulkOperation(transactionId, targetEntity, affectedCount, allHints,
+                enumSnapshots);
         var createdAt = DateTime.UtcNow;
 
         await WriteAuditLogAsync(context, transactionId, payload, createdAt, cancellationToken);
@@ -49,7 +51,7 @@ public class RawAuditService : IRawAuditService
             targetEntity,
             affectedCount);
     }
-    
+
     public void RecordRawOperation(
         DbContext context,
         string targetEntity,
@@ -63,7 +65,9 @@ public class RawAuditService : IRawAuditService
 
         var allHints = MergeHints(reason, hints);
         var transactionId = GenerateTransactionId();
-        var payload = _metadataSerializer.SerializeBulkOperation(transactionId, targetEntity, affectedCount, allHints, enumSnapshots);
+        var payload =
+            _metadataSerializer.SerializeBulkOperation(transactionId, targetEntity, affectedCount, allHints,
+                enumSnapshots);
         var createdAt = DateTime.UtcNow;
 
         WriteAuditLog(context, transactionId, payload, createdAt);
@@ -74,7 +78,7 @@ public class RawAuditService : IRawAuditService
             targetEntity,
             affectedCount);
     }
-    
+
     public async Task RecordRawOperationFromScopeAsync(
         DbContext context,
         int affectedCount,
@@ -93,7 +97,7 @@ public class RawAuditService : IRawAuditService
 
         await RecordRawOperationAsync(context, targetEntity, affectedCount, reason, hints, null, cancellationToken);
     }
-    
+
     public void RecordRawOperationFromScope(
         DbContext context,
         int affectedCount)
@@ -109,7 +113,7 @@ public class RawAuditService : IRawAuditService
         var reason = scope.GetEffectiveReason();
         var hints = scope.GetAllHints();
 
-        RecordRawOperation(context, targetEntity, affectedCount, reason, hints, null);
+        RecordRawOperation(context, targetEntity, affectedCount, reason, hints);
     }
 
     private static string GenerateTransactionId()
@@ -123,15 +127,15 @@ public class RawAuditService : IRawAuditService
         var scopeReason = AuditScope.Current?.GetEffectiveReason();
 
         var allHints = new Dictionary<string, string>();
-        
+
         if (scopeHints != null)
             foreach (var hint in scopeHints)
                 allHints[hint.Key] = hint.Value;
-        
+
         if (hints != null)
             foreach (var hint in hints)
                 allHints[hint.Key] = hint.Value;
-        
+
         var effectiveReason = reason ?? scopeReason;
         if (!string.IsNullOrWhiteSpace(effectiveReason))
             allHints["_reason"] = effectiveReason;

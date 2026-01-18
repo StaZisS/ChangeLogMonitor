@@ -3,7 +3,6 @@ using ChangeLogMonitor.Configuration.Services;
 using ChangeLogMonitor.Core.Enums;
 using ChangeLogMonitor.Finalization.Localization;
 using ChangeLogMonitor.Finalization.Models;
-using Microsoft.Extensions.Logging;
 
 namespace ChangeLogMonitor.Finalization.Services;
 
@@ -74,21 +73,22 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
         }
     }
 
-    private static string GetEntityTitle(AuditRecord? auditRecord, string tableName, IAuditConfigurationService configurationService, ILogger? logger)
+    private static string GetEntityTitle(AuditRecord? auditRecord, string tableName,
+        IAuditConfigurationService configurationService, ILogger? logger)
     {
         if (auditRecord != null && !string.IsNullOrWhiteSpace(auditRecord.EntityTitle))
         {
             logger?.LogDebug("Using EntityTitle from protobuf: {EntityTitle}", auditRecord.EntityTitle);
             return auditRecord.EntityTitle;
         }
-        
+
         var entityPolicy = configurationService.GetEntityPolicy(tableName);
         logger?.LogDebug("GetEntityPolicy for '{TableName}': policy={PolicyFound}, displayName='{DisplayName}'",
             tableName, entityPolicy != null, entityPolicy?.DisplayName);
 
         if (entityPolicy != null && !string.IsNullOrWhiteSpace(entityPolicy.DisplayName))
             return entityPolicy.DisplayName;
-        
+
         return tableName;
     }
 
@@ -96,25 +96,32 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
     {
         if (!string.IsNullOrWhiteSpace(userName))
             return userName;
-        
+
         if (auditRecord != null && !string.IsNullOrWhiteSpace(auditRecord.UserTitle))
             return auditRecord.UserTitle;
-        
+
         return string.IsNullOrWhiteSpace(userId)
             ? AuditLogMessages.Ru.UnknownUser
             : userId;
     }
 
-    private static string BuildSummary(OperationCode operation, string entityTitle, string formattedTime, string userTitle)
+    private static string BuildSummary(OperationCode operation, string entityTitle, string formattedTime,
+        string userTitle)
     {
         return operation switch
         {
-            OperationCode.Create => string.Format(AuditLogMessages.Ru.CreateSummary, entityTitle, formattedTime, userTitle),
-            OperationCode.Update => string.Format(AuditLogMessages.Ru.UpdateSummary, entityTitle, formattedTime, userTitle),
-            OperationCode.Delete => string.Format(AuditLogMessages.Ru.DeleteSummary, entityTitle, formattedTime, userTitle),
-            OperationCode.SoftDelete => string.Format(AuditLogMessages.Ru.SoftDeleteSummary, entityTitle, formattedTime, userTitle),
-            OperationCode.BulkUpdate => string.Format(AuditLogMessages.Ru.BulkUpdateSummary, entityTitle, formattedTime, userTitle),
-            OperationCode.BulkDelete => string.Format(AuditLogMessages.Ru.BulkDeleteSummary, entityTitle, formattedTime, userTitle),
+            OperationCode.Create => string.Format(AuditLogMessages.Ru.CreateSummary, entityTitle, formattedTime,
+                userTitle),
+            OperationCode.Update => string.Format(AuditLogMessages.Ru.UpdateSummary, entityTitle, formattedTime,
+                userTitle),
+            OperationCode.Delete => string.Format(AuditLogMessages.Ru.DeleteSummary, entityTitle, formattedTime,
+                userTitle),
+            OperationCode.SoftDelete => string.Format(AuditLogMessages.Ru.SoftDeleteSummary, entityTitle, formattedTime,
+                userTitle),
+            OperationCode.BulkUpdate => string.Format(AuditLogMessages.Ru.BulkUpdateSummary, entityTitle, formattedTime,
+                userTitle),
+            OperationCode.BulkDelete => string.Format(AuditLogMessages.Ru.BulkDeleteSummary, entityTitle, formattedTime,
+                userTitle),
             _ => $"Операция над записью \"{entityTitle}\". ({formattedTime}, {userTitle})"
         };
     }
@@ -125,14 +132,14 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
 
         if (auditRecord == null)
             return details;
-        
+
         foreach (var fieldChange in auditRecord.FieldChanges)
         {
             var detail = FormatFieldChange(fieldChange);
             if (!string.IsNullOrEmpty(detail))
                 details.Add(detail);
         }
-        
+
         foreach (var collectionChange in auditRecord.CollectionChanges)
         {
             var collectionDetails = FormatCollectionChange(collectionChange);
@@ -147,25 +154,18 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
         var fieldName = !string.IsNullOrWhiteSpace(fieldChange.FieldTitle)
             ? fieldChange.FieldTitle
             : fieldChange.FieldName;
-        
+
         if (fieldChange.SensitiveMode == SensitiveMode.Encrypted)
-        {
             return string.Format(AuditLogMessages.Ru.FieldChangedMasked, fieldName);
-        }
 
         if (fieldChange.SensitiveMode == SensitiveMode.FactOnly)
-        {
             return string.Format(AuditLogMessages.Ru.FieldChangedFactOnly, fieldName);
-        }
 
-        if (fieldChange.SensitiveMode == SensitiveMode.Excluded)
-        {
-            return string.Empty;
-        }
+        if (fieldChange.SensitiveMode == SensitiveMode.Excluded) return string.Empty;
 
         var oldValue = GetDisplayValue(fieldChange.OldValue, fieldChange.ValueKind);
         var newValue = GetDisplayValue(fieldChange.NewValue, fieldChange.ValueKind);
-        
+
         var valuePrefix = fieldChange.SensitiveMode switch
         {
             SensitiveMode.Hashed => "[SHA256] ",
@@ -174,16 +174,13 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
         };
 
         if (string.IsNullOrEmpty(oldValue) && !string.IsNullOrEmpty(newValue))
-        {
             return string.Format(AuditLogMessages.Ru.FieldChangedFromEmpty, fieldName, valuePrefix + newValue);
-        }
 
         if (!string.IsNullOrEmpty(oldValue) && string.IsNullOrEmpty(newValue))
-        {
             return string.Format(AuditLogMessages.Ru.FieldChangedToEmpty, fieldName, valuePrefix + oldValue);
-        }
 
-        return string.Format(AuditLogMessages.Ru.FieldChanged, fieldName, valuePrefix + oldValue, valuePrefix + newValue);
+        return string.Format(AuditLogMessages.Ru.FieldChanged, fieldName, valuePrefix + oldValue,
+            valuePrefix + newValue);
     }
 
     private static string GetDisplayValue(FieldValue? fieldValue, ValueKind valueKind)
@@ -219,10 +216,7 @@ public sealed class AuditLogFormatter : IAuditLogFormatter
                 _ => null
             };
 
-            if (!string.IsNullOrEmpty(message))
-            {
-                yield return $"{collectionName}: {message}";
-            }
+            if (!string.IsNullOrEmpty(message)) yield return $"{collectionName}: {message}";
         }
     }
 }

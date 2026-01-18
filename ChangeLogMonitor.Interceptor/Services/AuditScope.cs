@@ -15,34 +15,27 @@ public sealed class AuditScope : IAuditScope
     {
         _parent = parent;
     }
-    
+
     public static AuditScope? Current => CurrentScope.Value;
 
     public string? Reason { get; private set; }
-    
+
     public string? TargetEntity { get; private set; }
-    
+
     public IReadOnlyDictionary<string, string> Hints => _hints;
-    
-    public static AuditScope Begin()
-    {
-        var scope = new AuditScope(CurrentScope.Value);
-        CurrentScope.Value = scope;
-        return scope;
-    }
-    
+
     public IAuditScope SetReason(string reason)
     {
         Reason = reason;
         return this;
     }
-    
+
     public IAuditScope SetTargetEntity(string entity)
     {
         TargetEntity = entity;
         return this;
     }
-    
+
     public IAuditScope AddHint(string key, string value)
     {
         _hints[key] = value;
@@ -54,10 +47,17 @@ public sealed class AuditScope : IAuditScope
         CurrentScope.Value = _parent;
     }
 
+    public static AuditScope Begin()
+    {
+        var scope = new AuditScope(CurrentScope.Value);
+        CurrentScope.Value = scope;
+        return scope;
+    }
+
     public Dictionary<string, string> GetAllHints()
     {
         var allHints = new Dictionary<string, string>();
-        
+
         var scope = this;
         var scopes = new Stack<AuditScope>();
         while (scope != null)
@@ -65,7 +65,7 @@ public sealed class AuditScope : IAuditScope
             scopes.Push(scope);
             scope = scope._parent;
         }
-        
+
         while (scopes.Count > 0)
         {
             var s = scopes.Pop();
@@ -75,7 +75,7 @@ public sealed class AuditScope : IAuditScope
 
         return allHints;
     }
-    
+
     public string? GetEffectiveReason()
     {
         var scope = this;
@@ -88,7 +88,7 @@ public sealed class AuditScope : IAuditScope
 
         return null;
     }
-    
+
     public string? GetEffectiveTargetEntity()
     {
         var scope = this;

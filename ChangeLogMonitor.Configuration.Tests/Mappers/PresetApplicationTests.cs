@@ -5,9 +5,6 @@ using Xunit;
 
 namespace ChangeLogMonitor.Configuration.Tests.Mappers;
 
-/// <summary>
-///     Тесты для проверки корректности применения пресетов
-/// </summary>
 public class PresetApplicationTests
 {
     private readonly AuditPolicyMapper _mapper;
@@ -20,7 +17,6 @@ public class PresetApplicationTests
     [Fact]
     public void MapToDomain_MaskPresetApplication_ShouldApplyPresetValues()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -50,7 +46,6 @@ public class PresetApplicationTests
                             Mask = new YamlMaskSettings
                             {
                                 Preset = "email"
-                                // Локальные значения не указаны - должны взяться из пресета
                             }
                         }
                     }
@@ -58,23 +53,20 @@ public class PresetApplicationTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var emailField = domain.Entities["User"].Fields["Email"];
         emailField.Mask.Should().NotBeNull();
-        emailField.Mask!.MaskChar.Should().Be('•'); // Из пресета
-        emailField.Mask.KeepLeft.Should().Be(3); // Из пресета
-        emailField.Mask.KeepRight.Should().Be(3); // Из пресета
-        emailField.Mask.PreserveDomain.Should().BeTrue(); // Из пресета
-        emailField.Mask.PreserveFormat.Should().BeFalse(); // Из пресета
+        emailField.Mask!.MaskChar.Should().Be('•');
+        emailField.Mask.KeepLeft.Should().Be(3);
+        emailField.Mask.KeepRight.Should().Be(3);
+        emailField.Mask.PreserveDomain.Should().BeTrue();
+        emailField.Mask.PreserveFormat.Should().BeFalse();
     }
 
     [Fact]
     public void MapToDomain_MaskPresetWithLocalOverride_ShouldOverridePresetValues()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -103,9 +95,8 @@ public class PresetApplicationTests
                             Mask = new YamlMaskSettings
                             {
                                 Preset = "email",
-                                KeepLeft = 1, // Перекрываем пресет
-                                KeepRight = 1 // Перекрываем пресет
-                                // Char и PreserveDomain должны взяться из пресета
+                                KeepLeft = 1,
+                                KeepRight = 1
                             }
                         }
                     }
@@ -113,22 +104,19 @@ public class PresetApplicationTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var emailField = domain.Entities["User"].Fields["Email"];
         emailField.Mask.Should().NotBeNull();
-        emailField.Mask!.MaskChar.Should().Be('•'); // Из пресета (не перекрыто)
-        emailField.Mask.KeepLeft.Should().Be(1); // Локальное значение перекрыло пресет
-        emailField.Mask.KeepRight.Should().Be(1); // Локальное значение перекрыло пресет
-        emailField.Mask.PreserveDomain.Should().BeTrue(); // Из пресета (не перекрыто)
+        emailField.Mask!.MaskChar.Should().Be('•');
+        emailField.Mask.KeepLeft.Should().Be(1);
+        emailField.Mask.KeepRight.Should().Be(1);
+        emailField.Mask.PreserveDomain.Should().BeTrue();
     }
 
     [Fact]
     public void MapToDomain_HashPresetApplication_ShouldApplyPresetValues()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -165,10 +153,8 @@ public class PresetApplicationTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var ssnField = domain.Entities["User"].Fields["SSN"];
         ssnField.Hash.Should().NotBeNull();
         ssnField.Hash!.Algo.Should().Be("SHA-256");
@@ -182,7 +168,6 @@ public class PresetApplicationTests
     [Fact]
     public void MapToDomain_ReferencePresetApplication_ShouldApplyPresetValues()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -211,21 +196,18 @@ public class PresetApplicationTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var deptRef = domain.Entities["User"].References["DepartmentId"];
-        deptRef.ShowKey.Should().BeTrue(); // Из пресета
-        deptRef.ShowName.Should().BeTrue(); // Из пресета
-        deptRef.ViewTemplate.Should().Be("{name} (ID={key})"); // Из пресета
-        deptRef.NameSelector.Should().Be("Department.Name"); // Локальное значение
+        deptRef.ShowKey.Should().BeTrue();
+        deptRef.ShowName.Should().BeTrue();
+        deptRef.ViewTemplate.Should().Be("{name} (ID={key})");
+        deptRef.NameSelector.Should().Be("Department.Name");
     }
 
     [Fact]
     public void MapToDomain_CollectionPresetApplication_ShouldApplyPresetValues()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -255,22 +237,19 @@ public class PresetApplicationTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var rolesCollection = domain.Entities["User"].Collections["Roles"];
-        rolesCollection.LogDeltas.Should().BeTrue(); // Из пресета
-        rolesCollection.ShowKeys.Should().BeTrue(); // Из пресета
-        rolesCollection.ShowNames.Should().BeTrue(); // Из пресета
-        rolesCollection.ItemViewTemplate.Should().Be("{name} (ID={key})"); // Из пресета
-        rolesCollection.ItemNameSelector.Should().Be("Role.Name"); // Локальное значение
+        rolesCollection.LogDeltas.Should().BeTrue();
+        rolesCollection.ShowKeys.Should().BeTrue();
+        rolesCollection.ShowNames.Should().BeTrue();
+        rolesCollection.ItemViewTemplate.Should().Be("{name} (ID={key})");
+        rolesCollection.ItemNameSelector.Should().Be("Role.Name");
     }
 
     [Fact]
     public void MapToDomain_CollectionPresetWithOverride_ShouldOverridePresetValues()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -292,7 +271,7 @@ public class PresetApplicationTests
                         ["Roles"] = new()
                         {
                             Preset = "delta_verbose",
-                            ShowKeys = false, // Перекрываем пресет
+                            ShowKeys = false,
                             ItemNameSelector = "Role.Name"
                         }
                     }
@@ -300,20 +279,17 @@ public class PresetApplicationTests
             }
         };
 
-        // Act
         var domain = _mapper.MapToDomain(yaml);
 
-        // Assert
         var rolesCollection = domain.Entities["User"].Collections["Roles"];
-        rolesCollection.LogDeltas.Should().BeTrue(); // Из пресета
-        rolesCollection.ShowKeys.Should().BeFalse(); // Перекрыто локально
-        rolesCollection.ShowNames.Should().BeTrue(); // Из пресета
+        rolesCollection.LogDeltas.Should().BeTrue();
+        rolesCollection.ShowKeys.Should().BeFalse();
+        rolesCollection.ShowNames.Should().BeTrue();
     }
 
     [Fact]
     public void MapToDomain_NonExistentPreset_ShouldNotCrash()
     {
-        // Arrange
         var yaml = new YamlAuditPolicy
         {
             Version = "1.0",
@@ -337,14 +313,12 @@ public class PresetApplicationTests
             }
         };
 
-        // Act
         var act = () => _mapper.MapToDomain(yaml);
 
-        // Assert
         act.Should().NotThrow();
         var domain = act();
         var emailField = domain.Entities["User"].Fields["Email"];
         emailField.Mask.Should().NotBeNull();
-        emailField.Mask!.KeepLeft.Should().Be(2); // Локальное значение применено
+        emailField.Mask!.KeepLeft.Should().Be(2);
     }
 }

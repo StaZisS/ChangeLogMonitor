@@ -1,8 +1,5 @@
 namespace ChangeLogMonitor.Integration.Tests.TestEntities;
 
-/// <summary>
-///     Клиент/покупатель для тестирования
-/// </summary>
 public class Customer
 {
     public int Id { get; set; }

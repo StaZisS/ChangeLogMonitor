@@ -9,10 +9,10 @@ namespace ChangeLogMonitor.Finalization.Services;
 
 internal sealed class DiffService : IDiffService
 {
-    private readonly IAuditLogRepository _repository;
-    private readonly IAuditLogFormatter _formatter;
     private readonly IAccessControlService _accessControl;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAuditLogFormatter _formatter;
+    private readonly IAuditLogRepository _repository;
 
     public DiffService(
         IAuditLogRepository repository,
@@ -24,54 +24,6 @@ internal sealed class DiffService : IDiffService
         _formatter = formatter;
         _accessControl = accessControl;
         _currentUser = currentUser;
-    }
-    
-    private DiffFilterRequest ApplyAccessControl(DiffFilterRequest? baseFilter, string? specificTableName = null)
-    {
-        var userId = _currentUser.GetUserId();
-        
-        var filter = baseFilter ?? new DiffFilterRequest(null, null, null, null, null, null, null);
-
-        if (!_accessControl.IsEnabled)
-            return filter;
-
-        var roles = _accessControl.GetUserRoles(userId);
-        var allowedEntities = _accessControl.GetAllowedEntities(roles);
-        
-        if (allowedEntities.Count == 0)
-            return filter with { AllowedTableNames = new[] { "__DENIED__" } };
-        
-        var tableName = specificTableName ?? filter.TableName;
-        if (!string.IsNullOrWhiteSpace(tableName))
-        {
-            if (!allowedEntities.Contains(tableName))
-            {
-                return filter with { AllowedTableNames = new[] { "__DENIED__" } };
-            }
-
-            return filter with
-            {
-                TableName = tableName
-            };
-        }
-        
-        return filter with
-        {
-            AllowedTableNames = allowedEntities.ToList()
-        };
-    }
-    
-    private void EnsureEntityAccess(string tableName)
-    {
-        if (!_accessControl.IsEnabled)
-            return;
-
-        var userId = _currentUser.GetUserId();
-        if (!_accessControl.CanAccessEntity(userId, tableName))
-        {
-            if (_accessControl.GetUnauthorizedBehavior() == UnauthorizedBehavior.Deny)
-                throw new UnauthorizedAccessException($"Access denied to entity: {tableName}");
-        }
     }
 
     public async Task<PaginatedResult<DiffResponse>> GetAllAsync(
@@ -108,11 +60,11 @@ internal sealed class DiffService : IDiffService
         CancellationToken cancellationToken)
     {
         EnsureEntityAccess(tableName);
-        
+
         var filter = ApplyAccessControl(
             new DiffFilterRequest(tableName, null, null, null, null, entityId, null),
             tableName);
-        
+
         if (filter.AllowedTableNames?.Contains("__DENIED__") == true)
             return Array.Empty<DiffResponse>();
 
@@ -198,11 +150,11 @@ internal sealed class DiffService : IDiffService
         CancellationToken cancellationToken)
     {
         EnsureEntityAccess(tableName);
-        
+
         var filter = ApplyAccessControl(
             new DiffFilterRequest(tableName, null, null, null, null, entityId, null),
             tableName);
-        
+
         if (filter.AllowedTableNames?.Contains("__DENIED__") == true)
             return Array.Empty<FormattedDiffResponse>();
 
@@ -254,6 +206,49 @@ internal sealed class DiffService : IDiffService
         return new PaginatedResult<FormattedDiffResponse>(
             data,
             new PaginationInfo(nextToken, hasMore, limit));
+    }
+
+    private DiffFilterRequest ApplyAccessControl(DiffFilterRequest? baseFilter, string? specificTableName = null)
+    {
+        var userId = _currentUser.GetUserId();
+
+        var filter = baseFilter ?? new DiffFilterRequest(null, null, null, null, null, null, null);
+
+        if (!_accessControl.IsEnabled)
+            return filter;
+
+        var roles = _accessControl.GetUserRoles(userId);
+        var allowedEntities = _accessControl.GetAllowedEntities(roles);
+
+        if (allowedEntities.Count == 0)
+            return filter with { AllowedTableNames = new[] { "__DENIED__" } };
+
+        var tableName = specificTableName ?? filter.TableName;
+        if (!string.IsNullOrWhiteSpace(tableName))
+        {
+            if (!allowedEntities.Contains(tableName)) return filter with { AllowedTableNames = new[] { "__DENIED__" } };
+
+            return filter with
+            {
+                TableName = tableName
+            };
+        }
+
+        return filter with
+        {
+            AllowedTableNames = allowedEntities.ToList()
+        };
+    }
+
+    private void EnsureEntityAccess(string tableName)
+    {
+        if (!_accessControl.IsEnabled)
+            return;
+
+        var userId = _currentUser.GetUserId();
+        if (!_accessControl.CanAccessEntity(userId, tableName))
+            if (_accessControl.GetUnauthorizedBehavior() == UnauthorizedBehavior.Deny)
+                throw new UnauthorizedAccessException($"Access denied to entity: {tableName}");
     }
 
     private static long? DecodeCursor(string? token)
