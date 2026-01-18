@@ -3,13 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChangeLogMonitor.Interceptor.Extensions;
 
-/// <summary>
-///     Extension-методы для выполнения raw SQL с автоматической записью аудита
-/// </summary>
 public static class DatabaseFacadeAuditExtensions
 {
     /// <summary>
-    ///     Выполняет raw SQL и записывает метаданные аудита (асинхронно)
+    ///     Выполняет raw SQL и записывает метаданные аудита
     /// </summary>
     /// <param name="context">DbContext</param>
     /// <param name="auditService">Сервис аудита</param>
@@ -54,7 +51,7 @@ public static class DatabaseFacadeAuditExtensions
     }
 
     /// <summary>
-    ///     Выполняет raw SQL и записывает метаданные аудита (синхронно)
+    ///     Выполняет raw SQL и записывает метаданные аудита
     /// </summary>
     /// <param name="context">DbContext</param>
     /// <param name="auditService">Сервис аудита</param>
@@ -96,7 +93,7 @@ public static class DatabaseFacadeAuditExtensions
     }
 
     /// <summary>
-    ///     Выполняет интерполированный SQL и записывает метаданные аудита (асинхронно)
+    ///     Выполняет интерполированный SQL и записывает метаданные аудита
     /// </summary>
     /// <param name="context">DbContext</param>
     /// <param name="auditService">Сервис аудита</param>
@@ -137,7 +134,7 @@ public static class DatabaseFacadeAuditExtensions
     }
 
     /// <summary>
-    ///     Выполняет интерполированный SQL и записывает метаданные аудита (синхронно)
+    ///     Выполняет интерполированный SQL и записывает метаданные аудита
     /// </summary>
     /// <param name="context">DbContext</param>
     /// <param name="auditService">Сервис аудита</param>
@@ -175,7 +172,7 @@ public static class DatabaseFacadeAuditExtensions
     }
 
     /// <summary>
-    ///     Выполняет raw SQL с использованием текущего AuditScope для метаданных (асинхронно)
+    ///     Выполняет raw SQL с использованием текущего AuditScope для метаданных
     /// </summary>
     /// <param name="context">DbContext</param>
     /// <param name="auditService">Сервис аудита</param>
@@ -205,7 +202,7 @@ public static class DatabaseFacadeAuditExtensions
     }
 
     /// <summary>
-    ///     Выполняет raw SQL с использованием текущего AuditScope для метаданных (синхронно)
+    ///     Выполняет raw SQL с использованием текущего AuditScope для метаданных
     /// </summary>
     /// <param name="context">DbContext</param>
     /// <param name="auditService">Сервис аудита</param>

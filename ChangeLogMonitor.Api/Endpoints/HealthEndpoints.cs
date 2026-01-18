@@ -10,7 +10,6 @@ public static class HealthEndpoints
 {
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
-        // Combined health endpoint
         app.MapGet("/healthz", ([FromServices] ITxAggregatorHealth aggregatorHealth) =>
             {
                 var aggregatorSnapshot = aggregatorHealth.GetSnapshot();
@@ -33,8 +32,7 @@ public static class HealthEndpoints
             })
             .WithName("CombinedHealth")
             .WithTags("Health");
-
-        // Aggregator health endpoint
+        
         app.MapGet("/aggregator/healthz", ([FromServices] ITxAggregatorHealth health) =>
             {
                 var snapshot = health.GetSnapshot();
@@ -48,8 +46,7 @@ public static class HealthEndpoints
             })
             .WithName("AggregatorHealth")
             .WithTags("Health");
-
-        // Finalizer health endpoint
+        
         app.MapGet("/finalizer/healthz", () => Results.Json(new
             {
                 status = "ok",

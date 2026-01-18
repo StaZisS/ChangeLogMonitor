@@ -658,7 +658,7 @@ app.MapPost("/orders/raw/update-by-amount", async Task<IResult> (
                     ["max_amount"] = request.MaxAmount.ToString("F2"),
                     ["new_status"] = request.NewStatus.ToString()
                 },
-                enumSnapshots: CreateFullOrderStatusSnapshot(), // Полный snapshot т.к. неизвестны старые значения
+                enumSnapshots: CreateFullOrderStatusSnapshot(),
                 cancellationToken: cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);

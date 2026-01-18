@@ -1,16 +1,11 @@
 # ChangeLogMonitor - Документация
 
-Модульная система аудита изменений данных на основе Debezium CDC.
+Cистема логирования изменений данных.
 
-## Содержание
+## Документация
 
-1. [Обзор проекта](#обзор-проекта)
-2. [Архитектура](#архитектура)
-3. [Модули](#модули)
-4. [Режимы развертывания](#режимы-развертывания)
-5. [Быстрый старт](#быстрый-старт)
-6. [Требования](#требования)
-7. [Команды сборки и запуска](#команды-сборки-и-запуска)
+- [Конфигурация](CONFIGURATION.md) - настройка политики аудита и инфраструктуры
+- [Настройка CDC](SETUP-CDC.md) - настройка PostgreSQL и Debezium для CDC
 
 ---
 
@@ -34,25 +29,9 @@ ChangeLogMonitor отслеживает и визуализирует все и�
 
 Используйте NuGet пакет `ChangeLogMonitor.Embedded` в вашем приложении.
 
-**Плюсы:**
-- Простота интеграции
-- Захват изменений в процессе приложения
-- Единая транзакция
-
-**Минусы:**
-- Дополнительная нагрузка на приложение
-
 ### Standalone (отдельный сервис)
 
 Разверните `ChangeLogMonitor.Standalone` как отдельный сервис.
-
-**Плюсы:**
-- Изоляция от основного приложения
-- Независимое масштабирование
-
-**Минусы:**
-- Требует настройки Debezium/Kafka
-- Отложенная обработка изменений
 
 ---
 
@@ -83,32 +62,8 @@ ChangeLogMonitor отслеживает и визуализирует все и�
 - Entity Framework Core 9
 - Kafka
 - Debezium
-- ClickHouse (для Finalization)
-- PostgreSQL/SQL Server/MySQL
-
----
-
-## Команды сборки и запуска
-
-```bash
-# Сборка
-dotnet build ChangeLogMonitor.sln
-dotnet build ChangeLogMonitor.sln -c Release
-
-# Запуск
-dotnet run --project ChangeLogMonitor.Standalone
-dotnet run --project ChangeLogMonitor.TestHarness
-
-# Тесты
-dotnet test ChangeLogMonitor.Interceptor.Tests
-dotnet test ChangeLogMonitor.DataAggregator.Tests
-dotnet test ChangeLogMonitor.Configuration.Tests
-
-# Миграции (Interceptor)
-dotnet ef database update \
-  --project ChangeLogMonitor.Interceptor \
-  --context ChangeLogMonitor.Interceptor.Models.AuditDbContext
-```
+- ClickHouse
+- PostgreSQL(и доугие базы поддерживающие WAL)
 
 ---
 
@@ -127,7 +82,3 @@ dotnet ef database update \
    - Нажать + в нижней части и добавить File path pattern: changelog-config*.yaml                                                                                                                                                                                                                               
  4. Apply → OK 
 ```
-
-## UI
-
-localhost:5000/AuditLog

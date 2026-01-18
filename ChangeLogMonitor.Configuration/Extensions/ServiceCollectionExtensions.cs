@@ -6,9 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace ChangeLogMonitor.Configuration.Extensions;
 
-/// <summary>
-///     Extensions для регистрации сервисов конфигурации аудита в DI контейнере
-/// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>

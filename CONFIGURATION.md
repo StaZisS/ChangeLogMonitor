@@ -620,13 +620,3 @@ auditPolicy:
   defaultCulture: "ru-RU"
   defaultTimeZone: "Asia/Almaty"
 ```
-
----
-
-## Рекомендации
-
-1. **Секреты** - храните только ссылки на KMS/Secret Manager (`ref`, `keyRef`, `pepperRef`)
-2. **Большие коллекции** - используйте `limits` и `countOnlyWhenLarge`
-3. **Дорогие операции** - выносите на этап нормализации (`stage: normalization`)
-4. **PII данные** - используйте `mask`, `hash` или `encrypt`
-5. **Независимость** - не создавайте FK из аудита на бизнес-схему
