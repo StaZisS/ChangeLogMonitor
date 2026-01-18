@@ -13,11 +13,9 @@ public static class DatabaseInitializer
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         await context.Database.EnsureCreatedAsync(cancellationToken);
-
-        // Добавляем колонку Status если её нет (для существующих БД)
+        
         await EnsureStatusColumnAsync(context, cancellationToken);
-
-        // Создаём таблицы Tags и OrderTags если их нет (для существующих БД)
+        
         await EnsureTagsTablesAsync(context, cancellationToken);
 
         var hasChanges = false;
@@ -49,8 +47,7 @@ public static class DatabaseInitializer
             });
             hasChanges = true;
         }
-
-        // Seed Tags for testing M2M collection changes
+        
         if (!await context.Tags.AnyAsync(t => t.Id == SeedData.UrgentTagId, cancellationToken))
         {
             context.Tags.AddRange(
@@ -68,10 +65,7 @@ public static class DatabaseInitializer
             await context.SaveChangesAsync(cancellationToken);
         }
     }
-
-    /// <summary>
-    ///     Добавляет колонку Status в таблицу Orders если её нет (для существующих БД)
-    /// </summary>
+    
     private static async Task EnsureStatusColumnAsync(AppDbContext context, CancellationToken cancellationToken)
     {
         var connection = context.Database.GetDbConnection();
@@ -83,8 +77,7 @@ public static class DatabaseInitializer
         try
         {
             await connection.OpenAsync(cancellationToken);
-
-            // Проверяем существует ли колонка Status
+            
             await using var checkCmd = connection.CreateCommand();
             checkCmd.CommandText = @"
                 SELECT COUNT(*) FROM information_schema.columns
@@ -101,13 +94,9 @@ public static class DatabaseInitializer
         }
         catch
         {
-            // Игнорируем ошибки - возможно таблица ещё не создана
         }
     }
-
-    /// <summary>
-    ///     Создаёт таблицы Tags и OrderTags если их нет (для существующих БД)
-    /// </summary>
+    
     private static async Task EnsureTagsTablesAsync(AppDbContext context, CancellationToken cancellationToken)
     {
         var connection = context.Database.GetDbConnection();
@@ -120,8 +109,7 @@ public static class DatabaseInitializer
         {
             if (connection.State != System.Data.ConnectionState.Open)
                 await connection.OpenAsync(cancellationToken);
-
-            // Проверяем существует ли таблица Tags
+            
             await using var checkTagsCmd = connection.CreateCommand();
             checkTagsCmd.CommandText = @"
                 SELECT COUNT(*) FROM information_schema.tables
@@ -142,8 +130,7 @@ public static class DatabaseInitializer
                 ";
                 await createTagsCmd.ExecuteNonQueryAsync(cancellationToken);
             }
-
-            // Проверяем существует ли таблица OrderTags
+            
             await using var checkOrderTagsCmd = connection.CreateCommand();
             checkOrderTagsCmd.CommandText = @"
                 SELECT COUNT(*) FROM information_schema.tables
@@ -170,7 +157,6 @@ public static class DatabaseInitializer
         }
         catch
         {
-            // Игнорируем ошибки - возможно таблицы уже существуют или Orders ещё не создана
         }
     }
 }

@@ -89,16 +89,22 @@
     color: #198754;
 }
 
-.badge-create {
-    background-color: #198754;
+.badge.badge-create {
+    --bs-badge-color: #000000;
+    background-color: #198754 !important;
+    color: #000000 !important;
 }
 
-.badge-update {
-    background-color: #0d6efd;
+.badge.badge-update {
+    --bs-badge-color: #000000;
+    background-color: #0d6efd !important;
+    color: #000000 !important;
 }
 
-.badge-delete {
-    background-color: #dc3545;
+.badge.badge-delete {
+    --bs-badge-color: #000000;
+    background-color: #dc3545 !important;
+    color: #000000 !important;
 }
 
 .text-truncate-sm {

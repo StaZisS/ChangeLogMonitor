@@ -33,11 +33,9 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         _currentUser = currentUser;
         _configurationService = configurationService;
     }
-
-    /// <inheritdoc />
+    
     public bool IsAccessControlEnabled => _accessControl.IsEnabled;
-
-    /// <inheritdoc />
+    
     public IReadOnlyList<string> GetAllowedEntities()
     {
         if (!_accessControl.IsEnabled)
@@ -47,8 +45,7 @@ internal sealed class AuditLogViewService : IAuditLogViewService
         var roles = _accessControl.GetUserRoles(userId);
         return _accessControl.GetAllowedEntities(roles);
     }
-
-    /// <inheritdoc />
+    
     public IReadOnlyList<EntityInfo> GetAvailableEntities()
     {
         var policy = _configurationService.GetPolicy();
@@ -185,12 +182,12 @@ internal sealed class AuditLogViewService : IAuditLogViewService
     {
         return operation.ToUpperInvariant() switch
         {
-            OperationNames.Create => "badge-create",
-            OperationNames.Update => "badge-update",
-            OperationNames.Delete or OperationNames.SoftDelete => "badge-delete",
-            OperationNames.BulkUpdate => "badge-update",
-            OperationNames.BulkDelete => "badge-delete",
-            _ => "bg-secondary"
+            OperationNames.Create => "bg-success text-dark",
+            OperationNames.Update => "bg-primary text-dark",
+            OperationNames.Delete or OperationNames.SoftDelete => "bg-danger text-white",
+            OperationNames.BulkUpdate => "bg-primary text-dark",
+            OperationNames.BulkDelete => "bg-danger text-white",
+            _ => "bg-secondary text-white"
         };
     }
 

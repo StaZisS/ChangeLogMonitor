@@ -44,15 +44,11 @@ public class IndexModel : PageModel
     public int PageSize { get; set; } = 50;
 
     public AuditLogListViewModel ViewModel { get; set; } = new();
-
-    /// <summary>
-    ///     Список сущностей, доступных для запроса (для dropdown фильтра)
-    /// </summary>
+    
     public IReadOnlyList<EntityInfo> AvailableEntities { get; set; } = Array.Empty<EntityInfo>();
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        // Загружаем информацию о доступных сущностях
         AvailableEntities = _viewService.GetAvailableEntities();
 
         var filter = new AuditLogFilterViewModel

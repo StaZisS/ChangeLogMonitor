@@ -1,4 +1,3 @@
-// Audit Log UI JavaScript
 
 document.addEventListener('DOMContentLoaded', function () {
     initExpandButtons();

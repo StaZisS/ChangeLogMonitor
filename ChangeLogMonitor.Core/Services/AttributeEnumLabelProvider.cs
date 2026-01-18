@@ -26,6 +26,22 @@ public sealed class AttributeEnumLabelProvider : IEnumLabelProvider
 
         return labels.TryGetValue(key, out var label) ? label : null;
     }
+
+    /// <summary>
+    ///     Возвращает лейбл для значения enum с generic параметром.
+    /// </summary>
+    public string GetLabel<TEnum>(TEnum value) where TEnum : struct, Enum
+    {
+        return GetLabel(typeof(TEnum), value) ?? value.ToString();
+    }
+
+    /// <summary>
+    ///     Возвращает все лейблы для указанного типа enum с generic параметром.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> GetAllLabels<TEnum>() where TEnum : struct, Enum
+    {
+        return GetAllLabels(typeof(TEnum));
+    }
     
     public IReadOnlyDictionary<string, string> GetAllLabels(Type enumType)
     {

@@ -3,9 +3,6 @@ using ChangeLogMonitor.Interceptor.Services;
 
 namespace TestProject.Infrastructure;
 
-/// <summary>
-///     Провайдер метаданных аудита, извлекающий данные из HttpContext (JWT)
-/// </summary>
 public class HttpContextAuditMetadataProvider : IAuditMetadataProvider
 {
     private readonly IHttpContextAccessor _httpContextAccessor;

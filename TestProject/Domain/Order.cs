@@ -4,9 +4,6 @@ using ChangeLogMonitor.Core.Attributes;
 
 namespace TestProject.Domain;
 
-/// <summary>
-///     Статус заказа
-/// </summary>
 public enum OrderStatus
 {
     [AuditEnumLabel("Новый")]

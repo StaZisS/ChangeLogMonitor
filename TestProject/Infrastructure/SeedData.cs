@@ -9,8 +9,7 @@ internal static class SeedData
     public const string SecondUsername = "test-user";
     public const string SecondPassword = "test-pass";
     public static readonly Guid SecondUserId = Guid.Parse("a1b2c3d4-5e6f-7a8b-9c0d-e1f2a3b4c5d6");
-
-    // Tags for testing M2M collection changes
+    
     public static readonly Guid UrgentTagId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     public static readonly Guid VipTagId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     public static readonly Guid DiscountTagId = Guid.Parse("33333333-3333-3333-3333-333333333333");

@@ -1,328 +1,196 @@
-# yaml-language-server: $schema=./changelog-config.schema.yaml
-# Пример конфигурации политики аудита для ChangeLogMonitor
-# Скопируйте этот файл в changelog-config.yaml и настройте под свои нужды
-
 auditPolicy:
-  version: "1.0"
+  version: "2.0"
+  mode: whitelist  # whitelist = только указанные сущности, blacklist = все кроме указанных
 
-  # Режим работы: whitelist (только указанные) или blacklist (все кроме указанных)
-  mode: whitelist
-
-  # Поведение по умолчанию для операций
-  onCreate: eventOnly       # eventOnly | allFields | nonDefaultFields
+  # Глобальные настройки по умолчанию
+  onCreate: allFields       # allFields | eventOnly | nonDefaultFields
   onUpdate: delta           # delta | fullSnapshot
   onDelete: eventOnly       # eventOnly | allFields
 
-  # Глобально исключенные поля (не логируются нигде)
+  # Поля, которые НИКОГДА не логируются (глобально для всех сущностей)
   globalFieldExclusions:
-    - RowVersion
-    - ConcurrencyToken
-    - Timestamp
+    - __efMigrationsHistory
+    - xmin
 
-  # ========== ПРЕСЕТЫ ДЛЯ МЕТОДОВ ==========
+  # Локализация
+  defaultCulture: ru-RU
+  defaultTimeZone: Asia/Almaty
 
   methodPresets:
-    # Пресеты маскирования
     mask:
+      # Пресет для email: user@domain.com -> us***@domain.com
       email:
         char: "*"
         keepLeft: 2
-        keepRight: 2
+        keepRight: 0
         preserveDomain: true
-        preserveFormat: true
 
+      # Пресет для телефона: +77001234567 -> +7700***4567
       phone:
         char: "*"
-        keepLeft: 3
-        keepRight: 2
-        preserveFormat: true
+        keepLeft: 5
+        keepRight: 4
 
-      human_name_mask:
-        char: "•"
-        keepLeft: 1
-        keepRight: 1
-        preserveFormat: true
+      # Пресет для карты: 4111111111111111 -> 4111********1111
+      creditCard:
+        char: "*"
+        keepLeft: 4
+        keepRight: 4
 
-    # Пресеты хеширования
     hash:
-      sha256_salted:
+      # Стандартный SHA-256
+      standard:
         algo: SHA-256
-        salt:
-          strategy: per-record
-          ref: kms:alias/audit-salt
-        pepperRef: env:AUDIT_PEPPER
         encoding: base64
-        storeRaw: false
         storeHash: true
-        equalityToken: true
 
-    # Пресеты шифрования
-    encrypt:
-      aes_gcm_default:
-        algo: AES-256-GCM
-        keyRef: kms:alias/audit-log
-        aad: [entity, field, timestamp]
-        iv:
-          strategy: random
-          store: true
-          length: 12
+      # Быстрый MD5 (для некритичных данных)
+      fast:
+        algo: MD5
         encoding: base64
-        storeRaw: false
 
-  # ========== ПРЕСЕТЫ ДЛЯ ССЫЛОК ==========
-
-  referencePresets:
-    fk_verbose:
-      showKey: true
-      showName: true
-      viewTemplate: "{name} (ID={key})"
-
-    fk_compact:
-      showKey: false
-      showName: true
-      viewTemplate: "{name}"
-
-    fk_key_only:
-      showKey: true
-      showName: false
-      viewTemplate: "{key}"
-
-    fk_sensitive_name:
-      showKey: true
-      showName: true
-      viewTemplate: "{maskedName} (ID={key})"
-      nameMaskPreset: human_name_mask
-
-  # ========== ПРЕСЕТЫ ДЛЯ КОЛЛЕКЦИЙ ==========
-
-  collectionPresets:
-    delta_verbose:
-      logDeltas: true
-      showKeys: true
-      showNames: true
-      itemViewTemplate: "{name} (ID={key})"
-
-    delta_compact:
-      logDeltas: true
-      showKeys: false
-      showNames: true
-      itemViewTemplate: "{name}"
-
-    count_only:
-      logDeltas: true
-      showKeys: false
-      showNames: false
-      collapseToCounters: true
-
-  # ========== УМОЛЧАНИЯ ==========
-
-  referenceDefaults:
-    showKey: true
-    showName: true
-    viewTemplate: "{name} (ID={key})"
-    nameResolve:
-      stage: normalization
-      fallback: "{key}"
-      maxLen: 256
-
-  collectionDefaults:
-    logDeltas: true
-    showKeys: true
-    showNames: true
-    itemViewTemplate: "{name} (ID={key})"
-    limits:
-      addedMax: 200
-      removedMax: 200
-
-  # ========== НАСТРОЙКИ СУЩНОСТЕЙ ==========
-
+  #=============================================================================
+  # Политики для сущностей
+  #=============================================================================
   entities:
-    # Пример: сущность User с чувствительными данными
-    User:
+    #---------------------------------------------------------------------------
+    # Users - демонстрация: exclude, mask, allFields
+    #---------------------------------------------------------------------------
+    Users:
+      displayName: "Пользователи"
+      enabled: true
+      onCreate: allFields      # При создании показывать все поля
+      onUpdate: delta          # При обновлении показывать только изменения
+      onDelete: allFields      # При удалении показывать все поля (для истории)
+
+      access:
+        allowedRoles: [user]
+
+      fields:
+        # PasswordHash - ИСКЛЮЧИТЬ (никогда не логировать!)
+        PasswordHash:
+          action: exclude
+
+        # Email - МАСКИРОВАТЬ (показать частично)
+        Email:
+          action: mask
+          mask:
+            preset: email      # Использовать пресет email
+
+        # FullName - обычное поле
+        FullName:
+          action: include
+
+        # Username - обычное поле
+        Username:
+          action: include
+
+      # Коллекция заказов пользователя
+      collections:
+        Orders:
+          logDeltas: true
+          showKeys: true
+          showNames: true
+          itemKeySelector: "Id"
+          itemNameSelector: "Description"
+
+    #---------------------------------------------------------------------------
+    # Orders - демонстрация: hash, references, enum, allFields
+    #---------------------------------------------------------------------------
+    Orders:
+      displayName: "Заказы"
       enabled: true
       onCreate: allFields
       onUpdate: delta
       onDelete: eventOnly
 
-      # Настройки доступа к аудит-логам этой сущности
       access:
-        # Роли, которым разрешен доступ (пустой список = доступ всем)
-        allowedRoles: [admin, auditor]
+        allowedRoles: [admin]
 
       fields:
-        # Короткий синтаксис
-        Password: exclude
-
-        # Длинный синтаксис с маскированием
-        Email:
-          action: mask
-          mask:
-            preset: email
-
-        # Хеширование SSN
-        SSN:
+        # Amount - ХЕШИРОВАТЬ
+        Amount:
           action: hash
           hash:
-            preset: sha256_salted
+            preset: standard   # SHA-256
 
-        # Шифрование номера карты
-        CreditCardNumber:
-          action: encrypt
-          encrypt:
-            preset: aes_gcm_default
+        # Description - обычное поле
+        Description:
+          action: include
 
-        # Обычное поле с форматированием
-        BirthDate:
+        # Status - ENUM поле с человекочитаемыми лейблами
+        Status:
           action: include
           view:
-            format: date
-            pattern: "dd.MM.yyyy"
-            culture: "ru-RU"
+            format: enum
 
-        # Телефон с маскированием
-        Phone:
+      # Ссылка на пользователя
+      references:
+        User:
+          showKey: true        # Показывать UserId
+          showName: true       # Показывать имя пользователя
+          nameSelector: "Username"
+          viewTemplate: "{name} (ID: {key})"
+
+      # Коллекция тегов заказа
+      collections:
+        OrderTags:
+          logDeltas: true
+          showKeys: true
+          showNames: true
+          itemKeySelector: "TagId"
+          m2m:
+            joinEntity: "OrderTag"
+            joinFields:
+              - "OrderId"
+              - "TagId"
+            treatJoinCudAsMembership: true
+
+    #---------------------------------------------------------------------------
+    # Tags - демонстрация: eventOnly, mask
+    #---------------------------------------------------------------------------
+    Tags:
+      displayName: "Теги"
+      enabled: true
+      onCreate: eventOnly      # При создании - только событие без полей
+      onUpdate: delta
+      onDelete: eventOnly
+
+      fields:
+        # Name - обычное поле
+        Name:
+          action: include
+
+        # Color - МАСКИРОВАТЬ (просто для демонстрации)
+        Color:
           action: mask
           mask:
-            preset: phone
+            char: "*"
+            keepLeft: 1
+            keepRight: 0
 
-        # Поля без специальной обработки
-        FirstName: include
-        LastName: include
-        IsActive: include
-
-      references:
-        # FK на Department
-        DepartmentId:
-          preset: fk_verbose
-          nameSelector: "Department.Name"
-          nameResolve:
-            stage: normalization
-            fallback: "<Unknown Department> (ID={key})"
-
-        # FK на Manager
-        ManagerId:
-          preset: fk_compact
-          nameSelector: "User.FullName"
-
-      collections:
-        # Коллекция ролей
-        Roles:
-          preset: delta_verbose
-          itemKeySelector: "Role.Id"
-          itemNameSelector: "Role.Name"
-          limits:
-            addedMax: 50
-            removedMax: 50
-          deltaView:
-            addedPrefix: "Добавлена роль:"
-            removedPrefix: "Удалена роль:"
-            joiner: ", "
-
-        # Коллекция разрешений
-        Permissions:
-          preset: delta_compact
-          itemNameSelector: "Permission.Name"
-          limits:
-            addedMax: 100
-            removedMax: 100
-
-    # Пример: сущность Order
-    Order:
+    #---------------------------------------------------------------------------
+    # OrderTags - демонстрация: M2M связь, allFields на delete
+    #---------------------------------------------------------------------------
+    OrderTags:
+      displayName: "Теги заказов"
       enabled: true
       onCreate: allFields
       onUpdate: delta
-      onDelete: allFields
+      onDelete: allFields      # При удалении показать все поля
 
-      # Настройки доступа
-      access:
-        allowedRoles: [admin, auditor, manager, user]
-
-      fields:
-        OrderNumber: include
-
-        TotalAmount:
-          action: include
-          view:
-            format: money
-            culture: "ru-RU"
-
-        OrderDate:
-          action: include
-          view:
-            format: datetime
-            pattern: "dd.MM.yyyy HH:mm"
-            culture: "ru-RU"
-
-        # Enum поле - тип enum автоопределяется из EF Core модели
-        # enumType указывать НЕ нужно, он извлекается автоматически из CLR типа свойства
-        Status:
-          action: include
-          # view.format: enum и view.enumType больше НЕ требуются!
-          # Enum автоматически определяется интерцептором из модели EF Core
-
-        # Чувствительные данные
-        CreditCardCVV: exclude
-
-        PaymentToken:
-          action: encrypt
-          encrypt:
-            preset: aes_gcm_default
-
+      # Ссылки на Order и Tag
       references:
-        CustomerId:
-          preset: fk_verbose
-          nameSelector: "Customer.FullName"
+        Order:
+          showKey: true
+          showName: true
+          nameSelector: "Description"
 
-        ShippingAddressId:
-          preset: fk_key_only
+        Tag:
+          showKey: true
+          showName: true
+          nameSelector: "Name"
 
-      collections:
-        Items:
-          preset: delta_verbose
-          itemKeySelector: "OrderItem.Id"
-          itemNameSelector: "OrderItem.ProductName"
-          limits:
-            addedMax: 1000
-            removedMax: 1000
-          countOnlyWhenLarge:
-            enabled: true
-            threshold: 500
-
-    # Пример: сущность Product
-    Product:
-      enabled: true
-
-      fields:
-        Name: include
-        Description: include
-
-        Price:
-          action: include
-          view:
-            format: money
-            culture: "ru-RU"
-
-        InternalCode:
-          action: hash
-          hash:
-            preset: sha256_salted
-
-      references:
-        CategoryId:
-          preset: fk_verbose
-          nameSelector: "Category.Name"
-
-    # Пример: сущность AuditLog (мета-логирование отключено)
-    AuditLog:
-      enabled: false
-
-  # ========== ЛОКАЛИЗАЦИЯ ==========
-
-  defaultCulture: "ru-RU"
-  defaultTimeZone: "Asia/Almaty"
-
-  # ========== КОНТРОЛЬ ДОСТУПА ==========
-  # Фильтрация доступа к истории аудита по ролям
 
   accessControl:
     # Включить/выключить контроль доступа (по умолчанию false)
@@ -333,7 +201,6 @@ auditPolicy:
     # - filter: вернуть пустой результат (тихая фильтрация)
     unauthorizedBehavior: deny
 
-    # Определение ролей
     roles:
       admin:
         description: "Полный доступ ко всем аудит-логам"
@@ -348,19 +215,13 @@ auditPolicy:
       user:
         description: "Может просматривать только свои записи"
 
-    # Маппинг userId -> роли
-    # userId извлекается из JWT claim "sub" или "nameidentifier"
     users:
-      "550e8400-e29b-41d4-a716-446655440001":
+      "fe3eab31-1fc4-4c1f-b1f0-60bc78cb2a86":
         roles: [admin]
 
-      "550e8400-e29b-41d4-a716-446655440002":
-        roles: [auditor, manager]
-
-      "550e8400-e29b-41d4-a716-446655440003":
+      "a1b2c3d4-5e6f-7a8b-9c0d-e1f2a3b4c5d6":
         roles: [user]
 
-    # Роли по умолчанию для пользователей, не указанных в маппинге
     defaultRoles: [user]
 
     # Разрешить анонимный доступ (без JWT токена)
