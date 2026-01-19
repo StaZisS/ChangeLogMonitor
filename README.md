@@ -50,8 +50,8 @@ ChangeLogMonitor отслеживает и визуализирует все и�
    # Standalone
    dotnet run --project ChangeLogMonitor.Standalone
 
-   # Или TestHarness для разработки
-   dotnet run --project ChangeLogMonitor.TestHarness
+   # TestProject тестовый проект с готовыми эндпоинтами для проверки функционала
+   dotnet run --project TestProject
    ```
 
 ---
@@ -63,7 +63,7 @@ ChangeLogMonitor отслеживает и визуализирует все и�
 - Kafka
 - Debezium
 - ClickHouse
-- PostgreSQL(и доугие базы поддерживающие WAL)
+- PostgreSQL(и другие базы поддерживающие WAL)
 
 ---
 
@@ -71,7 +71,7 @@ ChangeLogMonitor отслеживает и визуализирует все и�
 
 Для помощи в синтаксисе созданы подсказки в rider
 
-Для активации необходимо
+Для активации необходимо сделать следующие шаги
 
 ```
  1. Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings                                                                                                                                                                                                                                 
