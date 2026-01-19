@@ -32,7 +32,7 @@ public sealed class EnumMetadataExtractor
     {
         _labelProvider = labelProvider ?? throw new ArgumentNullException(nameof(labelProvider));
     }
-    
+
     public EnumExtractionResult Extract(IEnumerable<EntityEntry> entries)
     {
         var result = new EnumExtractionResult();
@@ -42,7 +42,7 @@ public sealed class EnumMetadataExtractor
 
         return result;
     }
-    
+
     public Dictionary<string, Dictionary<string, string>> ExtractEnumSnapshots(IEnumerable<EntityEntry> entries)
     {
         return Extract(entries).Snapshots;
@@ -66,7 +66,7 @@ public sealed class EnumMetadataExtractor
 
             var fieldName = property.Metadata.GetColumnName() ?? property.Metadata.Name;
             var enumTypeName = underlyingType.Name;
-            
+
             var mappingKey = (entityTypeName, fieldName);
             result.FieldEnumMappings.TryAdd(mappingKey, enumTypeName);
 

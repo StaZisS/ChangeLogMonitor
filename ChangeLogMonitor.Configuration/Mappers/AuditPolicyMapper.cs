@@ -162,7 +162,7 @@ public class AuditPolicyMapper
             settings.KeyRef = preset.KeyRef;
             settings.Aad = preset.Aad;
             settings.Iv = new IvSettings
-                { Strategy = preset.Iv.Strategy, Store = preset.Iv.Store, Length = preset.Iv.Length };
+            { Strategy = preset.Iv.Strategy, Store = preset.Iv.Store, Length = preset.Iv.Length };
             settings.Encoding = preset.Encoding;
             settings.StoreRaw = preset.StoreRaw;
         }

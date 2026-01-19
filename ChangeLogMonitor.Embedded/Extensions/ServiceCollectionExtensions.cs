@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
     {
         var options = new EmbeddedChangeLogOptions();
         configure?.Invoke(options);
-        
+
         services.AddSingleton(options);
         services.AddSingleton<IAuditConfigurationService>(sp =>
         {
@@ -36,7 +36,7 @@ public static class ServiceCollectionExtensions
                 new YamlAuditPolicyProvider(fullPath),
                 sp.GetService<ILogger<AuditConfigurationService>>());
         });
-        
+
         if (options.EnableApi) services.AddChangeLogMonitorApi();
 
         return services;

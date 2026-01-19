@@ -8,15 +8,15 @@ namespace ChangeLogMonitor.Core.Models;
 public class FieldChange
 {
     public string FieldName { get; set; } = string.Empty;
-    
+
     public string? RawOldValue { get; set; }
 
     public string? RawNewValue { get; set; }
-    
+
     public string? ViewOldValue { get; set; }
 
     public string? ViewNewValue { get; set; }
-    
+
     public FieldType FieldType { get; set; }
 
     public bool IsSensitive { get; set; }
@@ -26,6 +26,6 @@ public class FieldChange
     public bool IsEncrypted { get; set; }
 
     public bool IsHashed { get; set; }
-    
+
     public string? EnumLabel { get; set; }
 }

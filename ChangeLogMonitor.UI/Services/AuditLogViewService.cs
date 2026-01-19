@@ -51,7 +51,7 @@ internal sealed class AuditLogViewService : IAuditLogViewService
     {
         var policy = _configurationService.GetPolicy();
         var entities = policy.Entities;
-        
+
         if (_accessControl.IsEnabled)
         {
             var allowedEntities = GetAllowedEntities();
@@ -67,7 +67,7 @@ internal sealed class AuditLogViewService : IAuditLogViewService
                 .OrderBy(e => e.DisplayName)
                 .ToList();
         }
-        
+
         return entities
             .Where(e => e.Value.Enabled)
             .Select(e => new EntityInfo

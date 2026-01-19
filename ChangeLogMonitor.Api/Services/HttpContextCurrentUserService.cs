@@ -17,13 +17,13 @@ public class HttpContextCurrentUserService : ICurrentUserService
     {
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
     }
-    
+
     public string? GetUserId()
     {
         var context = _httpContextAccessor.HttpContext;
         if (context == null)
             return null;
-        
+
         var user = context.User;
         if (user?.Identity?.IsAuthenticated == true)
         {
@@ -34,14 +34,14 @@ public class HttpContextCurrentUserService : ICurrentUserService
             if (!string.IsNullOrWhiteSpace(claimUserId))
                 return claimUserId;
         }
-        
+
         if (context.Request.Headers.TryGetValue(UserIdHeader, out var headerValue) &&
             !string.IsNullOrWhiteSpace(headerValue))
             return headerValue.ToString();
 
         return null;
     }
-    
+
     public bool IsAuthenticated =>
         GetUserId() != null;
 }

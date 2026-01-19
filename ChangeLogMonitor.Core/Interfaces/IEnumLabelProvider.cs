@@ -16,6 +16,6 @@ namespace ChangeLogMonitor.Core.Interfaces;
 public interface IEnumLabelProvider
 {
     string? GetLabel(Type enumType, object value);
-    
+
     IReadOnlyDictionary<string, string> GetAllLabels(Type enumType);
 }

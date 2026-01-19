@@ -48,10 +48,10 @@ public static class HealthEndpoints
             .WithTags("Health");
 
         app.MapGet("/finalizer/healthz", () => Results.Json(new
-            {
-                status = "ok",
-                service = "finalizer"
-            }))
+        {
+            status = "ok",
+            service = "finalizer"
+        }))
             .WithName("FinalizerHealth")
             .WithTags("Health");
 
