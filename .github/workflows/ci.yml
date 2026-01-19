@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_integration_tests:
+        description: 'Run integration tests with Testcontainers'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Check formatting
+        run: dotnet format --verify-no-changes --verbosity diagnostic
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: build-and-lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run Configuration Tests
+        run: dotnet test ChangeLogMonitor.Configuration.Tests --no-restore --verbosity normal --logger "trx;LogFileName=configuration-tests.trx"
+
+      - name: Run DataAggregator Tests
+        run: dotnet test ChangeLogMonitor.DataAggregator.Tests --no-restore --verbosity normal --logger "trx;LogFileName=dataaggregator-tests.trx"
+
+      - name: Run Finalization Tests
+        run: dotnet test ChangeLogMonitor.Finalization.Tests --no-restore --verbosity normal --logger "trx;LogFileName=finalization-tests.trx"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: '**/TestResults/*.trx'
+          retention-days: 7
+
+  integration-tests:
+    name: Integration Tests (Testcontainers)
+    runs-on: ubuntu-latest
+    needs: build-and-lint
+    if: github.event_name == 'workflow_dispatch' && inputs.run_integration_tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run Interceptor Tests
+        run: dotnet test ChangeLogMonitor.Interceptor.Tests --no-restore --verbosity normal --logger "trx;LogFileName=interceptor-tests.trx"
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: false
+          DOCKER_HOST: unix:///var/run/docker.sock
+
+      - name: Run Integration Tests
+        run: dotnet test ChangeLogMonitor.Integration.Tests --no-restore --verbosity normal --logger "trx;LogFileName=integration-tests.trx"
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: false
+          DOCKER_HOST: unix:///var/run/docker.sock
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: '**/TestResults/*.trx'
+          retention-days: 7
