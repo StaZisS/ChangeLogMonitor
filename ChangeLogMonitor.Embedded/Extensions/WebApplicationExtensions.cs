@@ -11,12 +11,6 @@ namespace ChangeLogMonitor.Embedded.Extensions;
 /// </summary>
 public static class WebApplicationExtensions
 {
-    /// <summary>
-    ///     Configures ChangeLogMonitor middleware and endpoints.
-    ///     Maps API endpoints if EnableApi option is true.
-    /// </summary>
-    /// <param name="app">The endpoint route builder.</param>
-    /// <returns>The endpoint route builder for chaining.</returns>
     public static IEndpointRouteBuilder UseChangeLogMonitor(this IEndpointRouteBuilder app)
     {
         var options = app.ServiceProvider.GetService<EmbeddedChangeLogOptions>();
@@ -27,12 +21,10 @@ public static class WebApplicationExtensions
 
             if (string.IsNullOrEmpty(basePath) || basePath == "/")
             {
-                // Map at root
                 app.MapChangeLogMonitorApi();
             }
             else
             {
-                // Map with prefix
                 var group = app.MapGroup(basePath);
                 group.MapChangeLogMonitorApi();
             }

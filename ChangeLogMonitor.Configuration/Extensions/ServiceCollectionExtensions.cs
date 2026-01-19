@@ -20,18 +20,11 @@ public static class ServiceCollectionExtensions
         bool validateOnStartup = true)
     {
         var filePath = ResolveConfigPath(configFilePath);
-
-        // Проверяем файл при старте
+        
         if (validateOnStartup) ValidateConfigFile(filePath);
-
-        // Регистрируем провайдер
-        services.AddSingleton<IAuditPolicyProvider>(sp =>
-            new YamlAuditPolicyProvider(filePath));
-
-        // Регистрируем главный сервис конфигурации
+        
+        services.AddSingleton<IAuditPolicyProvider>(sp => new YamlAuditPolicyProvider(filePath));
         services.AddSingleton<IAuditConfigurationService, AuditConfigurationService>();
-
-        // Регистрируем сервис контроля доступа
         services.AddSingleton<IAccessControlService, AccessControlService>();
 
         return services;
@@ -44,11 +37,9 @@ public static class ServiceCollectionExtensions
     {
         if (string.IsNullOrWhiteSpace(configFilePath))
             return Path.Combine(AppContext.BaseDirectory, "changelog-config.yaml");
-
-        // Если путь абсолютный - используем как есть
+        
         if (Path.IsPathRooted(configFilePath)) return configFilePath;
-
-        // Относительный путь - относительно BaseDirectory
+        
         return Path.Combine(AppContext.BaseDirectory, configFilePath);
     }
 
@@ -62,8 +53,7 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException(
                 $"Файл конфигурации аудита не найден: '{filePath}'. " +
                 $"Создайте файл changelog-config.yaml или укажите правильный путь в appsettings.json (AuditConfiguration:ConfigFilePath).");
-
-        // Проверяем доступность файла на чтение
+        
         try
         {
             using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);

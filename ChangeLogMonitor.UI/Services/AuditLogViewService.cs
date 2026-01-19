@@ -51,8 +51,7 @@ internal sealed class AuditLogViewService : IAuditLogViewService
     {
         var policy = _configurationService.GetPolicy();
         var entities = policy.Entities;
-
-        // Если контроль доступа включен - фильтруем по разрешённым сущностям
+        
         if (_accessControl.IsEnabled)
         {
             var allowedEntities = GetAllowedEntities();
@@ -68,8 +67,7 @@ internal sealed class AuditLogViewService : IAuditLogViewService
                 .OrderBy(e => e.DisplayName)
                 .ToList();
         }
-
-        // Без контроля доступа - возвращаем все включенные сущности
+        
         return entities
             .Where(e => e.Value.Enabled)
             .Select(e => new EntityInfo

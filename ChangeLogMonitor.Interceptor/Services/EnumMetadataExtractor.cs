@@ -32,10 +32,7 @@ public sealed class EnumMetadataExtractor
     {
         _labelProvider = labelProvider ?? throw new ArgumentNullException(nameof(labelProvider));
     }
-
-    /// <summary>
-    ///     Извлекает снепшоты enum и маппинг field → enumType.
-    /// </summary>
+    
     public EnumExtractionResult Extract(IEnumerable<EntityEntry> entries)
     {
         var result = new EnumExtractionResult();
@@ -45,10 +42,7 @@ public sealed class EnumMetadataExtractor
 
         return result;
     }
-
-    /// <summary>
-    ///     Только снепшоты (для обратной совместимости).
-    /// </summary>
+    
     public Dictionary<string, Dictionary<string, string>> ExtractEnumSnapshots(IEnumerable<EntityEntry> entries)
     {
         return Extract(entries).Snapshots;
@@ -72,8 +66,7 @@ public sealed class EnumMetadataExtractor
 
             var fieldName = property.Metadata.GetColumnName() ?? property.Metadata.Name;
             var enumTypeName = underlyingType.Name;
-
-            // Добавляем маппинг field → enumType
+            
             var mappingKey = (entityTypeName, fieldName);
             result.FieldEnumMappings.TryAdd(mappingKey, enumTypeName);
 

@@ -5,10 +5,6 @@ namespace ChangeLogMonitor.Api.Extensions;
 
 public static class WebApplicationExtensions
 {
-    /// <summary>
-    ///     Maps all ChangeLogMonitor API endpoints.
-    ///     Includes: Health, Diffs (raw and formatted), Debug endpoints.
-    /// </summary>
     public static IEndpointRouteBuilder MapChangeLogMonitorApi(this IEndpointRouteBuilder app)
     {
         app.MapHealthEndpoints();

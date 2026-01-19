@@ -12,23 +12,14 @@ namespace ChangeLogMonitor.Embedded.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    /// <summary>
-    ///     Adds ChangeLogMonitor services for embedded mode.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configure">Action to configure options.</param>
-    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddChangeLogMonitor(
         this IServiceCollection services,
         Action<EmbeddedChangeLogOptions>? configure = null)
     {
         var options = new EmbeddedChangeLogOptions();
         configure?.Invoke(options);
-
-        // Store options for later use
+        
         services.AddSingleton(options);
-
-        // Register Configuration service
         services.AddSingleton<IAuditConfigurationService>(sp =>
         {
             var opts = sp.GetRequiredService<EmbeddedChangeLogOptions>();
@@ -45,8 +36,7 @@ public static class ServiceCollectionExtensions
                 new YamlAuditPolicyProvider(fullPath),
                 sp.GetService<ILogger<AuditConfigurationService>>());
         });
-
-        // Register API services if enabled
+        
         if (options.EnableApi) services.AddChangeLogMonitorApi();
 
         return services;

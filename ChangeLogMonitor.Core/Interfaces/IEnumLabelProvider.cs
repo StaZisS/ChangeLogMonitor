@@ -15,21 +15,7 @@ namespace ChangeLogMonitor.Core.Interfaces;
 /// </remarks>
 public interface IEnumLabelProvider
 {
-    /// <summary>
-    ///     Получает человекочитаемую метку для значения enum
-    /// </summary>
-    /// <param name="enumType">Тип enum</param>
-    /// <param name="value">Значение enum</param>
-    /// <returns>
-    ///     Человекочитаемая метка или null, если метка не найдена.
-    ///     При null будет использовано имя значения enum (ToString).
-    /// </returns>
     string? GetLabel(Type enumType, object value);
-
-    /// <summary>
-    ///     Получает все метки для типа enum
-    /// </summary>
-    /// <param name="enumType">Тип enum</param>
-    /// <returns>Словарь: значение enum (как строка) → человекочитаемая метка</returns>
+    
     IReadOnlyDictionary<string, string> GetAllLabels(Type enumType);
 }

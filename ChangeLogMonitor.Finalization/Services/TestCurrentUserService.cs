@@ -3,7 +3,7 @@ using ChangeLogMonitor.Core.Interfaces;
 namespace ChangeLogMonitor.Finalization.Services;
 
 /// <summary>
-///     Test implementation of ICurrentUserService for unit tests and development.
+///     Test implementation of ICurrentUserService for development.
 ///     Allows specifying any userId without JWT token.
 /// </summary>
 public class TestCurrentUserService : ICurrentUserService

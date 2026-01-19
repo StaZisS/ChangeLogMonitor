@@ -13,10 +13,4 @@
         <ProjectReference Include="..\ChangeLogMonitor.Finalization\ChangeLogMonitor.Finalization.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Include="..\changelog-config.yaml" Link="changelog-config.yaml">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
-
 </Project>

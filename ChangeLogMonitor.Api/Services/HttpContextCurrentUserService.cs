@@ -17,15 +17,13 @@ public class HttpContextCurrentUserService : ICurrentUserService
     {
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
     }
-
-    /// <inheritdoc />
+    
     public string? GetUserId()
     {
         var context = _httpContextAccessor.HttpContext;
         if (context == null)
             return null;
-
-        // 1. Try JWT claims first
+        
         var user = context.User;
         if (user?.Identity?.IsAuthenticated == true)
         {
@@ -36,17 +34,14 @@ public class HttpContextCurrentUserService : ICurrentUserService
             if (!string.IsNullOrWhiteSpace(claimUserId))
                 return claimUserId;
         }
-
-        // 2. Fallback to X-User-Id header (for testing without JWT)
+        
         if (context.Request.Headers.TryGetValue(UserIdHeader, out var headerValue) &&
             !string.IsNullOrWhiteSpace(headerValue))
             return headerValue.ToString();
 
         return null;
     }
-
-    /// <inheritdoc />
+    
     public bool IsAuthenticated =>
-        // Authenticated if JWT or X-User-Id header is present
         GetUserId() != null;
 }
